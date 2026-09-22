@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Consent Banner. Dashboard</title>
+<style>
+  :root{ --ink:#14243D; --accent:#2E7D74; --cream:#f3eee1; --line:#e4e2da; --muted:#6b7280; --paper:#F6F5F1; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--paper);color:#1c2531}
+  header{background:var(--ink);color:#fff;padding:14px 22px;display:flex;align-items:center;justify-content:space-between}
+  header b{font-weight:700;letter-spacing:.02em}
+  header .who{font-size:13px;opacity:.85}
+  header button{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px}
+  .grid{display:grid;grid-template-columns:260px 1fr;gap:18px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}
+  h2{font-size:15px;margin:0 0 12px}
+  .site{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer}
+  .site:hover{border-color:var(--accent)}
+  .site.sel{border-color:var(--accent);background:#f2f7f5}
+  .site b{display:block;font-size:14px}
+  .site span{font-size:12px;color:var(--muted)}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  input,textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;font-size:13px;font-family:inherit}
+  textarea{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:280px;white-space:pre}
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:10px 16px;font-weight:600;cursor:pointer;font-size:13px}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--ink)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+  .snippet{background:var(--ink);color:#cfe3ff;border-radius:10px;padding:14px;font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;word-break:break-all}
+  .tabs{display:flex;gap:8px;margin-bottom:14px}
+  .tabs button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font-size:13px;cursor:pointer}
+  .tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600}
+  .counts{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .pill{background:var(--cream);border-radius:999px;padding:6px 12px;font-size:12px}
+  .msg{font-size:13px;margin-left:8px}
+  .ok{color:#2e7d32}.err{color:#c0392b}
+  #login{max-width:340px;margin:12vh auto;text-align:center}
+  #login .card{padding:26px}
+  .hide{display:none}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="card">
+    <h2 style="font-size:18px">Dashboard de consentimiento</h2>
+    <label>Usuario</label><input id="u" value="admin" />
+    <label>Contrasena</label><input id="p" type="password" value="admin" />
+    <div class="row"><button class="btn" onclick="login()">Entrar</button><span id="lmsg" class="msg"></span></div>
+    <p class="hint">Demo: admin / admin. El backend imprime las credenciales al arrancar.</p>
+  </div>
+</div>
+
+<div id="app" class="hide">
+  <header>
+    <b>Consent Banner &middot; Dashboard</b>
+    <span><span class="who" id="who"></span> &nbsp; <button onclick="logout()">Salir</button></span>
+  </header>
+  <div class="wrap">
+    <div class="grid">
+      <div class="card">
+        <h2>Sitios</h2>
+        <div id="sites"></div>
+        <div class="row"><button class="btn ghost" onclick="createSite()">+ Nuevo sitio</button></div>
+      </div>
+      <div class="card" id="detail">
+        <p class="hint">Selecciona un sitio.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var API = location.origin;
+var current = null, tab = "config";
+
+function j(method, path, body){
+  return fetch(API+path, {method:method, headers:{"Content-Type":"application/json"},
+    credentials:"include", body: body?JSON.stringify(body):undefined}).then(function(r){
+      return r.json().then(function(d){ return {ok:r.ok, d:d}; });
+    });
+}
+function login(){
+  j("POST","/dash/login",{username:val("u"),password:val("p")}).then(function(r){
+    if(r.ok){ boot(); } else { msg("lmsg", r.d.error||"error", true); }
+  });
+}
+function logout(){ j("POST","/dash/logout").then(function(){ location.reload(); }); }
+function boot(){
+  j("GET","/dash/me").then(function(r){
+    if(!r.ok){ show("login"); return; }
+    show("app"); document.getElementById("who").textContent = r.d.username;
+    renderSites(r.d.sites);
+  });
+}
+function renderSites(sites){
+  var el = document.getElementById("sites"); el.innerHTML="";
+  sites.forEach(function(s){
+    var d = document.createElement("div"); d.className="site"+(current===s.site_id?" sel":"");
+    d.innerHTML = "<b>"+esc(s.name)+"</b><span>"+esc(s.site_id)+"</span>";
+    d.onclick = function(){ current=s.site_id; renderSites(sites); openSite(); };
+    el.appendChild(d);
+  });
+}
+function createSite(){
+  var name = prompt("Nombre del sitio:"); if(!name) return;
+  j("POST","/dash/site/create",{name:name,domain:""}).then(function(){ boot(); });
+}
+function openSite(){
+  j("GET","/dash/site/get?site_id="+encodeURIComponent(current)).then(function(r){
+    if(!r.ok) return;
+    var snippet =
+"<!-- En el <head>, una sola vez -->\n"+
+'<script>window.__consentConfig={siteId:"'+r.d.site_id+'",apiBase:"'+API+'"};<\/script>\n'+
+'<script async src="'+API+'/consent-banner.js"><\/script>';
+    var det = document.getElementById("detail");
+    det.innerHTML =
+      '<div class="tabs">'+
+        '<button data-t="config" class="'+(tab==="config"?"on":"")+'">Config</button>'+
+        '<button data-t="install" class="'+(tab==="install"?"on":"")+'">Instalar</button>'+
+        '<button data-t="logs" class="'+(tab==="logs"?"on":"")+'">Registros</button>'+
+      '</div><div id="tabbody"></div>';
+    det.querySelectorAll(".tabs button").forEach(function(b){ b.onclick=function(){ tab=b.getAttribute("data-t"); openSite(); }; });
+    var tb = det.querySelector("#tabbody");
+    if(tab==="config"){
+      tb.innerHTML = '<label>Configuracion del sitio (JSON, version '+r.d.version+')</label>'+
+        '<textarea id="cfg"></textarea>'+
+        '<div class="row"><button class="btn" onclick="saveCfg()">Guardar (nueva version)</button><span id="smsg" class="msg"></span></div>'+
+        '<p class="hint">Al guardar, el bundle de ese sitio recibe esta config al recargar, sin tocar el sitio.</p>';
+      document.getElementById("cfg").value = JSON.stringify(r.d.config, null, 2);
+    } else if(tab==="install"){
+      tb.innerHTML = '<label>Pega esto en el sitio (site_id '+esc(r.d.site_id)+')</label>'+
+        '<div class="snippet">'+esc(snippet)+'</div>'+
+        '<p class="hint">Clave publica (write-only de consentimiento): '+esc(r.d.publicKey)+'</p>'+
+        '<div class="row"><a class="btn ghost" target="_blank" href="'+API+'/sitio-demo.html?site_id='+encodeURIComponent(r.d.site_id)+'">Abrir sitio demo</a></div>';
+    } else {
+      tb.innerHTML = '<div class="counts" id="counts"></div><table id="logs"><thead><tr><th>ts</th><th>choice</th><th>idioma</th><th>version</th><th>consent_id</th></tr></thead><tbody></tbody></table><div class="row"><button class="btn ghost" onclick="openSite()">Refrescar</button></div>';
+      loadLogs();
+    }
+  });
+}
+function saveCfg(){
+  var cfg; try{ cfg = JSON.parse(document.getElementById("cfg").value); }
+  catch(e){ return msg("smsg","JSON invalido: "+e.message, true); }
+  j("POST","/dash/site/save",{site_id:current, config:cfg}).then(function(r){
+    if(r.ok) msg("smsg","Guardado. Version "+r.d.version, false); else msg("smsg", r.d.error||"error", true);
+  });
+}
+function loadLogs(){
+  j("GET","/dash/site/logs?site_id="+encodeURIComponent(current)).then(function(r){
+    if(!r.ok) return;
+    var cc = document.getElementById("counts");
+    cc.innerHTML = '<span class="pill">Total: '+r.d.total+'</span>' +
+      Object.keys(r.d.counts).map(function(k){ return '<span class="pill">'+esc(k)+': '+r.d.counts[k]+'</span>'; }).join("");
+    var tb = document.querySelector("#logs tbody"); tb.innerHTML="";
+    r.d.rows.forEach(function(x){
+      var tr=document.createElement("tr");
+      tr.innerHTML="<td>"+esc(x.ts)+"</td><td>"+esc(x.choice)+"</td><td>"+esc(x.language||"")+"</td><td>"+esc(x.version_texto||"")+"</td><td>"+esc((x.consent_id||"").slice(0,8))+"</td>";
+      tb.appendChild(tr);
+    });
+  });
+}
+function val(id){return document.getElementById(id).value;}
+function show(id){document.getElementById("login").classList.toggle("hide", id!=="login");document.getElementById("app").classList.toggle("hide", id!=="app");}
+function msg(id,t,err){var e=document.getElementById(id);e.textContent=t;e.className="msg "+(err?"err":"ok");}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+boot();
+</script>
+</body>
+</html>
