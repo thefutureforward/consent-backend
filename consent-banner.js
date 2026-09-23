@@ -23,15 +23,35 @@
     consentVersion: "2025-01",     // al cambiar, se vuelve a preguntar
     defaultLanguage: "es",
     cookie: { lifetimeMonths: 6, domain: "" },
+    // Paleta "Expediente": ink navy + paper calido + verdigris teal.
+    // Misma fuente de verdad que styles/tokens.css del frontend.
     colors: {
-      ink: "#14243D", inkSoft: "#22344F", accent: "#2E7D74", text: "#E7ECF3",
-      accentSoft: "#E4EDE7", heading: "#1c1e1c", body: "#54606a",
-      cream: "#F3EEE1", panelBg: "#ffffff"
+      ink: "#16233B",          // --ink-900, fondo del banner
+      inkSoft: "#21344F",      // --ink-800
+      accent: "#2F7E6C",       // --brass-500
+      accentHover: "#2A7062",  // --brass-600
+      accentSoft: "#DCEEE9",   // --brass-100
+      accentPale: "#8FD3C2",   // --brass-300, eyebrow y enlaces sobre ink
+      text: "#F5F0E6",         // --paper-100, texto sobre ink
+      textBright: "#FBF8F1",   // --paper-50
+      heading: "#16233B",      // --text-strong
+      body: "#5A6673",         // --slate-500
+      border: "#D3D8DE",       // --slate-200
+      borderStrong: "#8A94A0", // --slate-400
+      switchOff: "#E7EAEE",    // --slate-100
+      pillFg: "#3E6B54",       // --pine-600
+      pillBg: "#E1EBE3",       // --pine-100
+      cream: "#F5F0E6",        // pie del panel (--surface-sunken)
+      panelBg: "#FFFFFF"
     },
     fonts: {
-      heading: "Georgia, 'Times New Roman', serif",
-      body: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+      heading: "'IBM Plex Serif', Georgia, 'Times New Roman', serif",
+      body: "'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
+      mono: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
     },
+    // Carga IBM Plex desde Google Fonts. Ponlo en false si la CSP del sitio
+    // bloquea fonts.googleapis.com: se cae a las fuentes del sistema.
+    webfont: true,
     activeDeletion: true,
     manageScripts: false,          // bloqueo manual de scripts para sitios sin GTM
     // Categorias por defecto. Mapean a las 6 senales de Consent Mode v2.
@@ -90,11 +110,24 @@
   // ---- Utilidades -----------------------------------------------------------
   function cfg() { return window.__consentConfig || DEFAULTS; }
   var _remote = null, _remoteLoaded = false;
+  // Mezcla profunda para objetos planos (colors, fonts, cookie, texts): si el
+  // cliente solo define colors.accent, el resto de la paleta sigue viva.
+  // Los arrays (categories) se reemplazan enteros, como antes.
+  function isPlain(v) {
+    return v && typeof v === "object" && !(v instanceof Array) && typeof v !== "function";
+  }
+  function assign(target, src) {
+    for (var k in src) {
+      if (!src.hasOwnProperty(k)) continue;
+      if (isPlain(src[k]) && isPlain(target[k])) assign(target[k], src[k]);
+      else target[k] = src[k];
+    }
+    return target;
+  }
   function merged() {
-    var c = window.__consentConfig || {};
     var m = JSON.parse(JSON.stringify(DEFAULTS));
-    for (var k in c) if (c.hasOwnProperty(k)) m[k] = c[k];
-    if (_remote) for (var k2 in _remote) if (_remote.hasOwnProperty(k2)) m[k2] = _remote[k2];
+    assign(m, window.__consentConfig || {});
+    if (_remote) assign(m, _remote);
     return m;
   }
   function log(kind, detail) {
@@ -258,65 +291,86 @@
   // ---- UI (Shadow DOM llega en Fase 1; aqui va sobre el documento) ----------
   var root, bannerEl, panelEl, chipEl;
 
+  // Estilos "Expediente": mismos tokens que styles/tokens.css del frontend
+  // (ink navy, paper calido, verdigris teal, trio IBM Plex).
   function css(C) {
+    var K = C.colors, F = C.fonts;
     return "" +
     ":host{all:initial}" +
-    "*{box-sizing:border-box;font-family:" + C.fonts.body + "}" +
-    ".cb-banner{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;background:" + C.colors.ink + ";color:" + C.colors.text + ";padding:20px clamp(16px,5vw,48px);box-shadow:0 -8px 30px rgba(0,0,0,.25);animation:cb-rise .4s cubic-bezier(.2,.8,.2,1)}" +
-    ".cb-inner{max-width:1100px;margin:0 auto;display:flex;gap:24px;align-items:center;flex-wrap:wrap}" +
-    ".cb-copy{flex:1 1 380px;min-width:0}" +
-    ".cb-eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.6;margin:0 0 6px}" +
-    ".cb-body{margin:0;font-size:14px;line-height:1.55;max-width:62ch}" +
-    ".cb-body a{color:#fff;text-decoration:underline;text-underline-offset:2px}" +
-    ".cb-actions{display:flex;gap:10px;flex-wrap:wrap}" +
-    ".cb-btn{border:0;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:transform .08s,opacity .15s}" +
-    ".cb-btn:active{transform:translateY(1px)}" +
-    ".cb-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}" +
-    ".cb-ghost{background:transparent;color:" + C.colors.text + ";border:1px solid rgba(255,255,255,.28)}" +
+    "*{box-sizing:border-box;font-family:" + F.body + "}" +
+    // ---- Banner: tarjeta flotante sobre ink, no barra a sangre ----
+    ".cb-banner{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;justify-content:center;padding:0 20px 20px}" +
+    ".cb-inner{width:100%;max-width:1172px;background:" + K.ink + ";color:" + K.text + ";border:1px solid rgba(255,255,255,.14);border-radius:12px;box-shadow:0 10px 40px rgba(15,24,38,.28);padding:22px 26px;display:flex;flex-wrap:wrap;gap:28px;align-items:center;justify-content:space-between;animation:cb-rise .26s cubic-bezier(.2,.6,.2,1)}" +
+    ".cb-copy{flex:1 1 380px;display:flex;flex-direction:column;gap:8px;min-width:0}" +
+    ".cb-eyebrow{margin:0;font-family:" + F.mono + ";font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:" + K.accentPale + "}" +
+    ".cb-body{margin:0;font-size:15px;line-height:1.55;color:" + K.text + ";max-width:68ch}" +
+    ".cb-body a{color:" + K.accentPale + ";text-decoration:underline;text-underline-offset:2px;white-space:nowrap}" +
+    ".cb-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end}" +
+    ".cb-btn{border:0;border-radius:8px;padding:11px 18px;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .14s,border-color .14s,opacity .14s}" +
+    ".cb-btn:focus-visible{outline:2px solid " + K.accentPale + ";outline-offset:2px}" +
+    ".cb-ghost{background:transparent;color:" + K.text + ";border:1px solid rgba(255,255,255,.32)}" +
     ".cb-ghost:hover{border-color:rgba(255,255,255,.6)}" +
-    ".cb-accept{background:" + C.colors.accent + ";color:#fff}" +
-    ".cb-accept:hover{opacity:.92}" +
+    ".cb-actions .cb-ghost:first-child{border-color:transparent;padding:11px 14px}" +   // \"Personalizar\" es boton de texto
+    ".cb-actions .cb-ghost:first-child:hover{border-color:transparent;text-decoration:underline;text-underline-offset:3px}" +
+    ".cb-accept{background:" + K.accent + ";color:" + K.textBright + ";font-weight:600;padding:12px 22px}" +
+    ".cb-accept:hover{background:" + K.accentHover + "}" +
     // ---- Panel ----
-    ".cb-overlay{position:fixed;inset:0;z-index:2147483001;background:rgba(20,26,40,.5);display:flex;align-items:center;justify-content:center;padding:20px;animation:cb-fade .2s ease}" +
-    ".cb-panel{background:" + C.colors.panelBg + ";color:" + C.colors.heading + ";width:min(600px,100%);max-height:88vh;overflow:auto;border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.35)}" +
-    ".cb-head{padding:30px 32px 14px}" +
-    ".cb-eyebrow2{margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:" + C.colors.accent + "}" +
-    ".cb-panel h2{margin:0 0 12px;font-family:" + C.fonts.heading + ";font-weight:600;font-size:30px;line-height:1.1;color:" + C.colors.heading + "}" +
-    ".cb-intro{margin:0;font-size:14.5px;line-height:1.6;color:" + C.colors.body + ";max-width:56ch}" +
-    ".cb-rows{padding:6px 32px}" +
-    ".cb-row{display:flex;gap:16px;align-items:flex-start;padding:18px 0;border-top:1px solid #ececec}" +
-    ".cb-row:first-child{border-top:0}" +
-    ".cb-row .t{flex:1}" +
-    ".cb-row .t strong{display:block;font-size:15px;color:" + C.colors.heading + "}" +
-    ".cb-row .t span{display:block;font-size:13.5px;color:" + C.colors.body + ";margin-top:3px;line-height:1.5}" +
-    ".cb-row .t .cb-pill{display:inline-block;width:auto;margin-left:10px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:" + C.colors.accent + ";background:" + C.colors.accentSoft + ";padding:3px 9px;border-radius:999px;vertical-align:middle}" +
-    ".cb-sw{position:relative;width:44px;height:26px;border-radius:999px;background:#cfd6df;border:0;cursor:pointer;flex:0 0 auto;transition:background .15s;padding:0}" +
-    ".cb-sw[aria-checked='true']{background:" + C.colors.accent + "}" +
-    ".cb-sw[disabled]{opacity:.5;cursor:not-allowed}" +
-    ".cb-sw:focus-visible{outline:2px solid " + C.colors.accent + ";outline-offset:2px}" +
-    ".cb-knob{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}" +
-    ".cb-sw[aria-checked='true'] .cb-knob{left:21px}" +
-    ".cb-foot{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:" + C.colors.cream + ";padding:20px 32px;margin-top:8px}" +
-    ".cb-btn2{border-radius:10px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s}" +
-    ".cb-btn2:focus-visible{outline:2px solid " + C.colors.accent + ";outline-offset:2px}" +
-    ".cb-outline{background:transparent;border:1px solid #c9c2b2;color:" + C.colors.heading + ";margin-right:auto}" +
-    ".cb-outline:hover{border-color:" + C.colors.heading + "}" +
-    ".cb-text{background:transparent;border:0;color:" + C.colors.heading + "}" +
+    ".cb-overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483001;background:rgba(22,35,59,.28);display:flex;align-items:center;justify-content:center;padding:24px;animation:cb-fade .2s ease}" +
+    ".cb-panel{background:" + K.panelBg + ";color:" + K.heading + ";width:100%;max-width:560px;max-height:92vh;overflow:auto;border:1px solid " + K.border + ";border-radius:12px;box-shadow:0 20px 60px rgba(22,35,59,.28);animation:cb-rise .24s cubic-bezier(.2,.6,.2,1)}" +
+    ".cb-head{padding:28px 28px 20px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid " + K.border + "}" +
+    ".cb-eyebrow2{margin:0;font-family:" + F.mono + ";font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:" + K.accentHover + "}" +
+    ".cb-panel h2{margin:0;font-family:" + F.heading + ";font-weight:500;font-size:26px;letter-spacing:-.01em;line-height:1.2;color:" + K.heading + "}" +
+    ".cb-intro{margin:0;font-size:14px;line-height:1.6;color:" + K.body + "}" +
+    ".cb-rows{display:flex;flex-direction:column}" +
+    ".cb-row{display:flex;gap:20px;align-items:flex-start;padding:20px 28px;border-bottom:1px solid " + K.border + "}" +
+    ".cb-row .t{flex:1 1 auto;display:flex;flex-direction:column;gap:5px;min-width:0}" +
+    ".cb-row .t strong{font-size:15px;font-weight:700;color:" + K.heading + "}" +
+    ".cb-row .t span{font-size:13.5px;line-height:1.55;color:" + K.body + "}" +
+    ".cb-row .t .cb-pill{display:inline-block;margin-left:10px;font-family:" + F.mono + ";font-size:9px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:" + K.pillFg + ";background:" + K.pillBg + ";padding:4px 9px;border-radius:100px;vertical-align:middle}" +
+    ".cb-sw{position:relative;width:46px;height:26px;border-radius:100px;background:" + K.switchOff + ";border:1px solid " + K.borderStrong + ";cursor:pointer;flex:none;padding:0;transition:background .16s cubic-bezier(.2,.6,.2,1),border-color .16s}" +
+    ".cb-sw[aria-checked='true']{background:" + K.accent + ";border-color:" + K.accent + "}" +
+    ".cb-sw[disabled]{background:" + K.accentSoft + ";border-color:" + K.accentPale + ";opacity:.9;cursor:default}" +
+    ".cb-sw:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}" +
+    ".cb-knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:" + K.panelBg + ";box-shadow:0 1px 3px rgba(22,35,59,.25);transition:left .18s cubic-bezier(.2,.6,.2,1)}" +
+    ".cb-sw[aria-checked='true'] .cb-knob{left:23px;background:" + K.textBright + "}" +
+    ".cb-sw[disabled] .cb-knob{left:23px;background:" + K.accent + ";box-shadow:none}" +
+    ".cb-foot{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:" + K.cream + ";padding:20px 28px 24px;border-radius:0 0 11px 11px}" +
+    ".cb-btn2{border-radius:8px;padding:11px 18px;font-size:14px;font-weight:500;cursor:pointer;transition:background .14s,border-color .14s}" +
+    ".cb-btn2:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}" +
+    ".cb-outline{background:transparent;border:1px solid " + K.borderStrong + ";color:" + K.heading + "}"
+    + ".cb-foot-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}" +
+    ".cb-outline:hover{border-color:" + K.heading + "}" +
+    ".cb-text{background:transparent;border:0;color:" + K.heading + ";padding:11px 14px}" +
     ".cb-text:hover{text-decoration:underline;text-underline-offset:3px}" +
-    ".cb-save{background:" + C.colors.accent + ";border:0;color:#fff}" +
-    ".cb-save:hover{opacity:.92}" +
-    ".cb-chip{position:fixed;left:16px;bottom:16px;z-index:2147482999;background:" + C.colors.ink + ";color:" + C.colors.text + ";border:0;border-radius:999px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.25);display:none}" +
-    ".cb-chip:focus-visible{outline:2px solid " + C.colors.ink + ";outline-offset:2px}" +
-    "@keyframes cb-rise{from{transform:translateY(100%)}to{transform:translateY(0)}}" +
+    ".cb-save{background:" + K.accent + ";border:0;color:" + K.textBright + ";font-weight:600;padding:12px 22px}" +
+    ".cb-save:hover{background:" + K.accentHover + "}" +
+    // ---- Chip para reabrir ----
+    ".cb-chip{position:fixed;left:16px;bottom:16px;z-index:2147482999;display:none;align-items:center;gap:7px;background:" + K.panelBg + ";color:" + K.body + ";border:1px solid " + K.border + ";border-radius:999px;padding:8px 13px;font-family:" + F.mono + ";font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;box-shadow:0 2px 6px rgba(22,35,59,.07)}" +
+    ".cb-chip[data-on='1']{display:flex}" +
+    ".cb-chip .cb-dot{width:7px;height:7px;border-radius:50%;background:" + K.accent + "}" +
+    ".cb-chip:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}" +
+    "@keyframes cb-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}" +
     "@keyframes cb-fade{from{opacity:0}to{opacity:1}}" +
-    "@media (max-width:680px){.cb-inner{flex-direction:column;align-items:stretch}.cb-actions{justify-content:stretch}.cb-btn{flex:1}.cb-foot{flex-direction:column;align-items:stretch}.cb-outline{margin-right:0}}" +
-    "@media (prefers-reduced-motion:reduce){.cb-banner,.cb-overlay{animation:none}}";
+    "@media (max-width:720px){.cb-inner{flex-direction:column;align-items:stretch;gap:18px}.cb-actions{justify-content:flex-start}.cb-row{padding:18px 20px}.cb-head{padding:24px 20px 18px}.cb-foot{padding:18px 20px 20px;align-items:stretch;flex-direction:column}.cb-foot-right{justify-content:space-between}}" +
+    "@media (prefers-reduced-motion:reduce){.cb-inner,.cb-panel,.cb-overlay{animation:none}}";
+  }
+
+  // Las reglas @font-face no cruzan el Shadow DOM: el <link> va en el <head>
+  // del documento para que la tipografia de marca aplique dentro del shadow.
+  function loadWebfont(C) {
+    if (!C.webfont || document.getElementById("cb-webfont")) return;
+    var l = document.createElement("link");
+    l.id = "cb-webfont"; l.rel = "stylesheet";
+    l.href = "https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;500&" +
+             "family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap";
+    (document.head || document.documentElement).appendChild(l);
   }
 
   function ensureRoot(C) {
     if (root) return;
     // Fase 1: la UI se monta dentro de un Shadow DOM. Aisla estilos en ambos
     // sentidos: el CSS del sitio anfitrion no entra, y el nuestro no sale.
+    loadWebfont(C);
     var host = document.createElement("div");
     host.id = "consent-banner-host";
     var shadow = host.attachShadow ? host.attachShadow({ mode: "open" }) : host;
@@ -361,6 +415,9 @@
     return el;
   }
 
+  // NodeList.forEach no existe en WebKit antiguo; este helper recorre igual.
+  function each(list, fn) { Array.prototype.slice.call(list).forEach(fn); }
+
   function buildPanel(C) {
     var L = t();
     var overlay = document.createElement("div");
@@ -387,11 +444,13 @@
         "<div class='cb-rows'>" + rows + "</div>" +
         "<div class='cb-foot'>" +
           "<button class='cb-btn2 cb-outline' data-a='reject'>" + L.rejectOptional + "</button>" +
-          "<button class='cb-btn2 cb-text' data-a='accept'>" + L.accept + "</button>" +
-          "<button class='cb-btn2 cb-save' data-a='save'>" + L.save + "</button>" +
+          "<div class='cb-foot-right'>" +
+            "<button class='cb-btn2 cb-text' data-a='accept'>" + L.accept + "</button>" +
+            "<button class='cb-btn2 cb-save' data-a='save'>" + L.save + "</button>" +
+          "</div>" +
         "</div>" +
       "</div>";
-    overlay.querySelectorAll(".cb-sw[data-cat]").forEach(function (sw) {
+    each(overlay.querySelectorAll(".cb-sw[data-cat]"), function (sw) {
       sw.onclick = function () {
         sw.setAttribute("aria-checked", (sw.getAttribute("aria-checked") !== "true").toString());
       };
@@ -402,7 +461,7 @@
     overlay.querySelector("[data-a='save']").onclick = function () {
       var chosen = {};
       C.categories.forEach(function (cat) { chosen[cat.id] = !!cat.locked; });
-      overlay.querySelectorAll(".cb-sw[data-cat]").forEach(function (sw) {
+      each(overlay.querySelectorAll(".cb-sw[data-cat]"), function (sw) {
         chosen[sw.getAttribute("data-cat")] = sw.getAttribute("aria-checked") === "true";
       });
       persist(C, "custom", chosen);
@@ -415,7 +474,7 @@
   function buildChip(C) {
     var el = document.createElement("button");
     el.className = "cb-chip";
-    el.textContent = t().chip;
+    el.innerHTML = "<span class='cb-dot'></span>" + t().chip;
     el.onclick = function () { openPanel(C); };
     return el;
   }
@@ -425,7 +484,7 @@
   function hideBanner() { if (bannerEl) bannerEl.style.display = "none"; }
   function openPanel(C) { ensureRoot(C); panelEl = buildPanel(C); root.appendChild(panelEl); }
   function hidePanel() { if (panelEl && panelEl.parentNode) panelEl.parentNode.removeChild(panelEl); panelEl = null; }
-  function showChip(C) { ensureRoot(C); if (!chipEl) { chipEl = buildChip(C); root.appendChild(chipEl); } chipEl.style.display = "block"; }
+  function showChip(C) { ensureRoot(C); if (!chipEl) { chipEl = buildChip(C); root.appendChild(chipEl); } chipEl.setAttribute("data-on", "1"); }
 
   function acceptAll(C) {
     var chosen = {}; C.categories.forEach(function (c) { chosen[c.id] = true; });

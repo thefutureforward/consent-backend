@@ -1,0 +1,27 @@
+{
+  "colors": {
+    "ink": "#16233B",
+    "inkSoft": "#21344F",
+    "accent": "#2F7E6C",
+    "accentHover": "#2A7062",
+    "accentSoft": "#DCEEE9",
+    "accentPale": "#8FD3C2",
+    "text": "#F5F0E6",
+    "textBright": "#FBF8F1",
+    "heading": "#16233B",
+    "body": "#5A6673",
+    "border": "#D3D8DE",
+    "borderStrong": "#8A94A0",
+    "switchOff": "#E7EAEE",
+    "pillFg": "#3E6B54",
+    "pillBg": "#E1EBE3",
+    "cream": "#F5F0E6",
+    "panelBg": "#FFFFFF"
+  },
+  "fonts": {
+    "heading": "'IBM Plex Serif', Georgia, serif",
+    "body": "'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    "mono": "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+  },
+  "webfont": true
+}
