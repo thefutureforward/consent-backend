@@ -13,7 +13,7 @@ No instala nada (solo libreria estandar) y no modifica la base salvo lo que
 crearia un uso normal: un sitio de prueba y sus registros de consentimiento.
 Los registros son append-only, asi que la prueba nunca borra filas.
 """
-import json, sys, os, sqlite3, secrets, urllib.request, urllib.error
+import json, sys, os, sqlite3, secrets, ssl, urllib.request, urllib.error
 
 BASE = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000").rstrip("/")
 DB = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "backend.db")
@@ -22,6 +22,25 @@ PW = os.environ.get("ADMIN_PASSWORD", "admin")
 
 ok_n = fail_n = 0
 cookie = None
+
+# En Windows, Python valida TLS contra el almacen del sistema, que puede tener
+# raices caducadas y hacer fallar un certificado que el navegador acepta.
+# Si certifi esta instalado, usamos su paquete de raices.
+# SKIP_TLS_VERIFY=1 desactiva la verificacion (solo para pruebas propias).
+def tls_context():
+    if os.environ.get("SKIP_TLS_VERIFY") == "1":
+        print("  (verificacion TLS desactivada por SKIP_TLS_VERIFY)")
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
+
+CTX = tls_context() if BASE.startswith("https") else None
 
 
 def req(method, path, body=None, headers=None, with_cookie=False):
@@ -34,7 +53,7 @@ def req(method, path, body=None, headers=None, with_cookie=False):
         h["Cookie"] = cookie
     r = urllib.request.Request(BASE + path, data=data, headers=h, method=method)
     try:
-        resp = urllib.request.urlopen(r)
+        resp = urllib.request.urlopen(r, context=CTX) if CTX else urllib.request.urlopen(r)
         status, hdrs, raw = resp.status, resp.headers, resp.read()
     except urllib.error.HTTPError as e:
         status, hdrs, raw = e.code, e.headers, e.read()
@@ -179,8 +198,47 @@ check("la base de datos NO se sirve por HTTP", st != 200,
 st, _, _ = req("GET", "/backend.py")
 check("el código fuente NO se sirve por HTTP", st != 200, "GET /backend.py devolvió 200")
 
-# ---------------------------------------------------------------- 6. logout
-print("\n6. Cierre de sesión")
+# ---------------------------------------------------------------- 6. origen y limites
+print("\n6. Origen del sitio y limites de uso")
+st, _, _ = req("POST", "/api/consent", payload, {"X-Api-Key": KEY, "Origin": "https://sitio-de-otro.com"})
+check("un Origin ajeno al dominio del sitio responde 403", st == 403, st)
+st, _, _ = req("POST", "/api/consent", payload, {"X-Api-Key": KEY, "Origin": BASE})
+check("el Origin del propio backend se acepta", st == 200, st)
+
+st, _, _ = req("POST", "/dash/login", {"username": "admin", "password": "otra-mas"})
+check("el login sigue respondiendo (no bloqueado de entrada)", st in (401, 429), st)
+
+# ---------------------------------------------------------------- 7. cambio de contrasena
+print("\n7. Cambio de contrasena desde el dashboard")
+if len(PW) < 8:
+    # La contrasena actual no cumple el minimo, asi que no se podria restaurar
+    # al terminar y la prueba dejaria la cuenta cambiada.
+    print("  · (la contraseña actual tiene menos de 8 caracteres: me salto este bloque)")
+    st, hdrs, _ = req("POST", "/dash/login", {"username": "admin", "password": PW})
+    cookie = hdrs.get("Set-Cookie", "").split(";")[0]
+else:
+  st, hdrs, _ = req("POST", "/dash/login", {"username": "admin", "password": PW})
+  cookie = hdrs.get("Set-Cookie", "").split(";")[0]
+  st, _, _ = req("POST", "/dash/password", {"actual": "no-es-la-mia", "nueva": "loquesea123"}, with_cookie=True)
+  check("con la contraseña actual incorrecta responde 401", st == 401, st)
+  st, _, _ = req("POST", "/dash/password", {"actual": PW, "nueva": "corta"}, with_cookie=True)
+  check("una contraseña de menos de 8 caracteres responde 400", st == 400, st)
+
+  temporal = "Temporal-" + secrets.token_hex(4)
+  st, _, _ = req("POST", "/dash/password", {"actual": PW, "nueva": temporal}, with_cookie=True)
+  check("el cambio de contraseña responde 200", st == 200, st)
+  st, _, _ = req("POST", "/dash/login", {"username": "admin", "password": PW})
+  check("la contraseña vieja ya no sirve", st == 401, st)
+  st, hdrs, _ = req("POST", "/dash/login", {"username": "admin", "password": temporal})
+  cookie = hdrs.get("Set-Cookie", "").split(";")[0]
+  check("la contraseña nueva entra", st == 200, st)
+  st, _, _ = req("POST", "/dash/password", {"actual": temporal, "nueva": PW}, with_cookie=True)
+  check("se puede dejar la contraseña como estaba", st == 200, st)
+  st, hdrs, _ = req("POST", "/dash/login", {"username": "admin", "password": PW})
+  cookie = hdrs.get("Set-Cookie", "").split(";")[0]
+
+# ---------------------------------------------------------------- 8. logout
+print("\n8. Cierre de sesión")
 st, _, _ = req("POST", "/dash/logout", {}, with_cookie=True)
 check("logout responde 200", st == 200, st)
 st, _, _ = req("GET", "/dash/me", with_cookie=True)

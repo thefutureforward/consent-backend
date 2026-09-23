@@ -68,6 +68,13 @@
         <div id="sites"></div>
         <div class="row"><button class="btn ghost" onclick="createSite()">+ Nuevo sitio</button></div>
       </div>
+      <div class="card">
+        <h2>Cambiar contrasena</h2>
+        <div class="row"><input type="password" id="pw-actual" placeholder="Contrasena actual" /></div>
+        <div class="row"><input type="password" id="pw-nueva" placeholder="Contrasena nueva (min. 8)" /></div>
+        <div class="row"><button class="btn" onclick="cambiarPass()">Guardar contrasena</button></div>
+        <p class="hint" id="pw-msg">Al cambiarla se cierran las demas sesiones abiertas.</p>
+      </div>
       <div class="card" id="detail">
         <p class="hint">Selecciona un sitio.</p>
       </div>
@@ -90,6 +97,21 @@ function login(){
     if(r.ok){ boot(); } else { msg("lmsg", r.d.error||"error", true); }
   });
 }
+function cambiarPass(){
+  var actual = document.getElementById("pw-actual").value;
+  var nueva  = document.getElementById("pw-nueva").value;
+  var msg    = document.getElementById("pw-msg");
+  j("POST","/dash/password",{actual:actual,nueva:nueva}).then(function(r){
+    if(r.ok){
+      msg.textContent = "Contrasena actualizada. Las demas sesiones se cerraron.";
+      document.getElementById("pw-actual").value = "";
+      document.getElementById("pw-nueva").value  = "";
+    } else {
+      msg.textContent = (r.d && r.d.error) ? r.d.error : "No se pudo cambiar.";
+    }
+  });
+}
+
 function logout(){ j("POST","/dash/logout").then(function(){ location.reload(); }); }
 function boot(){
   j("GET","/dash/me").then(function(r){

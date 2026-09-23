@@ -27,7 +27,7 @@ NOTA DE PRODUCCION: esto es un esqueleto. Para produccion hay que endurecer
 (HTTPS, secretos fuera del codigo, rate limiting, y mover consent_logs a una
 base con retencion y copias). El registro es append-only: solo se inserta.
 """
-import json, os, sqlite3, uuid, hashlib, secrets, datetime, http.cookies
+import json, os, sqlite3, uuid, hashlib, secrets, datetime, http.cookies, time, threading
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -141,6 +141,68 @@ def seed(c):
     print("  API key : " + key)
     print("=" * 60 + "\n")
 
+# ---------------------------------------------------------------- limites de uso
+# Ventana deslizante en memoria, por IP y por cubo. Suficiente para una replica;
+# al migrar a varias instancias esto se mueve a Redis o al borde.
+LIMITES = {
+    "consent": (60, 60),    # 60 registros por minuto y por IP
+    "login":   (20, 300),   # 20 intentos de login por 5 minutos y por IP
+    "config":  (120, 60),   # 120 lecturas de config por minuto y por IP
+}
+_hits = {}
+_hits_lock = threading.Lock()
+
+def rate_ok(bucket, ip):
+    tope, ventana = LIMITES[bucket]
+    ahora = time.time()
+    clave = (bucket, ip)
+    with _hits_lock:
+        t = [x for x in _hits.get(clave, []) if ahora - x < ventana]
+        if len(_hits) > 5000:            # poda para que el dict no crezca sin fin
+            for k in [k for k, v in _hits.items() if not v or ahora - v[-1] > 3600]:
+                _hits.pop(k, None)
+        if len(t) >= tope:
+            _hits[clave] = t
+            return False
+        t.append(ahora)
+        _hits[clave] = t
+        return True
+
+def ip_cliente(handler):
+    """Detras del proxy de Railway, client_address es siempre la IP del borde:
+    sin esto, el limitador contaria a todos los visitantes como uno solo y el
+    registro legal guardaria la IP equivocada. X-Forwarded-For trae la cadena
+    real, con el visitante primero."""
+    xff = handler.headers.get("X-Forwarded-For", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return handler.client_address[0]
+
+def host_de(url):
+    """Devuelve el host de un Origin/Referer, sin esquema ni puerto."""
+    if not url:
+        return ""
+    try:
+        h = urlparse(url).hostname or ""
+    except Exception:
+        return ""
+    return h.lower()
+
+def origen_permitido(origin_host, propio_host, dominios):
+    """El dominio del sitio se guarda al crearlo; si esta vacio, no se valida.
+    Se acepta el dominio exacto, sus subdominios, y el host del propio backend
+    (para el sitio demo, que se sirve desde aqui)."""
+    if not origin_host:                       # peticion sin Origin: no verificable
+        return True
+    if origin_host == propio_host:
+        return True
+    if not dominios:                          # sitio sin dominio configurado
+        return True
+    for d in [x.strip().lower() for x in dominios.split(",") if x.strip()]:
+        if origin_host == d or origin_host.endswith("." + d):
+            return True
+    return False
+
 # ---------------------------------------------------------------- utilidades
 def public_key_for(c, site_id):
     r = c.execute("SELECT key FROM api_keys WHERE site_id=? AND kind='public' AND active=1", (site_id,)).fetchone()
@@ -219,6 +281,8 @@ class H(BaseHTTPRequestHandler):
             return self.dash_site_create()
         if p == "/dash/site/save":
             return self.dash_site_save()
+        if p == "/dash/password":
+            return self.dash_password()
         self._send(404, {"error": "not found"})
 
     # ---- estaticos ----
@@ -239,6 +303,8 @@ class H(BaseHTTPRequestHandler):
 
     # ---- API publica ----
     def api_config(self, q):
+        if not rate_ok("config", ip_cliente(self)):
+            return self._send(429, {"error": "demasiadas peticiones"})
         site_id = (q.get("site_id") or [""])[0]
         c = db()
         r = c.execute("SELECT json FROM site_config WHERE site_id=?", (site_id,)).fetchone()
@@ -251,6 +317,8 @@ class H(BaseHTTPRequestHandler):
         self._send(200, cfg)
 
     def api_consent(self):
+        if not rate_ok("consent", ip_cliente(self)):
+            return self._send(429, {"error": "demasiadas peticiones"})
         data = self._body()
         site_id = data.get("site_id")
         key = self.headers.get("X-Api-Key")
@@ -259,18 +327,27 @@ class H(BaseHTTPRequestHandler):
                           (key, site_id)).fetchone()
         if not valid:
             c.close(); return self._send(401, {"error": "invalid site_id or api key"})
+        # La API key viaja en el HTML del cliente, asi que es publica por diseno:
+        # el dominio del sitio es la segunda barrera contra registros falsificados.
+        row = c.execute("SELECT domain FROM sites WHERE site_id=?", (site_id,)).fetchone()
+        origen = host_de(self.headers.get("Origin") or self.headers.get("Referer"))
+        propio = host_de("http://" + (self.headers.get("Host") or ""))
+        if not origen_permitido(origen, propio, row["domain"] if row else ""):
+            c.close(); return self._send(403, {"error": "origen no autorizado para este site_id"})
         cid = data.get("consent_id") or str(uuid.uuid4())
         # APPEND-ONLY: solo INSERT, nunca UPDATE/DELETE.
         c.execute("INSERT INTO consent_logs(consent_id,site_id,choice,categories,version_texto,language,ts,ip,user_agent)"
                   " VALUES(?,?,?,?,?,?,?,?,?)",
                   (cid, site_id, data.get("choice"), json.dumps(data.get("categories")),
                    data.get("version"), data.get("language"), now(),
-                   self.client_address[0], self.headers.get("User-Agent", "")))
+                   ip_cliente(self), self.headers.get("User-Agent", "")))
         c.commit(); c.close()
         self._send(200, {"consent_id": cid, "ts": now()})
 
     # ---- Dashboard ----
     def dash_login(self):
+        if not rate_ok("login", ip_cliente(self)):
+            return self._send(429, {"error": "demasiados intentos, espera unos minutos"})
         d = self._body()
         c = db()
         r = c.execute("SELECT pw_hash,salt FROM users WHERE username=?", (d.get("username", ""),)).fetchone()
@@ -342,6 +419,27 @@ class H(BaseHTTPRequestHandler):
                   (newv, json.dumps(cfg), now(), site_id))
         c.commit(); c.close()
         self._send(200, {"ok": True, "version": newv})
+
+    def dash_password(self):
+        u = self._user()
+        if not u:
+            return self._send(401, {"error": "no auth"})
+        d = self._body()
+        actual, nueva = d.get("actual", ""), d.get("nueva", "")
+        if len(nueva) < 8:
+            return self._send(400, {"error": "la contrasena nueva necesita 8 caracteres o mas"})
+        c = db()
+        r = c.execute("SELECT pw_hash,salt FROM users WHERE username=?", (u,)).fetchone()
+        if not r or hash_pw(actual, r["salt"]) != r["pw_hash"]:
+            c.close(); return self._send(401, {"error": "la contrasena actual no coincide"})
+        salt = secrets.token_hex(16)
+        c.execute("UPDATE users SET pw_hash=?, salt=? WHERE username=?", (hash_pw(nueva, salt), salt, u))
+        # Cerrar las demas sesiones: si alguien tenia una cookie robada, deja de servir.
+        ck = http.cookies.SimpleCookie(self.headers.get("Cookie", ""))
+        actual_token = ck["dash"].value if "dash" in ck else ""
+        c.execute("DELETE FROM sessions WHERE username=? AND token<>?", (u, actual_token))
+        c.commit(); c.close()
+        self._send(200, {"ok": True})
 
     def dash_site_logs(self, q):
         u = self._user(); site_id = (q.get("site_id") or [""])[0]
