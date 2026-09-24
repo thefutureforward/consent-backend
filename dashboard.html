@@ -131,7 +131,14 @@ function renderSites(sites){
 }
 function createSite(){
   var name = prompt("Nombre del sitio:"); if(!name) return;
-  j("POST","/dash/site/create",{name:name,domain:""}).then(function(){ boot(); });
+  var dom = prompt("Dominio(s) autorizados, separados por coma (ej: cliente.com, pruebas.cliente.com).\nVacio = no se valida el origen:", "") || "";
+  j("POST","/dash/site/create",{name:name,domain:dom}).then(function(){ boot(); });
+}
+function guardarDominio(){
+  var dom = document.getElementById("dom").value;
+  j("POST","/dash/site/domain",{site_id:current, domain:dom}).then(function(r){
+    msg("dmsg", r.ok ? "Dominios guardados." : (r.d.error||"error"), !r.ok);
+  });
 }
 function openSite(){
   j("GET","/dash/site/get?site_id="+encodeURIComponent(current)).then(function(r){
@@ -159,6 +166,9 @@ function openSite(){
       tb.innerHTML = '<label>Pega esto en el sitio (site_id '+esc(r.d.site_id)+')</label>'+
         '<div class="snippet">'+esc(snippet)+'</div>'+
         '<p class="hint">Clave publica (write-only de consentimiento): '+esc(r.d.publicKey)+'</p>'+
+        '<label>Dominios autorizados (coma para varios; vacio = no se valida)</label>'+
+        '<div class="row"><input type="text" id="dom" style="flex:1" value="'+esc(r.d.domain||"")+'" /></div>'+
+        '<div class="row"><button class="btn ghost" onclick="guardarDominio()">Guardar dominios</button><span id="dmsg" class="msg"></span></div>'+
         '<div class="row"><a class="btn ghost" target="_blank" href="'+API+'/sitio-demo.html?site_id='+encodeURIComponent(r.d.site_id)+'">Abrir sitio demo</a></div>';
     } else {
       tb.innerHTML = '<div class="counts" id="counts"></div><table id="logs"><thead><tr><th>ts</th><th>choice</th><th>idioma</th><th>version</th><th>consent_id</th></tr></thead><tbody></tbody></table><div class="row"><button class="btn ghost" onclick="openSite()">Refrescar</button></div>';

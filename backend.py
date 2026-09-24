@@ -283,6 +283,8 @@ class H(BaseHTTPRequestHandler):
             return self.dash_site_save()
         if p == "/dash/password":
             return self.dash_password()
+        if p == "/dash/site/domain":
+            return self.dash_site_domain()
         self._send(404, {"error": "not found"})
 
     # ---- estaticos ----
@@ -399,8 +401,9 @@ class H(BaseHTTPRequestHandler):
             return self._send(401, {"error": "no auth"})
         c = db()
         r = c.execute("SELECT version,json FROM site_config WHERE site_id=?", (site_id,)).fetchone()
+        dom = c.execute("SELECT domain FROM sites WHERE site_id=?", (site_id,)).fetchone()
         key = public_key_for(c, site_id); c.close()
-        self._send(200, {"site_id": site_id, "version": r["version"],
+        self._send(200, {"site_id": site_id, "version": r["version"], "domain": (dom["domain"] if dom else ""),
                          "config": json.loads(r["json"]), "publicKey": key})
 
     def dash_site_save(self):
@@ -419,6 +422,18 @@ class H(BaseHTTPRequestHandler):
                   (newv, json.dumps(cfg), now(), site_id))
         c.commit(); c.close()
         self._send(200, {"ok": True, "version": newv})
+
+    def dash_site_domain(self):
+        """Dominios autorizados a enviar consentimientos de este sitio.
+        Varios, separados por coma. Vacio = no se valida el origen."""
+        u = self._user(); d = self._body(); site_id = d.get("site_id")
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        dominios = (d.get("domain") or "").strip()
+        c = db()
+        c.execute("UPDATE sites SET domain=? WHERE site_id=?", (dominios, site_id))
+        c.commit(); c.close()
+        self._send(200, {"ok": True, "domain": dominios})
 
     def dash_password(self):
         u = self._user()
