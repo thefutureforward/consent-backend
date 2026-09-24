@@ -211,7 +211,7 @@ function buildSnippet(d){
 'for(var i=0;i<R.length;i++){var r=R[i];if(!r||!r.match)continue;var m=String(r.match).toLowerCase().replace(/^\\*?\\.?/,"");\n'+
 'if(h===m||h.slice(-(m.length+1))==="."+m)return r}return null}\n'+
 'function kill(n,r){var s=n.getAttribute("src");n.type="text/plain";n.setAttribute("type","text/plain");\n'+
-'n.setAttribute("data-src",s);n.setAttribute("data-consent-category",r.category);n.removeAttribute("src");B.blocked.push(s)}\n'+
+'n.setAttribute("data-consent-src",s);n.setAttribute("data-consent-category",r.category);n.removeAttribute("src");B.blocked.push(s)}\n'+
 'B.observer=new MutationObserver(function(m){m.forEach(function(x){Array.prototype.forEach.call(x.addedNodes,function(n){\n'+
 'if(n.tagName==="SCRIPT"){var r=hit(n.getAttribute("src"));if(r)kill(n,r)}})})});\n'+
 'B.observer.observe(document.documentElement,{childList:true,subtree:true});})();\n';

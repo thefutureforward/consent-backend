@@ -21,6 +21,11 @@ let _userConfig = null;
     // Prefijos de cookie que borra activeDeletion al denegar analitica.
     // Ampliable por sitio desde la config remota.
     cookiePatterns: ["_ga", "_gid", "_gat", "__utm", "_gcl"],
+    // Segundos que se sigue vigilando tras cargar la pagina. Los scripts de
+    // terceros que no se pueden bloquear (HubSpot, GA) reescriben sus cookies
+    // DESPUES del borrado inicial: si solo se limpia al arrancar, reaparecen.
+    // 0 desactiva la vigilancia y deja el comportamiento de una sola pasada.
+    deletionWatchSeconds: 20,
     // Bloqueo AUTOMATICO por URL. Cada regla: {match:"js.hs-scripts.com", category:"marketing"}
     // El observer neutraliza el <script> antes de que se ejecute, sin tocar el HTML del sitio.
     // OJO: para que actue sobre etiquetas ya presentes en el HTML, autoBlock debe ir en el
@@ -206,11 +211,46 @@ let _userConfig = null;
     return out;
   }
 
+  // Vigilancia del borrado. Un solo pase no basta: los scripts de terceros que
+  // no se pueden bloquear escriben sus cookies despues de que el banner arranque,
+  // asi que al recargar reaparecen. Aqui se repasa durante unos segundos.
+  var _watchTimer = null;
+
+  function stopDeletionWatch() {
+    if (_watchTimer) { clearInterval(_watchTimer); _watchTimer = null; }
+  }
+
+  function startDeletionWatch(C, chosen) {
+    stopDeletionWatch();
+    var secs = C.deletionWatchSeconds;
+    if (secs === undefined || secs === null) secs = 20;
+    if (!C.activeDeletion || secs <= 0) return;
+
+    var every = 1000;                       // un repaso por segundo
+    var left = Math.ceil(secs * 1000 / every);
+    var total = 0;
+
+    var sweep = function () {
+      var gone = deleteAnalyticsCookies(chosen, true);   // silencioso
+      if (gone && gone.length) total += gone.length;
+      if (--left <= 0) {
+        stopDeletionWatch();
+        if (total) log("delete", "Vigilancia: " + total + " reescritura(s) borrada(s) en " + secs + "s.");
+      }
+    };
+
+    // Un repaso en cuanto la pagina termina de cargar (ahi suele escribir el
+    // grueso de los terceros) y luego el barrido periodico.
+    if (document.readyState === "complete") sweep();
+    else window.addEventListener("load", sweep);
+    _watchTimer = setInterval(sweep, every);
+  }
+
   // Borrado ACTIVO de cookies, por categoria denegada.
   // Antes se borraba todo o nada segun analytics_storage, asi que al aceptar
   // analitica y rechazar marketing las cookies de marketing sobrevivian.
   // Ahora cada patron se borra solo si SU categoria quedo denegada.
-  function deleteAnalyticsCookies(chosen) {
+  function deleteAnalyticsCookies(chosen, quiet) {
     var C = merged();
     var all = normalizePatterns(C);
     // Categorias denegadas segun la eleccion actual (las locked nunca lo estan).
@@ -243,12 +283,12 @@ let _userConfig = null;
       });
       deleted.push(nm);
     });
-    if (deleted.length) log("delete", "Borrado activo: " + deleted.join(", "));
+    if (deleted.length && !quiet) log("delete", "Borrado activo: " + deleted.join(", "));
     return deleted;
   }
 
   // Bloqueo AUTOMATICO: intercepta <script src> que casen con autoBlock y los
-  // convierte en text/plain + data-src ANTES de que se ejecuten, de modo que
+  // convierte en text/plain + data-consent-src ANTES de que se ejecuten, de modo que
   // activateScripts los pueda reactivar igual que a los marcados a mano.
   var _observer = null, _blocked = [];
 
@@ -272,11 +312,15 @@ let _userConfig = null;
     return null;
   }
 
+  // OJO con el nombre del atributo: NO usar "data-src". Muchos temas (lazy-load,
+  // preloaders) recorren [data-src] esperando IMAGENES pendientes; si encuentran
+  // aqui un script neutralizado intentan cargarlo como Image() y, si su contador
+  // de precarga no maneja onerror, la pagina se queda colgada. Por eso: data-consent-src.
   function neutralize(node, rule) {
     var src = node.getAttribute("src");
     node.type = "text/plain";                       // impide la ejecucion
     node.setAttribute("type", "text/plain");
-    node.setAttribute("data-src", src);
+    node.setAttribute("data-consent-src", src);
     node.setAttribute("data-consent-category", rule.category);
     node.removeAttribute("src");                    // corta la descarga
     _blocked.push(src);
@@ -331,7 +375,7 @@ let _userConfig = null;
   }
 
   // Bloqueo manual de scripts (sitios sin GTM). El sitio marca los scripts como
-  //   <script type="text/plain" data-consent-category="statistics" data-src="..."></script>
+  //   <script type="text/plain" data-consent-category="statistics" data-consent-src="..."></script>
   // y aqui, al conceder esa categoria, se convierten en scripts ejecutables.
   function isGranted(C, chosen, catId) {
     var cat = C.categories.filter(function (c) { return c.id === catId; })[0];
@@ -348,10 +392,11 @@ let _userConfig = null;
       var s = document.createElement("script");
       for (var i = 0; i < old.attributes.length; i++) {
         var a = old.attributes[i];
-        if (a.name === "type" || a.name === "data-consent-category" || a.name === "data-src") continue;
+        if (a.name === "type" || a.name === "data-consent-category" || a.name === "data-consent-src" || a.name === "data-src") continue;
         s.setAttribute(a.name, a.value);
       }
-      var src = old.getAttribute("data-src");
+      // data-src se sigue leyendo por compatibilidad con snippets inline antiguos.
+      var src = old.getAttribute("data-consent-src") || old.getAttribute("data-src");
       if (src) s.src = src; else s.text = old.textContent;
       old.parentNode.replaceChild(s, old);
       activated.push(cat);
@@ -417,7 +462,8 @@ let _userConfig = null;
     // 4. Borrado activo si analitica quedo en denied.
     // Se ejecuta siempre que haya alguna categoria denegada; dentro se filtra
     // que patrones tocar. Antes solo corria si la analitica estaba denegada.
-    if (C.activeDeletion) deleteAnalyticsCookies(chosen);
+    if (C.activeDeletion) { deleteAnalyticsCookies(chosen); startDeletionWatch(C, chosen); }
+    else stopDeletionWatch();
     // 5. Auditoria (no bloquea).
     postAudit(C, consent);
     if (typeof C.onConsentChange === "function") C.onConsentChange(consent);
@@ -667,7 +713,10 @@ let _userConfig = null;
       // Ya decidio: no mostrar banner, cargar toggles, limpiar si hace falta.
       state.chosen = prev.categories || {};
       log("init", "Decision previa encontrada (choice=" + prev.choice + ").");
-      if (C.activeDeletion) deleteAnalyticsCookies(state.chosen);
+      if (C.activeDeletion) {
+        deleteAnalyticsCookies(state.chosen);
+        startDeletionWatch(C, state.chosen);   // los terceros reescriben tras cargar
+      }
       showChip(C);
       activateScripts(C, state.chosen);
       refreshAutoBlock(C, state.chosen);
