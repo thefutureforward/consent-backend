@@ -5,195 +5,415 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Consent Banner. Dashboard</title>
 <style>
-  :root{ --ink:#14243D; --accent:#2E7D74; --cream:#f3eee1; --line:#e4e2da; --muted:#6b7280; --paper:#F6F5F1; }
+  :root{
+    --ink:#14243D; --accent:#2E7D74; --accent-dark:#26665f;
+    --cream:#f3eee1; --line:#e6e4dc; --line-soft:#f0eee8; --muted:#6b7280;
+    --paper:#F7F6F2; --white:#fff; --danger:#c0392b; --ok:#2e7d32; --warn:#b45309;
+    --radius:12px; --shadow:0 1px 2px rgba(20,36,61,.04), 0 4px 16px rgba(20,36,61,.05);
+  }
   *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--paper);color:#1c2531}
-  header{background:var(--ink);color:#fff;padding:14px 22px;display:flex;align-items:center;justify-content:space-between}
-  header b{font-weight:700;letter-spacing:.02em}
-  header .who{font-size:13px;opacity:.85}
-  header button{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
-  .wrap{max-width:1080px;margin:0 auto;padding:22px}
-  .grid{display:grid;grid-template-columns:260px 1fr;gap:18px}
-  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}
-  h2{font-size:15px;margin:0 0 12px}
-  .site{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:8px}
-  .site:hover{border-color:var(--accent)}
-  .site.sel{border-color:var(--accent);background:#f2f7f5}
-  .site .info{flex:1;min-width:0}
-  .site b{display:block;font-size:14px}
-  .site span{font-size:12px;color:var(--muted);word-break:break-all}
-  .del{flex:none;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;
-       width:26px;height:26px;line-height:1;cursor:pointer;font-size:15px;padding:0}
-  .del:hover{border-color:#c0392b;color:#c0392b;background:#fff}
-  .form{border:1px dashed var(--line);border-radius:10px;padding:12px;margin-top:10px;background:#fbfaf7}
-  .form label{margin-top:0}
-  .form .row{margin-top:10px}
-  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
-  input,textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;font-size:13px;font-family:inherit}
-  textarea{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:280px;white-space:pre}
-  .btn{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:10px 16px;font-weight:600;cursor:pointer;font-size:13px}
-  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--ink)}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
-  .snippet{background:var(--ink);color:#cfe3ff;border-radius:10px;padding:14px;font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;word-break:break-all}
-  .tabs{display:flex;gap:8px;margin-bottom:14px}
-  .tabs button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font-size:13px;cursor:pointer}
-  .tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--paper);color:#1c2531;font-size:14px;line-height:1.5}
+  button,input,textarea,select{font-family:inherit;font-size:inherit}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;
+       background:var(--line-soft);padding:1px 5px;border-radius:4px}
+
+  /* ---------- barra superior ---------- */
+  .topbar{background:var(--ink);color:#fff;padding:0 20px;display:flex;align-items:center;
+          gap:18px;height:56px;position:sticky;top:0;z-index:20}
+  .brand{font-weight:700;letter-spacing:.01em;font-size:15px;white-space:nowrap}
+  .brand span{opacity:.5;font-weight:400;margin-left:6px}
+  .topbar .spacer{flex:1}
+  .topbar .who{font-size:13px;opacity:.8}
+  .icon-btn{background:transparent;border:1px solid rgba(255,255,255,.28);color:#fff;
+            border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px;
+            transition:background .15s,border-color .15s}
+  .icon-btn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.5)}
+
+  .site-picker{position:relative}
+  .site-current{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.08);
+                border:1px solid rgba(255,255,255,.16);border-radius:9px;padding:6px 12px;
+                cursor:pointer;color:#fff;max-width:340px;transition:background .15s}
+  .site-current:hover{background:rgba(255,255,255,.14)}
+  .site-current .nm{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .site-current .id{font-size:11.5px;opacity:.6;font-family:ui-monospace,Menlo,monospace}
+  .site-current .caret{opacity:.6;font-size:10px;margin-left:2px}
+  .site-menu{position:absolute;top:calc(100% + 8px);left:0;min-width:320px;background:#fff;
+             border:1px solid var(--line);border-radius:var(--radius);
+             box-shadow:0 12px 40px rgba(20,36,61,.18);padding:6px;z-index:30}
+  .site-menu .opt{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;
+                  cursor:pointer;color:#1c2531}
+  .site-menu .opt:hover{background:var(--paper)}
+  .site-menu .opt.sel{background:#eef5f3}
+  .site-menu .opt .info{flex:1;min-width:0}
+  .site-menu .opt b{display:block;font-size:13.5px;font-weight:600}
+  .site-menu .opt small{font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,monospace}
+  .site-menu .sep{height:1px;background:var(--line-soft);margin:6px 4px}
+  .site-menu .add{display:block;width:100%;text-align:left;background:transparent;border:0;
+                  padding:9px 11px;border-radius:9px;cursor:pointer;color:var(--accent);
+                  font-weight:600;font-size:13.5px}
+  .site-menu .add:hover{background:var(--paper)}
+  .mini-del{flex:none;background:transparent;border:1px solid var(--line);color:var(--muted);
+            border-radius:7px;width:24px;height:24px;line-height:1;cursor:pointer;font-size:14px;padding:0}
+  .mini-del:hover{border-color:var(--danger);color:var(--danger)}
+
+  /* ---------- layout ---------- */
+  .shell{max-width:1240px;margin:0 auto;padding:22px 20px 60px}
+  .tabbar{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px;
+          overflow-x:auto;scrollbar-width:none}
+  .tabbar::-webkit-scrollbar{display:none}
+  .tabbar button{border:0;background:transparent;padding:11px 16px;font-size:14px;cursor:pointer;
+                 color:var(--muted);font-weight:500;border-bottom:2px solid transparent;
+                 margin-bottom:-1px;white-space:nowrap;transition:color .15s,border-color .15s}
+  .tabbar button:hover{color:var(--ink)}
+  .tabbar button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+
+  .card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
+        padding:20px;box-shadow:var(--shadow)}
+  .card + .card{margin-top:16px}
+  .card h2{font-size:14px;margin:0 0 4px;font-weight:600}
+  .card .sub{font-size:12.5px;color:var(--muted);margin:0 0 16px;line-height:1.55}
+  .cols{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+  @media (max-width:900px){ .cols{grid-template-columns:1fr} }
+
+  /* ---------- editor ---------- */
+  .editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+               flex-wrap:wrap;margin-bottom:12px}
+  .editor-head .left{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .ver-chip{background:var(--cream);border-radius:999px;padding:3px 10px;font-size:11.5px;color:#6b5f3f}
+  .editor-wrap{position:relative;border:1px solid var(--line);border-radius:10px;
+               overflow:hidden;background:#fbfaf7;transition:border-color .15s}
+  .editor-wrap.bad{border-color:var(--danger)}
+  #cfg{width:100%;border:0;background:transparent;padding:14px;resize:vertical;
+       font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;
+       line-height:1.65;min-height:520px;white-space:pre;tab-size:2;outline:none;display:block}
+  .editor-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .checks{margin-top:12px;display:flex;flex-direction:column;gap:7px}
+  .check{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;line-height:1.5}
+  .check .ic{flex:none;width:16px;height:16px;border-radius:50%;font-size:10px;line-height:16px;
+             text-align:center;color:#fff;font-weight:700;margin-top:2px}
+  .check.pass .ic{background:var(--ok)}
+  .check.fail .ic{background:var(--danger)}
+  .check.warn .ic{background:var(--warn)}
+
+  /* ---------- botones ---------- */
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:10px 17px;
+       font-weight:600;cursor:pointer;font-size:13.5px;transition:background .15s}
+  .btn:hover{background:var(--accent-dark)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn.ghost:hover{background:var(--paper);border-color:var(--ink)}
+  .btn.danger{background:#fff;color:var(--danger);border:1px solid #e8c9c4}
+  .btn.danger:hover{background:#fdf5f4;border-color:var(--danger)}
+  .btn.sm{padding:7px 13px;font-size:12.5px}
+  a.btn{text-decoration:none;display:inline-block}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .row.mt{margin-top:12px}
+
+  label{display:block;font-size:12px;color:var(--muted);margin:0 0 5px;font-weight:500}
+  .field + .field{margin-top:14px}
+  input[type=text],input[type=password]{width:100%;border:1px solid var(--line);border-radius:9px;
+       padding:10px 12px;font-size:13.5px;background:#fff;transition:border-color .15s}
+  input[type=text]:focus,input[type=password]:focus{outline:none;border-color:var(--accent)}
+  .hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.55}
+  .hint.ok{color:var(--ok)} .hint.err{color:var(--danger)}
+
+  /* ---------- snippet ---------- */
+  .snippet{background:var(--ink);color:#d3e6ff;border-radius:10px;padding:16px;
+           font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:12px;
+           line-height:1.6;white-space:pre-wrap;word-break:break-all;max-height:420px;overflow:auto}
+  .steps{counter-reset:s;margin:0 0 16px;padding:0;list-style:none}
+  .steps li{counter-increment:s;position:relative;padding-left:30px;font-size:13px;
+            color:#404a58;margin-bottom:9px;line-height:1.55}
+  .steps li::before{content:counter(s);position:absolute;left:0;top:0;width:20px;height:20px;
+            border-radius:50%;background:var(--cream);color:#6b5f3f;font-size:11px;
+            font-weight:700;text-align:center;line-height:20px}
+
+  /* ---------- registros ---------- */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px}
+  .stat{background:var(--paper);border:1px solid var(--line-soft);border-radius:10px;padding:13px 15px}
+  .stat .n{font-size:22px;font-weight:700;line-height:1.1;letter-spacing:-.01em}
+  .stat .l{font-size:11.5px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
+  .stat.acc .n{color:var(--ok)} .stat.rej .n{color:var(--danger)} .stat.cus .n{color:var(--warn)}
+  .table-wrap{border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:520px}
   table{width:100%;border-collapse:collapse;font-size:12.5px}
-  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
-  th{color:var(--muted);font-weight:600}
-  .counts{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-  .pill{background:var(--cream);border-radius:999px;padding:6px 12px;font-size:12px}
-  .msg{font-size:13px;margin-left:8px}
-  .ok{color:#2e7d32}.err{color:#c0392b}
-  #login{max-width:340px;margin:12vh auto;text-align:center}
-  #login .card{padding:26px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+  th{color:var(--muted);font-weight:600;background:var(--paper);position:sticky;top:0;
+     font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:#fcfbf8}
+  td.mono{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--muted)}
+  .tag{display:inline-block;border-radius:999px;padding:2.5px 9px;font-size:11px;font-weight:600}
+  .tag.all{background:#e6f4ea;color:#1e6b36}
+  .tag.none{background:#fdeceb;color:#a5342a}
+  .tag.custom{background:#fdf0dc;color:#8a5a12}
+  .cats{display:flex;gap:4px;flex-wrap:wrap}
+  .cat{border-radius:5px;padding:2px 7px;font-size:10.5px;font-weight:600;
+       background:var(--line-soft);color:var(--muted)}
+  .cat.on{background:#e6f4ea;color:#1e6b36}
+
+  .msg{font-size:12.5px}
+  .ok{color:var(--ok)} .err{color:var(--danger)}
+  .empty{text-align:center;padding:44px 20px;color:var(--muted);font-size:13.5px}
   .hide{display:none}
-  .hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
+
+  /* ---------- login ---------- */
+  #login{max-width:360px;margin:14vh auto;padding:0 20px}
+  #login .card{padding:30px}
+  #login h1{font-size:18px;margin:0 0 4px;text-align:center}
+  #login .sub{text-align:center}
+
+  /* ---------- modal ---------- */
+  .modal-bg{position:fixed;inset:0;background:rgba(20,36,61,.35);z-index:40;
+            display:flex;align-items:center;justify-content:center;padding:20px}
+  .modal{background:#fff;border-radius:var(--radius);max-width:440px;width:100%;
+         padding:24px;box-shadow:0 24px 70px rgba(20,36,61,.3)}
+  .modal h3{margin:0 0 4px;font-size:16px}
 </style>
 </head>
 <body>
 
+<!-- ============ LOGIN ============ -->
 <div id="login">
   <div class="card">
-    <h2 style="font-size:18px">Dashboard de consentimiento</h2>
-    <label>Usuario</label><input id="u" value="admin" />
-    <label>Contrasena</label><input id="p" type="password" value="admin" />
-    <div class="row"><button class="btn" onclick="login()">Entrar</button><span id="lmsg" class="msg"></span></div>
-    <p class="hint">Demo: admin / admin. El backend imprime las credenciales al arrancar.</p>
+    <h1>Consent Banner</h1>
+    <p class="sub">Entra para gestionar tus sitios.</p>
+    <div class="field"><label>Usuario</label><input id="u" type="text" value="admin" /></div>
+    <div class="field"><label>Contrasena</label><input id="p" type="password" value="admin" /></div>
+    <div class="row mt"><button class="btn" style="flex:1" onclick="login()">Entrar</button></div>
+    <p class="hint" id="lmsg"></p>
   </div>
 </div>
 
+<!-- ============ APP ============ -->
 <div id="app" class="hide">
-  <header>
-    <b>Consent Banner &middot; Dashboard</b>
-    <span><span class="who" id="who"></span> &nbsp; <button onclick="logout()">Salir</button></span>
-  </header>
-  <div class="wrap">
-    <div class="grid">
-      <div class="card">
-        <h2>Sitios</h2>
-        <div id="sites"></div>
-        <div class="row"><button class="btn ghost" id="btn-nuevo" onclick="toggleForm(true)">+ Nuevo sitio</button></div>
-
-        <div class="form hide" id="form-nuevo">
-          <label for="n-name">Nombre del sitio</label>
-          <input id="n-name" type="text" placeholder="Tienda del cliente" maxlength="80" />
-          <label for="n-dom">Dominios autorizados</label>
-          <input id="n-dom" type="text" placeholder="cliente.com, pruebas.cliente.com" />
-          <p class="hint">Separa varios con coma. Si lo dejas vacio no se valida el origen de los consentimientos.</p>
-          <div class="row">
-            <button class="btn" onclick="createSite()">Crear sitio</button>
-            <button class="btn ghost" onclick="toggleForm(false)">Cancelar</button>
-          </div>
-          <p class="hint" id="n-msg"></p>
-        </div>
-      </div>
-      <div class="card">
-        <h2>Cambiar contrasena</h2>
-        <div class="row"><input type="password" id="pw-actual" placeholder="Contrasena actual" /></div>
-        <div class="row"><input type="password" id="pw-nueva" placeholder="Contrasena nueva (min. 8)" /></div>
-        <div class="row"><button class="btn" onclick="cambiarPass()">Guardar contrasena</button></div>
-        <p class="hint" id="pw-msg">Al cambiarla se cierran las demas sesiones abiertas.</p>
-      </div>
-      <div class="card" id="detail">
-        <p class="hint">Selecciona un sitio.</p>
-      </div>
-    </div>
+  <div class="topbar">
+    <div class="brand">Consent Banner<span>Dashboard</span></div>
+    <div class="site-picker" id="picker"></div>
+    <div class="spacer"></div>
+    <span class="who" id="who"></span>
+    <button class="icon-btn" onclick="logout()">Salir</button>
+  </div>
+  <div class="shell">
+    <div class="tabbar" id="tabbar"></div>
+    <div id="tabbody"></div>
   </div>
 </div>
+
+<div id="modal-host"></div>
 
 <script>
 var API = location.origin;
-var current = null, tab = "config";
+var current = null, tab = "config", sites = [], menuOpen = false;
 
+/* ---------------- utilidades ---------------- */
 function j(method, path, body){
   return fetch(API+path, {method:method, headers:{"Content-Type":"application/json"},
     credentials:"include", body: body?JSON.stringify(body):undefined}).then(function(r){
-      return r.json().then(function(d){ return {ok:r.ok, d:d}; });
+      return r.json().then(function(d){ return {ok:r.ok, d:d}; })
+                     .catch(function(){ return {ok:r.ok, d:{}}; });
     });
 }
-function login(){
-  j("POST","/dash/login",{username:val("u"),password:val("p")}).then(function(r){
-    if(r.ok){ boot(); } else { msg("lmsg", r.d.error||"error", true); }
-  });
+function el(id){ return document.getElementById(id); }
+function val(id){ var e=el(id); return e?e.value:""; }
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+function msg(id,t,err){var e=el(id); if(!e)return; e.textContent=t; e.className="msg "+(err?"err":"ok");}
+function show(which){
+  el("login").classList.toggle("hide", which!=="login");
+  el("app").classList.toggle("hide", which!=="app");
 }
-function cambiarPass(){
-  var actual = document.getElementById("pw-actual").value;
-  var nueva  = document.getElementById("pw-nueva").value;
-  var msg    = document.getElementById("pw-msg");
-  j("POST","/dash/password",{actual:actual,nueva:nueva}).then(function(r){
-    if(r.ok){
-      msg.textContent = "Contrasena actualizada. Las demas sesiones se cerraron.";
-      document.getElementById("pw-actual").value = "";
-      document.getElementById("pw-nueva").value  = "";
-    } else {
-      msg.textContent = (r.d && r.d.error) ? r.d.error : "No se pudo cambiar.";
-    }
-  });
+function fecha(iso){
+  if(!iso) return "";
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return iso;
+  var p = function(n){ return n<10 ? "0"+n : ""+n; };
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+
+         " "+p(d.getHours())+":"+p(d.getMinutes());
 }
 
+/* ---------------- sesion ---------------- */
+function login(){
+  j("POST","/dash/login",{username:val("u"),password:val("p")}).then(function(r){
+    if(r.ok){ boot(); } else { msg("lmsg", r.d.error||"No se pudo entrar.", true); }
+  });
+}
 function logout(){ j("POST","/dash/logout").then(function(){ location.reload(); }); }
+
 function boot(){
   j("GET","/dash/me").then(function(r){
     if(!r.ok){ show("login"); return; }
-    show("app"); document.getElementById("who").textContent = r.d.username;
-    renderSites(r.d.sites);
+    show("app");
+    el("who").textContent = r.d.username;
+    sites = r.d.sites || [];
+    var existe = sites.filter(function(s){ return s.site_id===current; }).length;
+    if(!current || !existe){ current = sites.length ? sites[0].site_id : null; }
+    renderPicker();
+    renderTabs();
+    openTab(tab);
   });
 }
-function renderSites(sites){
-  var el = document.getElementById("sites"); el.innerHTML="";
+
+/* ---------------- selector de sitio ---------------- */
+function renderPicker(){
+  var p = el("picker");
   if(!sites.length){
-    el.innerHTML = '<p class="hint">Todavia no tienes sitios. Crea el primero abajo.</p>';
+    p.innerHTML = '<button class="icon-btn" onclick="modalNuevoSitio()">+ Crear primer sitio</button>';
+    return;
   }
-  sites.forEach(function(s){
-    var d = document.createElement("div"); d.className="site"+(current===s.site_id?" sel":"");
-    d.innerHTML = '<div class="info"><b>'+esc(s.name)+'</b><span>'+esc(s.site_id)+'</span></div>'+
-                  '<button class="del" title="Borrar sitio">&times;</button>';
-    d.querySelector(".info").onclick = function(){ current=s.site_id; renderSites(sites); openSite(); };
-    d.querySelector(".del").onclick = function(ev){ ev.stopPropagation(); deleteSite(s); };
-    el.appendChild(d);
-  });
+  var cur = sites.filter(function(s){return s.site_id===current;})[0] || sites[0];
+  p.innerHTML =
+    '<div class="site-current" onclick="toggleMenu(event)">'+
+      '<div style="min-width:0">'+
+        '<div class="nm">'+esc(cur.name)+'</div>'+
+        '<div class="id">'+esc(cur.site_id)+'</div>'+
+      '</div><span class="caret">&#9660;</span>'+
+    '</div>'+
+    (menuOpen ? renderMenu() : '');
 }
-function toggleForm(abrir){
-  document.getElementById("form-nuevo").classList.toggle("hide", !abrir);
-  document.getElementById("btn-nuevo").classList.toggle("hide", abrir);
-  document.getElementById("n-msg").textContent = "";
-  if(abrir) document.getElementById("n-name").focus();
+function renderMenu(){
+  return '<div class="site-menu" onclick="event.stopPropagation()">'+
+    sites.map(function(s){
+      var safe = esc(s.name).replace(/'/g,"");
+      return '<div class="opt'+(s.site_id===current?' sel':'')+'" onclick="pickSite(\''+s.site_id+'\')">'+
+        '<div class="info"><b>'+esc(s.name)+'</b><small>'+esc(s.site_id)+'</small></div>'+
+        '<button class="mini-del" title="Borrar sitio" onclick="event.stopPropagation();modalBorrarSitio(\''+
+          s.site_id+'\',\''+safe+'\')">&times;</button>'+
+      '</div>';
+    }).join('')+
+    '<div class="sep"></div>'+
+    '<button class="add" onclick="modalNuevoSitio()">+ Nuevo sitio</button>'+
+  '</div>';
 }
-function createSite(){
-  var name = document.getElementById("n-name").value.trim();
-  var dom  = document.getElementById("n-dom").value.trim();
-  var m    = document.getElementById("n-msg");
-  if(!name){ m.textContent = "Escribe un nombre para el sitio."; return; }
-  m.textContent = "Creando...";
-  j("POST","/dash/site/create",{name:name,domain:dom}).then(function(r){
-    if(!r.ok){ m.textContent = (r.d && r.d.error) ? r.d.error : "No se pudo crear."; return; }
-    document.getElementById("n-name").value = "";
-    document.getElementById("n-dom").value  = "";
-    toggleForm(false);
-    current = r.d.site_id;
-    boot(); openSite();
-  });
+function toggleMenu(e){ if(e) e.stopPropagation(); menuOpen = !menuOpen; renderPicker(); }
+document.addEventListener("click", function(){ if(menuOpen){ menuOpen=false; renderPicker(); } });
+function pickSite(id){ current = id; menuOpen = false; renderPicker(); openTab(tab); }
+
+/* ---------------- pestanas ---------------- */
+var TABS = [
+  {id:"config",    label:"Configuracion"},
+  {id:"instalar",  label:"Instalar"},
+  {id:"registros", label:"Registros"},
+  {id:"cuenta",    label:"Cuenta"}
+];
+function renderTabs(){
+  el("tabbar").innerHTML = TABS.map(function(t){
+    return '<button class="'+(t.id===tab?'on':'')+'" onclick="openTab(\''+t.id+'\')">'+t.label+'</button>';
+  }).join('');
 }
-function deleteSite(s){
-  if(!confirm('Borrar "'+s.name+'" ('+s.site_id+')?\n\n'+
-              'Se eliminan su configuracion, su clave publica y sus registros de consentimiento. '+
-              'No se puede deshacer.')) return;
-  j("POST","/dash/site/delete",{site_id:s.site_id}).then(function(r){
-    if(!r.ok){ alert((r.d && r.d.error) ? r.d.error : "No se pudo borrar."); return; }
-    if(current === s.site_id){
-      current = null;
-      document.getElementById("detail").innerHTML = '<p class="hint">Selecciona un sitio.</p>';
+function openTab(id){
+  tab = id; renderTabs();
+  if(id==="cuenta") return viewCuenta();
+  if(!current){
+    el("tabbody").innerHTML = '<div class="card"><div class="empty">Crea un sitio para empezar.</div></div>';
+    return;
+  }
+  j("GET","/dash/site/get?site_id="+encodeURIComponent(current)).then(function(r){
+    if(!r.ok){
+      el("tabbody").innerHTML = '<div class="card"><div class="empty">No se pudo cargar el sitio.</div></div>';
+      return;
     }
-    boot();
+    if(id==="config")    viewConfig(r.d);
+    if(id==="instalar")  viewInstalar(r.d);
+    if(id==="registros") viewRegistros(r.d);
   });
 }
-function guardarDominio(){
-  var dom = document.getElementById("dom").value;
-  j("POST","/dash/site/domain",{site_id:current, domain:dom}).then(function(r){
-    msg("dmsg", r.ok ? "Dominios guardados." : (r.d.error||"error"), !r.ok);
+
+/* ---------------- CONFIGURACION ---------------- */
+function viewConfig(d){
+  el("tabbody").innerHTML =
+    '<div class="card">'+
+      '<div class="editor-head">'+
+        '<div class="left"><h2 style="margin:0">Configuracion del sitio</h2>'+
+          '<span class="ver-chip">version '+esc(String(d.version))+'</span></div>'+
+        '<div class="row">'+
+          '<button class="btn ghost sm" onclick="formatCfg()">Formatear</button>'+
+          '<button class="btn sm" id="btn-save" onclick="saveCfg()">Guardar nueva version</button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="editor-wrap" id="ed-wrap"><textarea id="cfg" spellcheck="false"></textarea></div>'+
+      '<div class="editor-foot"><span id="smsg" class="msg"></span></div>'+
+      '<div class="checks" id="checks"></div>'+
+      '<p class="hint">Al guardar, el bundle de este sitio recibe la configuracion al recargar. '+
+      'No hace falta tocar el codigo instalado.</p>'+
+    '</div>';
+  el("cfg").value = JSON.stringify(d.config, null, 2);
+  el("cfg").addEventListener("input", validarCfg);
+  validarCfg();
+}
+
+function formatCfg(){
+  try{
+    el("cfg").value = JSON.stringify(JSON.parse(el("cfg").value), null, 2);
+    validarCfg();
+  }catch(e){ msg("smsg","JSON invalido, no se puede formatear.",true); }
+}
+
+/* Valida antes de guardar. El fallo tipico es referenciar en cookiePatterns o
+   autoBlock una categoria que no existe en categories: se guardaba sin quejarse
+   y el fallo solo aparecia en produccion. */
+function validarCfg(){
+  var res = [], obj = null, fatal = false;
+  try{
+    obj = JSON.parse(el("cfg").value);
+    res.push({s:"pass", t:"<b>JSON valido.</b>"});
+  }catch(e){
+    res.push({s:"fail", t:"<b>JSON invalido.</b> "+esc(e.message)});
+    fatal = true;
+  }
+  if(obj){
+    var cats = (obj.categories||[]).map(function(c){ return c.id; });
+    if(!cats.length){
+      res.push({s:"fail", t:"No hay <b>categories</b> definidas."}); fatal = true;
+    } else {
+      res.push({s:"pass", t:"Categorias: <b>"+cats.map(esc).join(", ")+"</b>"});
+    }
+    var huerfanas = [];
+    (obj.cookiePatterns||[]).forEach(function(p){
+      if(p && typeof p==="object" && p.category && cats.indexOf(p.category)<0)
+        huerfanas.push("cookiePatterns \u2192 "+p.category);
+    });
+    (obj.autoBlock||[]).forEach(function(r){
+      if(r && r.category && cats.indexOf(r.category)<0)
+        huerfanas.push("autoBlock \u2192 "+r.category);
+    });
+    if(huerfanas.length){
+      res.push({s:"fail", t:"Categorias inexistentes: <b>"+huerfanas.map(esc).join(", ")+"</b>"});
+      fatal = true;
+    } else if(cats.length){
+      res.push({s:"pass", t:"Todas las categorias referenciadas existen."});
+    }
+    var ab = (obj.autoBlock||[]).length;
+    res.push({s: ab?"pass":"warn",
+      t: ab ? "Bloqueo automatico: <b>"+ab+" regla(s)</b>."
+            : "<b>autoBlock vacio</b>: no se bloquea ningun script, solo se borran cookies despues."});
+    var sinCat = (obj.cookiePatterns||[]).filter(function(p){ return typeof p==="string"; }).length;
+    if(sinCat) res.push({s:"warn",
+      t:"<b>"+sinCat+" patron(es) sin categoria</b>: formato antiguo, se borran solo si la analitica queda denegada."});
+    if(obj.webfont) res.push({s:"warn",
+      t:"<b>webfont activo</b>: el banner pide tipografias a Google, generando una conexion a un tercero."});
+  }
+  el("ed-wrap").classList.toggle("bad", fatal);
+  var b = el("btn-save"); if(b) b.disabled = fatal;
+  el("checks").innerHTML = res.map(function(c){
+    var ic = c.s==="pass" ? "&#10003;" : (c.s==="fail" ? "!" : "i");
+    return '<div class="check '+c.s+'"><span class="ic">'+ic+'</span><span>'+c.t+'</span></div>';
+  }).join('');
+  return !fatal;
+}
+
+function saveCfg(){
+  if(!validarCfg()){ msg("smsg","Corrige los errores antes de guardar.",true); return; }
+  var cfg;
+  try{ cfg = JSON.parse(el("cfg").value); }
+  catch(e){ msg("smsg","JSON invalido.",true); return; }
+  j("POST","/dash/site/save",{site_id:current,config:cfg}).then(function(r){
+    if(r.ok){ msg("smsg","Guardado. Version "+r.d.version+".",false); openTab("config"); }
+    else msg("smsg", r.d.error||"No se pudo guardar.", true);
   });
 }
+
+/* ---------------- INSTALAR ---------------- */
 function buildSnippet(d){
   // El pre-bloqueador va INLINE y antes que nada: el bundle llega por red y
   // para entonces el parser del navegador ya habria lanzado las etiquetas.
@@ -219,85 +439,207 @@ function buildSnippet(d){
   s += '<\/script>\n<script async src="'+API+'/consent-banner.js"><\/script>';
   return s;
 }
-function openSite(){
-  j("GET","/dash/site/get?site_id="+encodeURIComponent(current)).then(function(r){
-    if(!r.ok) return;
-    var snippet = buildSnippet(r.d);
-    var nrules = ((r.d.config && r.d.config.autoBlock) || []).length;
-    var det = document.getElementById("detail");
-    det.innerHTML =
-      '<div class="tabs">'+
-        '<button data-t="config" class="'+(tab==="config"?"on":"")+'">Config</button>'+
-        '<button data-t="install" class="'+(tab==="install"?"on":"")+'">Instalar</button>'+
-        '<button data-t="logs" class="'+(tab==="logs"?"on":"")+'">Registros</button>'+
-      '</div><div id="tabbody"></div>';
-    det.querySelectorAll(".tabs button").forEach(function(b){ b.onclick=function(){ tab=b.getAttribute("data-t"); openSite(); }; });
-    var tb = det.querySelector("#tabbody");
-    if(tab==="config"){
-      tb.innerHTML = '<label>Configuracion del sitio (JSON, version '+r.d.version+')</label>'+
-        '<textarea id="cfg"></textarea>'+
-        '<div class="row"><button class="btn" onclick="saveCfg()">Guardar (nueva version)</button><span id="smsg" class="msg"></span></div>'+
-        '<p class="hint">Al guardar, el bundle de ese sitio recibe esta config al recargar, sin tocar el sitio.</p>';
-      document.getElementById("cfg").value = JSON.stringify(r.d.config, null, 2);
-    } else if(tab==="install"){
-      tb.innerHTML = '<label>Pega esto en el &lt;head&gt;, lo primero de todo (site_id '+esc(r.d.site_id)+')</label>'+
-        '<div class="snippet">'+esc(snippet)+'</div>'+
-        (nrules
-          ? '<p class="hint">Incluye el pre-bloqueador inline con '+nrules+' regla(s) de autoBlock. '+
-            'Tiene que ir <b>antes</b> de las etiquetas de HubSpot, GTM o analitica, o no llegara a tiempo. '+
-            'Comprueba en consola con <code>window.__consentBlocker.blocked</code>.</p>'
-          : '<p class="hint">Este sitio no tiene reglas <code>autoBlock</code> en su config, asi que el banner '+
-            'registra la decision pero no bloquea scripts de terceros. Anade reglas en la pestana Config, '+
-            'por ejemplo <code>"autoBlock":[{"match":"js.hs-scripts.com","category":"marketing"}]</code>, '+
-            'y vuelve aqui a copiar el snippet.</p>')+
-        '<p class="hint">Clave publica (write-only de consentimiento): '+esc(r.d.publicKey)+'</p>'+
-        '<label>Dominios autorizados (coma para varios; vacio = no se valida)</label>'+
-        '<div class="row"><input type="text" id="dom" style="flex:1" value="'+esc(r.d.domain||"")+'" /></div>'+
-        '<div class="row"><button class="btn ghost" onclick="guardarDominio()">Guardar dominios</button><span id="dmsg" class="msg"></span></div>'+
-        '<div class="row"><button class="btn ghost" onclick="copiarSnippet()">Copiar snippet</button><span id="cmsg" class="msg"></span></div>'+
-        '<div class="row"><a class="btn ghost" target="_blank" href="'+API+'/sitio-demo.html?site_id='+encodeURIComponent(r.d.site_id)+'">Abrir sitio demo</a></div>';
-    } else {
-      tb.innerHTML = '<div class="counts" id="counts"></div><table id="logs"><thead><tr><th>ts</th><th>choice</th><th>idioma</th><th>version</th><th>consent_id</th></tr></thead><tbody></tbody></table><div class="row"><button class="btn ghost" onclick="openSite()">Refrescar</button></div>';
-      loadLogs();
-    }
-  });
+
+function viewInstalar(d){
+  var snippet = buildSnippet(d);
+  var rules = (d.config && d.config.autoBlock) || [];
+  el("tabbody").innerHTML =
+    '<div class="cols">'+
+      '<div class="card">'+
+        '<h2>Codigo para el sitio</h2>'+
+        '<p class="sub">Pegalo en el <code>&lt;head&gt;</code>, lo mas arriba posible y una sola vez.'+
+        (rules.length ? ' Incluye el pre-bloqueador con <b>'+rules.length+' regla(s)</b>.' : '')+'</p>'+
+        '<ol class="steps">'+
+          '<li>Copia el bloque completo.</li>'+
+          '<li>Pegalo en el <code>&lt;head&gt;</code>, antes de cualquier otro script.</li>'+
+          '<li>Limpia la cache del sitio y recarga.</li>'+
+        '</ol>'+
+        '<div class="snippet" id="snip">'+esc(snippet)+'</div>'+
+        '<div class="row mt">'+
+          '<button class="btn" onclick="copiarSnippet()">Copiar codigo</button>'+
+          '<span id="cmsg" class="msg"></span>'+
+        '</div>'+
+      '</div>'+
+      '<div>'+
+        '<div class="card">'+
+          '<h2>Dominios autorizados</h2>'+
+          '<p class="sub">Separados por coma. Solo desde estos dominios se aceptan registros.</p>'+
+          '<input type="text" id="dom" value="'+esc(d.d && d.d.domain || "")+'" placeholder="cliente.com, www.cliente.com" />'+
+          '<div class="row mt"><button class="btn ghost sm" onclick="guardarDominio()">Guardar dominios</button>'+
+          '<span id="dmsg" class="msg"></span></div>'+
+        '</div>'+
+        '<div class="card">'+
+          '<h2>Comprobar</h2>'+
+          '<p class="sub">Abre el sitio de ejemplo para verificar que el banner responde con esta configuracion.</p>'+
+          '<a class="btn ghost sm" target="_blank" href="'+API+'/sitio-demo.html?site_id='+encodeURIComponent(d.site_id)+'">Abrir sitio demo</a>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
 }
 function copiarSnippet(){
-  var t = document.querySelector("#tabbody .snippet").textContent;
-  var done = function(){ msg("cmsg","Copiado.", false); };
+  var t = el("snip").textContent;
   if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(t).then(done, function(){ msg("cmsg","No se pudo copiar.", true); });
+    navigator.clipboard.writeText(t).then(function(){ msg("cmsg","Copiado.",false); },
+                                         function(){ msg("cmsg","No se pudo copiar.",true); });
   } else {
     var ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta);
-    ta.select(); try{ document.execCommand("copy"); done(); }catch(e){ msg("cmsg","No se pudo copiar.", true); }
+    ta.select();
+    try{ document.execCommand("copy"); msg("cmsg","Copiado.",false); }
+    catch(e){ msg("cmsg","No se pudo copiar.",true); }
     document.body.removeChild(ta);
   }
 }
-function saveCfg(){
-  var cfg; try{ cfg = JSON.parse(document.getElementById("cfg").value); }
-  catch(e){ return msg("smsg","JSON invalido: "+e.message, true); }
-  j("POST","/dash/site/save",{site_id:current, config:cfg}).then(function(r){
-    if(r.ok) msg("smsg","Guardado. Version "+r.d.version, false); else msg("smsg", r.d.error||"error", true);
+function guardarDominio(){
+  j("POST","/dash/site/domain",{site_id:current,domain:val("dom")}).then(function(r){
+    if(r.ok) msg("dmsg","Guardado.",false); else msg("dmsg", r.d.error||"error", true);
   });
+}
+
+/* ---------------- REGISTROS ---------------- */
+function viewRegistros(d){
+  el("tabbody").innerHTML =
+    '<div class="card">'+
+      '<div class="editor-head">'+
+        '<div class="left"><h2 style="margin:0">Registro de consentimientos</h2></div>'+
+        '<button class="btn ghost sm" onclick="loadLogs()">Refrescar</button>'+
+      '</div>'+
+      '<div class="stats" id="stats"></div>'+
+      '<div class="table-wrap"><table id="logs"><thead><tr>'+
+        '<th>Fecha</th><th>Decision</th><th>Categorias aceptadas</th>'+
+        '<th>Idioma</th><th>Version</th><th>ID</th>'+
+      '</tr></thead><tbody></tbody></table></div>'+
+      '<p class="hint">Los 25 registros mas recientes. Cada fila es la prueba de una decision concreta: '+
+      'cuando, que acepto y con que version del texto.</p>'+
+    '</div>';
+  loadLogs();
 }
 function loadLogs(){
   j("GET","/dash/site/logs?site_id="+encodeURIComponent(current)).then(function(r){
     if(!r.ok) return;
-    var cc = document.getElementById("counts");
-    cc.innerHTML = '<span class="pill">Total: '+r.d.total+'</span>' +
-      Object.keys(r.d.counts).map(function(k){ return '<span class="pill">'+esc(k)+': '+r.d.counts[k]+'</span>'; }).join("");
+    var c = r.d.counts || {};
+    el("stats").innerHTML =
+      '<div class="stat"><div class="n">'+r.d.total+'</div><div class="l">Total</div></div>'+
+      '<div class="stat acc"><div class="n">'+(c.all||0)+'</div><div class="l">Aceptan todo</div></div>'+
+      '<div class="stat cus"><div class="n">'+(c.custom||0)+'</div><div class="l">Personalizan</div></div>'+
+      '<div class="stat rej"><div class="n">'+(c.none||0)+'</div><div class="l">Rechazan</div></div>';
     var tb = document.querySelector("#logs tbody"); tb.innerHTML="";
+    if(!r.d.rows.length){
+      tb.innerHTML = '<tr><td colspan="6"><div class="empty">Todavia no hay registros.</div></td></tr>';
+      return;
+    }
     r.d.rows.forEach(function(x){
       var tr=document.createElement("tr");
-      tr.innerHTML="<td>"+esc(x.ts)+"</td><td>"+esc(x.choice)+"</td><td>"+esc(x.language||"")+"</td><td>"+esc(x.version_texto||"")+"</td><td>"+esc((x.consent_id||"").slice(0,8))+"</td>";
+      tr.innerHTML =
+        "<td class='mono'>"+esc(fecha(x.ts))+"</td>"+
+        "<td><span class='tag "+esc(x.choice||"")+"'>"+esc(x.choice||"")+"</span></td>"+
+        "<td>"+cats(x.categories)+"</td>"+
+        "<td>"+esc(x.language||"")+"</td>"+
+        "<td class='mono'>"+esc(x.version_texto||"")+"</td>"+
+        "<td class='mono'>"+esc((x.consent_id||"").slice(0,8))+"</td>";
       tb.appendChild(tr);
     });
   });
 }
-function val(id){return document.getElementById(id).value;}
-function show(id){document.getElementById("login").classList.toggle("hide", id!=="login");document.getElementById("app").classList.toggle("hide", id!=="app");}
-function msg(id,t,err){var e=document.getElementById(id);e.textContent=t;e.className="msg "+(err?"err":"ok");}
-function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+/* categories viaja como texto JSON desde la base */
+function cats(raw){
+  var vacio = '<span class="cat">sin datos</span>';
+  if(!raw) return vacio;
+  var o;
+  try{ o = typeof raw==="string" ? JSON.parse(raw) : raw; }catch(e){ return vacio; }
+  if(!o || typeof o!=="object") return vacio;
+  var ks = Object.keys(o);
+  if(!ks.length) return vacio;
+  return '<div class="cats">'+ks.map(function(k){
+    return '<span class="cat'+(o[k]?' on':'')+'">'+esc(k)+'</span>';
+  }).join('')+'</div>';
+}
+
+/* ---------------- CUENTA ---------------- */
+function viewCuenta(){
+  el("tabbody").innerHTML =
+    '<div class="cols">'+
+      '<div class="card">'+
+        '<h2>Cambiar contrasena</h2>'+
+        '<p class="sub">Al cambiarla se cierran las demas sesiones abiertas.</p>'+
+        '<div class="field"><label>Contrasena actual</label><input type="password" id="pw-actual" /></div>'+
+        '<div class="field"><label>Contrasena nueva</label><input type="password" id="pw-nueva" placeholder="Minimo 8 caracteres" /></div>'+
+        '<div class="row mt"><button class="btn" onclick="cambiarPass()">Guardar contrasena</button></div>'+
+        '<p class="hint" id="pw-msg"></p>'+
+      '</div>'+
+      '<div class="card">'+
+        '<h2>Sitios</h2>'+
+        '<p class="sub">'+sites.length+' sitio(s) en esta cuenta.</p>'+
+        sites.map(function(s){
+          var safe = esc(s.name).replace(/'/g,"");
+          return '<div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line-soft)">'+
+            '<div style="min-width:0"><b style="font-size:13.5px">'+esc(s.name)+'</b>'+
+            '<div style="font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,monospace">'+esc(s.site_id)+'</div></div>'+
+            '<button class="btn danger sm" onclick="modalBorrarSitio(\''+s.site_id+'\',\''+safe+'\')">Borrar</button>'+
+          '</div>';
+        }).join('')+
+        '<div class="row mt"><button class="btn ghost sm" onclick="modalNuevoSitio()">+ Nuevo sitio</button></div>'+
+      '</div>'+
+    '</div>';
+}
+function cambiarPass(){
+  j("POST","/dash/password",{actual:val("pw-actual"),nueva:val("pw-nueva")}).then(function(r){
+    var m = el("pw-msg");
+    if(r.ok){
+      m.textContent = "Contrasena actualizada. Las demas sesiones se cerraron.";
+      m.className = "hint ok";
+      el("pw-actual").value=""; el("pw-nueva").value="";
+    } else {
+      m.textContent = (r.d && r.d.error) ? r.d.error : "No se pudo cambiar.";
+      m.className = "hint err";
+    }
+  });
+}
+
+/* ---------------- modales ---------------- */
+function cerrarModal(){ el("modal-host").innerHTML = ""; }
+function modalNuevoSitio(){
+  menuOpen = false; renderPicker();
+  el("modal-host").innerHTML =
+    '<div class="modal-bg" onclick="if(event.target===this)cerrarModal()"><div class="modal">'+
+      '<h3>Nuevo sitio</h3><p class="sub">Puedes cambiar los dominios mas tarde.</p>'+
+      '<div class="field"><label>Nombre</label><input id="n-name" type="text" placeholder="Tienda del cliente" maxlength="80" /></div>'+
+      '<div class="field"><label>Dominios (separados por coma)</label><input id="n-dom" type="text" placeholder="cliente.com, pruebas.cliente.com" /></div>'+
+      '<div class="row mt"><button class="btn" onclick="createSite()">Crear sitio</button>'+
+      '<button class="btn ghost" onclick="cerrarModal()">Cancelar</button></div>'+
+      '<p class="hint" id="n-msg"></p>'+
+    '</div></div>';
+  setTimeout(function(){ var e=el("n-name"); if(e) e.focus(); }, 30);
+}
+function createSite(){
+  var name = val("n-name").trim();
+  if(!name){ msg("n-msg","Pon un nombre para identificarlo.",true); return; }
+  j("POST","/dash/site/create",{name:name,domain:val("n-dom")}).then(function(r){
+    if(r.ok){ current = r.d.site_id; cerrarModal(); tab = "instalar"; boot(); }
+    else msg("n-msg", r.d.error||"No se pudo crear.", true);
+  });
+}
+function modalBorrarSitio(id, name){
+  menuOpen = false; renderPicker();
+  el("modal-host").innerHTML =
+    '<div class="modal-bg" onclick="if(event.target===this)cerrarModal()"><div class="modal">'+
+      '<h3>Borrar "'+esc(name)+'"</h3>'+
+      '<p class="sub">Se eliminan tambien su configuracion y todos sus registros de consentimiento. '+
+      'Esta accion no se puede deshacer.</p>'+
+      '<div class="row mt"><button class="btn danger" onclick="deleteSite(\''+id+'\')">Si, borrar</button>'+
+      '<button class="btn ghost" onclick="cerrarModal()">Cancelar</button></div>'+
+      '<p class="hint" id="del-msg"></p>'+
+    '</div></div>';
+}
+function deleteSite(id){
+  j("POST","/dash/site/delete",{site_id:id}).then(function(r){
+    if(r.ok){
+      cerrarModal();
+      if(current===id) current = null;
+      boot();
+    } else msg("del-msg", r.d.error||"No se pudo borrar.", true);
+  });
+}
+
 boot();
 </script>
 </body>

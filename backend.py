@@ -495,7 +495,7 @@ class H(BaseHTTPRequestHandler):
         for r in c.execute("SELECT choice,COUNT(*) n FROM consent_logs WHERE site_id=? GROUP BY choice", (site_id,)):
             counts[r["choice"] or "?"] = r["n"]
         rows = [dict(r) for r in c.execute(
-            "SELECT consent_id,choice,language,version_texto,ts,ip FROM consent_logs "
+            "SELECT consent_id,choice,categories,language,version_texto,ts,ip FROM consent_logs "
             "WHERE site_id=? ORDER BY id DESC LIMIT 25", (site_id,))]
         total = c.execute("SELECT COUNT(*) n FROM consent_logs WHERE site_id=?", (site_id,)).fetchone()["n"]
         c.close()
