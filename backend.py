@@ -18,6 +18,7 @@ Que expone:
     POST /dash/site/create
     GET  /dash/site/get?site_id=...
     POST /dash/site/save
+    POST /dash/site/delete
     GET  /dash/site/logs?site_id=...
 
 Ejecutar:  py backend.py     y abrir  http://localhost:8000/dashboard
@@ -281,6 +282,8 @@ class H(BaseHTTPRequestHandler):
             return self.dash_site_create()
         if p == "/dash/site/save":
             return self.dash_site_save()
+        if p == "/dash/site/delete":
+            return self.dash_site_delete()
         if p == "/dash/password":
             return self.dash_password()
         if p == "/dash/site/domain":
@@ -385,10 +388,17 @@ class H(BaseHTTPRequestHandler):
         if not u:
             return self._send(401, {"error": "no auth"})
         d = self._body()
+        name = (d.get("name") or "").strip()
+        if not name:
+            return self._send(400, {"error": "el nombre del sitio es obligatorio"})
+        if len(name) > 80:
+            return self._send(400, {"error": "el nombre no puede pasar de 80 caracteres"})
+        # Dominios: coma como separador, sin espacios ni entradas vacias.
+        dominios = ",".join([x.strip() for x in (d.get("domain") or "").split(",") if x.strip()])
         site_id = "site_" + secrets.token_hex(4)
         key = "pk_" + secrets.token_hex(16)
         c = db()
-        c.execute("INSERT INTO sites VALUES(?,?,?,?,?)", (site_id, d.get("name", "Nuevo sitio"), d.get("domain", ""), "free", now()))
+        c.execute("INSERT INTO sites VALUES(?,?,?,?,?)", (site_id, name, dominios, "free", now()))
         c.execute("INSERT INTO api_keys VALUES(?,?,?,?,?)", (key, site_id, "public", 1, now()))
         c.execute("INSERT INTO site_config VALUES(?,?,?,?)", (site_id, 1, json.dumps(DEFAULT_CONFIG), now()))
         c.execute("INSERT INTO site_owners VALUES(?,?)", (u, site_id))
@@ -422,6 +432,21 @@ class H(BaseHTTPRequestHandler):
                   (newv, json.dumps(cfg), now(), site_id))
         c.commit(); c.close()
         self._send(200, {"ok": True, "version": newv})
+
+    def dash_site_delete(self):
+        """Borra un sitio y todo lo que cuelga de el: config, claves, registros.
+        Irreversible. El bundle instalado en ese dominio dejara de recibir config."""
+        u = self._user(); d = self._body(); site_id = d.get("site_id")
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        c = db()
+        c.execute("DELETE FROM consent_logs WHERE site_id=?", (site_id,))
+        c.execute("DELETE FROM site_config  WHERE site_id=?", (site_id,))
+        c.execute("DELETE FROM api_keys     WHERE site_id=?", (site_id,))
+        c.execute("DELETE FROM site_owners  WHERE site_id=?", (site_id,))
+        c.execute("DELETE FROM sites        WHERE site_id=?", (site_id,))
+        c.commit(); c.close()
+        self._send(200, {"ok": True, "site_id": site_id})
 
     def dash_site_domain(self):
         """Dominios autorizados a enviar consentimientos de este sitio.
