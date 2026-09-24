@@ -42,7 +42,7 @@ SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "1" if os.environ.get("RAILWAY
 
 # Config por defecto de un sitio nuevo (el diseno de marca actual).
 DEFAULT_CONFIG = {
-    "namespace": "consent",
+    "namespace": "fwc_consent",
     "consentVersion": "2025-01",
     "defaultLanguage": "es",
     "activeDeletion": True,

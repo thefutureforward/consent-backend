@@ -1,0 +1,56 @@
+{
+  "name": "forward-consent",
+  "version": "0.2.0",
+  "description": "Banner de consentimiento universal y embebible. Google Consent Mode v2, denegado por defecto, borrado activo de cookies, aislado en Shadow DOM. Sin dependencias.",
+  "type": "module",
+  "main": "dist/consent-banner.umd.js",
+  "module": "dist/consent-banner.esm.js",
+  "browser": "dist/consent-banner.umd.js",
+  "unpkg": "dist/consent-banner.min.js",
+  "jsdelivr": "dist/consent-banner.min.js",
+  "types": "dist/consent-banner.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/consent-banner.d.ts",
+      "import": "./dist/consent-banner.esm.js",
+      "require": "./dist/consent-banner.umd.js"
+    },
+    "./react": {
+      "import": "./dist/react.esm.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": [
+    "./src/auto.js",
+    "./dist/consent-banner.umd.js",
+    "./dist/consent-banner.min.js"
+  ],
+  "scripts": {
+    "build": "node build.js"
+  },
+  "keywords": [
+    "cookie",
+    "consent",
+    "gdpr",
+    "consent-mode",
+    "cmp",
+    "banner",
+    "privacy"
+  ],
+  "peerDependencies": {
+    "react": ">=17"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.0"
+  },
+  "license": "UNLICENSED"
+}
