@@ -21,6 +21,12 @@ let _userConfig = null;
     // Prefijos de cookie que borra activeDeletion al denegar analitica.
     // Ampliable por sitio desde la config remota.
     cookiePatterns: ["_ga", "_gid", "_gat", "__utm", "_gcl"],
+    // Bloqueo AUTOMATICO por URL. Cada regla: {match:"js.hs-scripts.com", category:"marketing"}
+    // El observer neutraliza el <script> antes de que se ejecute, sin tocar el HTML del sitio.
+    // OJO: para que actue sobre etiquetas ya presentes en el HTML, autoBlock debe ir en el
+    // snippet inline (window.__consentConfig), porque la config remota llega por fetch y
+    // para entonces el parser ya paso. En la remota sirve para scripts inyectados despues.
+    autoBlock: [],
     // Paleta "Expediente": ink navy + paper calido + verdigris teal.
     // Misma fuente de verdad que styles/tokens.css del frontend.
     colors: {
@@ -124,8 +130,17 @@ let _userConfig = null;
   }
   function merged() {
     var m = JSON.parse(JSON.stringify(DEFAULTS));
-    assign(m, _userConfig || (typeof window !== "undefined" && window.__consentConfig) || {});
-    if (_remote) assign(m, _remote);
+    var local = _userConfig || (typeof window !== "undefined" && window.__consentConfig) || {};
+    assign(m, local);
+    if (_remote) {
+      var localBlock = m.autoBlock;
+      assign(m, _remote);
+      // Un autoBlock vacio en la config remota NO debe borrar el del snippet
+      // inline: el inline es el unico que llega a tiempo de bloquear el parser.
+      if ((!m.autoBlock || !m.autoBlock.length) && localBlock && localBlock.length) {
+        m.autoBlock = localBlock;
+      }
+    }
     return m;
   }
   function log(kind, detail) {
@@ -174,14 +189,45 @@ let _userConfig = null;
     return out;
   }
 
-  // Borrado ACTIVO de cookies. Los prefijos por defecto cubren la analitica de
-  // Google; el sitio puede ampliarlos con cookiePatterns en su config remota
-  // (p.ej. HubSpot: "__hs", "hubspotutk") sin recompilar el bundle.
-  function deleteAnalyticsCookies() {
-    var C = merged();
-    var patterns = (C.cookiePatterns && C.cookiePatterns.length)
+  // Normaliza cookiePatterns a [{match, category}]. Admite los dos formatos:
+  //   ["_ga", "__hs"]                                  (heredado: sin categoria)
+  //   [{match:"_ga", category:"analitica"}, ...]        (por categoria)
+  // Un patron sin categoria se borra siempre que se ejecute el borrado, como antes.
+  function normalizePatterns(C) {
+    var raw = (C.cookiePatterns && C.cookiePatterns.length)
       ? C.cookiePatterns
       : ["_ga", "_gid", "_gat", "__utm", "_gcl"];
+    var out = [];
+    for (var i = 0; i < raw.length; i++) {
+      var p = raw[i];
+      if (typeof p === "string") out.push({ match: p, category: null });
+      else if (p && p.match) out.push({ match: p.match, category: p.category || null });
+    }
+    return out;
+  }
+
+  // Borrado ACTIVO de cookies, por categoria denegada.
+  // Antes se borraba todo o nada segun analytics_storage, asi que al aceptar
+  // analitica y rechazar marketing las cookies de marketing sobrevivian.
+  // Ahora cada patron se borra solo si SU categoria quedo denegada.
+  function deleteAnalyticsCookies(chosen) {
+    var C = merged();
+    var all = normalizePatterns(C);
+    // Categorias denegadas segun la eleccion actual (las locked nunca lo estan).
+    var denied = {};
+    C.categories.forEach(function (cat) {
+      var granted = cat.locked ? true : !!(chosen && chosen[cat.id]);
+      if (!granted) denied[cat.id] = true;
+    });
+    // Compatibilidad: un patron SIN categoria conserva la regla antigua, es decir
+    // solo se borra cuando la analitica quedo denegada. Si se le pone categoria,
+    // se borra exactamente cuando esa categoria queda denegada.
+    var sig = signalsFrom(C, chosen || {});
+    var analyticsDenied = sig.analytics_storage === "denied";
+    var patterns = all.filter(function (p) {
+      return p.category ? !!denied[p.category] : analyticsDenied;
+    }).map(function (p) { return p.match; });
+    if (!patterns.length) return [];
     var host = location.hostname;
     var root = host.split(".").slice(-2).join(".");
     var domains = ["", host, "." + host, root, "." + root];
@@ -201,6 +247,89 @@ let _userConfig = null;
     return deleted;
   }
 
+  // Bloqueo AUTOMATICO: intercepta <script src> que casen con autoBlock y los
+  // convierte en text/plain + data-src ANTES de que se ejecuten, de modo que
+  // activateScripts los pueda reactivar igual que a los marcados a mano.
+  var _observer = null, _blocked = [];
+
+  // Reglas SEGURAS: solo se comparan contra el HOST de la URL, nunca contra la
+  // ruta ni los parametros, y jamas se bloquea un script del propio dominio.
+  // Asi una regla corta no puede tumbar por accidente jQuery, el tema o el CMS.
+  function hostOf(src) {
+    try { return new URL(src, location.href).hostname.toLowerCase(); }
+    catch (e) { return ""; }
+  }
+  function ruleFor(rules, src) {
+    if (!src) return null;
+    var h = hostOf(src);
+    if (!h || h === location.hostname.toLowerCase()) return null; // nunca lo propio
+    for (var i = 0; i < rules.length; i++) {
+      var r = rules[i];
+      if (!r || !r.match) continue;
+      var m = String(r.match).toLowerCase().replace(/^\*?\.?/, "");
+      if (h === m || h.slice(-(m.length + 1)) === "." + m) return r; // host o subdominio
+    }
+    return null;
+  }
+
+  function neutralize(node, rule) {
+    var src = node.getAttribute("src");
+    node.type = "text/plain";                       // impide la ejecucion
+    node.setAttribute("type", "text/plain");
+    node.setAttribute("data-src", src);
+    node.setAttribute("data-consent-category", rule.category);
+    node.removeAttribute("src");                    // corta la descarga
+    _blocked.push(src);
+  }
+
+  function scanExisting(rules) {
+    var nodes = document.querySelectorAll("script[src]");
+    Array.prototype.forEach.call(nodes, function (n) {
+      var r = ruleFor(rules, n.getAttribute("src"));
+      if (r) neutralize(n, r);
+    });
+  }
+
+  // Se instala lo antes posible, sin esperar a la config remota ni al DOM.
+  function installAutoBlock() {
+    var C = merged();
+    var rules = C.autoBlock || [];
+    // Si el pre-bloqueador inline ya esta corriendo, lo adoptamos en vez de
+    // montar un segundo observer: el inline se instala antes que este bundle,
+    // que llega por red y para entonces el parser ya lanzo las etiquetas.
+    var pre = typeof window !== "undefined" && window.__consentBlocker;
+    if (pre && pre.observer) {
+      _observer = pre.observer;
+      _blocked = pre.blocked || [];
+      log("autoblock", "Pre-bloqueador inline adoptado (" + _blocked.length + " scripts).");
+      return;
+    }
+    if (!rules.length || _observer) return;
+    scanExisting(rules);
+    _observer = new MutationObserver(function (muts) {
+      var live = merged().autoBlock || rules;
+      muts.forEach(function (m) {
+        Array.prototype.forEach.call(m.addedNodes, function (n) {
+          if (!n.tagName || n.tagName !== "SCRIPT") return;
+          var r = ruleFor(live, n.getAttribute("src"));
+          if (r) neutralize(n, r);
+        });
+      });
+    });
+    _observer.observe(document.documentElement, { childList: true, subtree: true });
+    log("autoblock", "Bloqueo automatico activo (" + rules.length + " reglas).");
+  }
+
+  // Al conceder una categoria ya no hace falta seguir interceptandola.
+  function refreshAutoBlock(C, chosen) {
+    if (!_observer) return;
+    var rules = (C.autoBlock || []).filter(function (r) {
+      return !isGranted(C, chosen, r.category);
+    });
+    if (!rules.length) { _observer.disconnect(); _observer = null; }
+    if (_blocked.length) log("autoblock", "Bloqueados: " + _blocked.join(", "));
+  }
+
   // Bloqueo manual de scripts (sitios sin GTM). El sitio marca los scripts como
   //   <script type="text/plain" data-consent-category="statistics" data-src="..."></script>
   // y aqui, al conceder esa categoria, se convierten en scripts ejecutables.
@@ -210,7 +339,7 @@ let _userConfig = null;
     return !!chosen[catId];
   }
   function activateScripts(C, chosen) {
-    if (!C.manageScripts) return;
+    if (!C.manageScripts && !(C.autoBlock && C.autoBlock.length)) return;
     var nodes = document.querySelectorAll('script[type="text/plain"][data-consent-category]');
     var activated = [];
     Array.prototype.forEach.call(nodes, function (old) {
@@ -284,8 +413,11 @@ let _userConfig = null;
     log("update", JSON.stringify(signals));
     // 3b. Activar scripts bloqueados de las categorias concedidas (sitios sin GTM).
     activateScripts(C, chosen);
+    refreshAutoBlock(C, chosen);
     // 4. Borrado activo si analitica quedo en denied.
-    if (C.activeDeletion && signals.analytics_storage === "denied") deleteAnalyticsCookies();
+    // Se ejecuta siempre que haya alguna categoria denegada; dentro se filtra
+    // que patrones tocar. Antes solo corria si la analitica estaba denegada.
+    if (C.activeDeletion) deleteAnalyticsCookies(chosen);
     // 5. Auditoria (no bloquea).
     postAudit(C, consent);
     if (typeof C.onConsentChange === "function") C.onConsentChange(consent);
@@ -535,9 +667,10 @@ let _userConfig = null;
       // Ya decidio: no mostrar banner, cargar toggles, limpiar si hace falta.
       state.chosen = prev.categories || {};
       log("init", "Decision previa encontrada (choice=" + prev.choice + ").");
-      if (C.activeDeletion && prev.signals && prev.signals.analytics_storage === "denied") deleteAnalyticsCookies();
+      if (C.activeDeletion) deleteAnalyticsCookies(state.chosen);
       showChip(C);
       activateScripts(C, state.chosen);
+      refreshAutoBlock(C, state.chosen);
     } else {
       log("init", prev ? "Version de consentimiento cambio: se vuelve a preguntar." : "Sin decision previa: se muestra el banner.");
       showBanner(C);
@@ -548,6 +681,7 @@ let _userConfig = null;
   // ---- API publica (ESM) ----------------------------------------------------
   // start(config) permite a un framework pasar la config por argumento en vez
   // de por window.__consentConfig. El resto es la misma API de siempre.
+export function blockNow() { installAutoBlock(); }
 export function start(config) { if (config) { _userConfig = config; } init(); }
 export function open() { openPanel(merged()); }
 export function reset() {
@@ -559,4 +693,4 @@ export function setLanguage(l) {
   state.lang = l;
   if (bannerEl) { bannerEl.remove(); bannerEl = null; showBanner(merged()); }
 }
-export default { start: start, open: open, reset: reset, setLanguage: setLanguage };
+export default { start: start, open: open, reset: reset, setLanguage: setLanguage, blockNow: blockNow };
