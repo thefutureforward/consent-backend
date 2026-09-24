@@ -40,6 +40,15 @@ var ConsentBanner = (() => {
     // al cambiar, se vuelve a preguntar
     defaultLanguage: "es",
     cookie: { lifetimeMonths: 6, domain: "" },
+    // Prefijos de cookie que borra activeDeletion al denegar analitica.
+    // Ampliable por sitio desde la config remota.
+    cookiePatterns: ["_ga", "_gid", "_gat", "__utm", "_gcl"],
+    // Bloqueo AUTOMATICO por URL. Cada regla: {match:"js.hs-scripts.com", category:"marketing"}
+    // El observer neutraliza el <script> antes de que se ejecute, sin tocar el HTML del sitio.
+    // OJO: para que actue sobre etiquetas ya presentes en el HTML, autoBlock debe ir en el
+    // snippet inline (window.__consentConfig), porque la config remota llega por fetch y
+    // para entonces el parser ya paso. En la remota sirve para scripts inyectados despues.
+    autoBlock: [],
     // Paleta "Expediente": ink navy + paper calido + verdigris teal.
     // Misma fuente de verdad que styles/tokens.css del frontend.
     colors: {
@@ -183,8 +192,15 @@ var ConsentBanner = (() => {
   }
   function merged() {
     var m = JSON.parse(JSON.stringify(DEFAULTS));
-    assign(m, _userConfig || typeof window !== "undefined" && window.__consentConfig || {});
-    if (_remote) assign(m, _remote);
+    var local = _userConfig || typeof window !== "undefined" && window.__consentConfig || {};
+    assign(m, local);
+    if (_remote) {
+      var localBlock = m.autoBlock;
+      assign(m, _remote);
+      if ((!m.autoBlock || !m.autoBlock.length) && localBlock && localBlock.length) {
+        m.autoBlock = localBlock;
+      }
+    }
     return m;
   }
   function log(kind, detail) {
@@ -235,7 +251,8 @@ var ConsentBanner = (() => {
     return out;
   }
   function deleteAnalyticsCookies() {
-    var patterns = ["_ga", "_gid", "_gat", "__utm", "_gcl"];
+    var C = merged();
+    var patterns = C.cookiePatterns && C.cookiePatterns.length ? C.cookiePatterns : ["_ga", "_gid", "_gat", "__utm", "_gcl"];
     var host = location.hostname;
     var root2 = host.split(".").slice(-2).join(".");
     var domains = ["", host, "." + host, root2, "." + root2];
@@ -256,6 +273,79 @@ var ConsentBanner = (() => {
     if (deleted.length) log("delete", "Borrado activo: " + deleted.join(", "));
     return deleted;
   }
+  var _observer = null;
+  var _blocked = [];
+  function hostOf(src) {
+    try {
+      return new URL(src, location.href).hostname.toLowerCase();
+    } catch (e) {
+      return "";
+    }
+  }
+  function ruleFor(rules, src) {
+    if (!src) return null;
+    var h = hostOf(src);
+    if (!h || h === location.hostname.toLowerCase()) return null;
+    for (var i = 0; i < rules.length; i++) {
+      var r = rules[i];
+      if (!r || !r.match) continue;
+      var m = String(r.match).toLowerCase().replace(/^\*?\.?/, "");
+      if (h === m || h.slice(-(m.length + 1)) === "." + m) return r;
+    }
+    return null;
+  }
+  function neutralize(node, rule) {
+    var src = node.getAttribute("src");
+    node.type = "text/plain";
+    node.setAttribute("type", "text/plain");
+    node.setAttribute("data-src", src);
+    node.setAttribute("data-consent-category", rule.category);
+    node.removeAttribute("src");
+    _blocked.push(src);
+  }
+  function scanExisting(rules) {
+    var nodes = document.querySelectorAll("script[src]");
+    Array.prototype.forEach.call(nodes, function(n) {
+      var r = ruleFor(rules, n.getAttribute("src"));
+      if (r) neutralize(n, r);
+    });
+  }
+  function installAutoBlock() {
+    var C = merged();
+    var rules = C.autoBlock || [];
+    var pre = typeof window !== "undefined" && window.__consentBlocker;
+    if (pre && pre.observer) {
+      _observer = pre.observer;
+      _blocked = pre.blocked || [];
+      log("autoblock", "Pre-bloqueador inline adoptado (" + _blocked.length + " scripts).");
+      return;
+    }
+    if (!rules.length || _observer) return;
+    scanExisting(rules);
+    _observer = new MutationObserver(function(muts) {
+      var live = merged().autoBlock || rules;
+      muts.forEach(function(m) {
+        Array.prototype.forEach.call(m.addedNodes, function(n) {
+          if (!n.tagName || n.tagName !== "SCRIPT") return;
+          var r = ruleFor(live, n.getAttribute("src"));
+          if (r) neutralize(n, r);
+        });
+      });
+    });
+    _observer.observe(document.documentElement, { childList: true, subtree: true });
+    log("autoblock", "Bloqueo automatico activo (" + rules.length + " reglas).");
+  }
+  function refreshAutoBlock(C, chosen) {
+    if (!_observer) return;
+    var rules = (C.autoBlock || []).filter(function(r) {
+      return !isGranted(C, chosen, r.category);
+    });
+    if (!rules.length) {
+      _observer.disconnect();
+      _observer = null;
+    }
+    if (_blocked.length) log("autoblock", "Bloqueados: " + _blocked.join(", "));
+  }
   function isGranted(C, chosen, catId) {
     var cat = C.categories.filter(function(c) {
       return c.id === catId;
@@ -264,7 +354,7 @@ var ConsentBanner = (() => {
     return !!chosen[catId];
   }
   function activateScripts(C, chosen) {
-    if (!C.manageScripts) return;
+    if (!C.manageScripts && !(C.autoBlock && C.autoBlock.length)) return;
     var nodes = document.querySelectorAll('script[type="text/plain"][data-consent-category]');
     var activated = [];
     Array.prototype.forEach.call(nodes, function(old) {
@@ -338,6 +428,7 @@ var ConsentBanner = (() => {
     gtag("consent", "update", signals);
     log("update", JSON.stringify(signals));
     activateScripts(C, chosen);
+    refreshAutoBlock(C, chosen);
     if (C.activeDeletion && signals.analytics_storage === "denied") deleteAnalyticsCookies();
     postAudit(C, consent);
     if (typeof C.onConsentChange === "function") C.onConsentChange(consent);
@@ -535,10 +626,14 @@ var ConsentBanner = (() => {
       if (C.activeDeletion && prev.signals && prev.signals.analytics_storage === "denied") deleteAnalyticsCookies();
       showChip(C);
       activateScripts(C, state.chosen);
+      refreshAutoBlock(C, state.chosen);
     } else {
       log("init", prev ? "Version de consentimiento cambio: se vuelve a preguntar." : "Sin decision previa: se muestra el banner.");
       showBanner(C);
     }
+  }
+  function blockNow() {
+    installAutoBlock();
   }
   function start(config) {
     if (config) {
@@ -562,10 +657,14 @@ var ConsentBanner = (() => {
       showBanner(merged());
     }
   }
-  var core_default = { start, open, reset, setLanguage };
+  var core_default = { start, open, reset, setLanguage, blockNow };
 
   // src/auto.js
   if (typeof document !== "undefined") {
+    try {
+      core_default.blockNow();
+    } catch (e) {
+    }
     run = function() {
       core_default.start();
     };

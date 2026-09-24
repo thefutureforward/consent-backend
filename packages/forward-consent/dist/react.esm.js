@@ -14,6 +14,15 @@ var DEFAULTS = {
   // al cambiar, se vuelve a preguntar
   defaultLanguage: "es",
   cookie: { lifetimeMonths: 6, domain: "" },
+  // Prefijos de cookie que borra activeDeletion al denegar analitica.
+  // Ampliable por sitio desde la config remota.
+  cookiePatterns: ["_ga", "_gid", "_gat", "__utm", "_gcl"],
+  // Bloqueo AUTOMATICO por URL. Cada regla: {match:"js.hs-scripts.com", category:"marketing"}
+  // El observer neutraliza el <script> antes de que se ejecute, sin tocar el HTML del sitio.
+  // OJO: para que actue sobre etiquetas ya presentes en el HTML, autoBlock debe ir en el
+  // snippet inline (window.__consentConfig), porque la config remota llega por fetch y
+  // para entonces el parser ya paso. En la remota sirve para scripts inyectados despues.
+  autoBlock: [],
   // Paleta "Expediente": ink navy + paper calido + verdigris teal.
   // Misma fuente de verdad que styles/tokens.css del frontend.
   colors: {
@@ -157,8 +166,15 @@ function assign(target, src) {
 }
 function merged() {
   var m = JSON.parse(JSON.stringify(DEFAULTS));
-  assign(m, _userConfig || typeof window !== "undefined" && window.__consentConfig || {});
-  if (_remote) assign(m, _remote);
+  var local = _userConfig || typeof window !== "undefined" && window.__consentConfig || {};
+  assign(m, local);
+  if (_remote) {
+    var localBlock = m.autoBlock;
+    assign(m, _remote);
+    if ((!m.autoBlock || !m.autoBlock.length) && localBlock && localBlock.length) {
+      m.autoBlock = localBlock;
+    }
+  }
   return m;
 }
 function log(kind, detail) {
@@ -209,7 +225,8 @@ function signalsFrom(C, chosen) {
   return out;
 }
 function deleteAnalyticsCookies() {
-  var patterns = ["_ga", "_gid", "_gat", "__utm", "_gcl"];
+  var C = merged();
+  var patterns = C.cookiePatterns && C.cookiePatterns.length ? C.cookiePatterns : ["_ga", "_gid", "_gat", "__utm", "_gcl"];
   var host = location.hostname;
   var root2 = host.split(".").slice(-2).join(".");
   var domains = ["", host, "." + host, root2, "." + root2];
@@ -230,6 +247,19 @@ function deleteAnalyticsCookies() {
   if (deleted.length) log("delete", "Borrado activo: " + deleted.join(", "));
   return deleted;
 }
+var _observer = null;
+var _blocked = [];
+function refreshAutoBlock(C, chosen) {
+  if (!_observer) return;
+  var rules = (C.autoBlock || []).filter(function(r) {
+    return !isGranted(C, chosen, r.category);
+  });
+  if (!rules.length) {
+    _observer.disconnect();
+    _observer = null;
+  }
+  if (_blocked.length) log("autoblock", "Bloqueados: " + _blocked.join(", "));
+}
 function isGranted(C, chosen, catId) {
   var cat = C.categories.filter(function(c) {
     return c.id === catId;
@@ -238,7 +268,7 @@ function isGranted(C, chosen, catId) {
   return !!chosen[catId];
 }
 function activateScripts(C, chosen) {
-  if (!C.manageScripts) return;
+  if (!C.manageScripts && !(C.autoBlock && C.autoBlock.length)) return;
   var nodes = document.querySelectorAll('script[type="text/plain"][data-consent-category]');
   var activated = [];
   Array.prototype.forEach.call(nodes, function(old) {
@@ -312,6 +342,7 @@ function persist(C, choice, chosen) {
   gtag("consent", "update", signals);
   log("update", JSON.stringify(signals));
   activateScripts(C, chosen);
+  refreshAutoBlock(C, chosen);
   if (C.activeDeletion && signals.analytics_storage === "denied") deleteAnalyticsCookies();
   postAudit(C, consent);
   if (typeof C.onConsentChange === "function") C.onConsentChange(consent);
@@ -509,6 +540,7 @@ function proceed(C) {
     if (C.activeDeletion && prev.signals && prev.signals.analytics_storage === "denied") deleteAnalyticsCookies();
     showChip(C);
     activateScripts(C, state.chosen);
+    refreshAutoBlock(C, state.chosen);
   } else {
     log("init", prev ? "Version de consentimiento cambio: se vuelve a preguntar." : "Sin decision previa: se muestra el banner.");
     showBanner(C);

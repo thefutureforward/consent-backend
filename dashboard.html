@@ -16,11 +16,18 @@
   .grid{display:grid;grid-template-columns:260px 1fr;gap:18px}
   .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}
   h2{font-size:15px;margin:0 0 12px}
-  .site{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer}
+  .site{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:8px}
   .site:hover{border-color:var(--accent)}
   .site.sel{border-color:var(--accent);background:#f2f7f5}
+  .site .info{flex:1;min-width:0}
   .site b{display:block;font-size:14px}
-  .site span{font-size:12px;color:var(--muted)}
+  .site span{font-size:12px;color:var(--muted);word-break:break-all}
+  .del{flex:none;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;
+       width:26px;height:26px;line-height:1;cursor:pointer;font-size:15px;padding:0}
+  .del:hover{border-color:#c0392b;color:#c0392b;background:#fff}
+  .form{border:1px dashed var(--line);border-radius:10px;padding:12px;margin-top:10px;background:#fbfaf7}
+  .form label{margin-top:0}
+  .form .row{margin-top:10px}
   label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
   input,textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;font-size:13px;font-family:inherit}
   textarea{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:280px;white-space:pre}
@@ -66,7 +73,20 @@
       <div class="card">
         <h2>Sitios</h2>
         <div id="sites"></div>
-        <div class="row"><button class="btn ghost" onclick="createSite()">+ Nuevo sitio</button></div>
+        <div class="row"><button class="btn ghost" id="btn-nuevo" onclick="toggleForm(true)">+ Nuevo sitio</button></div>
+
+        <div class="form hide" id="form-nuevo">
+          <label for="n-name">Nombre del sitio</label>
+          <input id="n-name" type="text" placeholder="Tienda del cliente" maxlength="80" />
+          <label for="n-dom">Dominios autorizados</label>
+          <input id="n-dom" type="text" placeholder="cliente.com, pruebas.cliente.com" />
+          <p class="hint">Separa varios con coma. Si lo dejas vacio no se valida el origen de los consentimientos.</p>
+          <div class="row">
+            <button class="btn" onclick="createSite()">Crear sitio</button>
+            <button class="btn ghost" onclick="toggleForm(false)">Cancelar</button>
+          </div>
+          <p class="hint" id="n-msg"></p>
+        </div>
       </div>
       <div class="card">
         <h2>Cambiar contrasena</h2>
@@ -122,17 +142,51 @@ function boot(){
 }
 function renderSites(sites){
   var el = document.getElementById("sites"); el.innerHTML="";
+  if(!sites.length){
+    el.innerHTML = '<p class="hint">Todavia no tienes sitios. Crea el primero abajo.</p>';
+  }
   sites.forEach(function(s){
     var d = document.createElement("div"); d.className="site"+(current===s.site_id?" sel":"");
-    d.innerHTML = "<b>"+esc(s.name)+"</b><span>"+esc(s.site_id)+"</span>";
-    d.onclick = function(){ current=s.site_id; renderSites(sites); openSite(); };
+    d.innerHTML = '<div class="info"><b>'+esc(s.name)+'</b><span>'+esc(s.site_id)+'</span></div>'+
+                  '<button class="del" title="Borrar sitio">&times;</button>';
+    d.querySelector(".info").onclick = function(){ current=s.site_id; renderSites(sites); openSite(); };
+    d.querySelector(".del").onclick = function(ev){ ev.stopPropagation(); deleteSite(s); };
     el.appendChild(d);
   });
 }
+function toggleForm(abrir){
+  document.getElementById("form-nuevo").classList.toggle("hide", !abrir);
+  document.getElementById("btn-nuevo").classList.toggle("hide", abrir);
+  document.getElementById("n-msg").textContent = "";
+  if(abrir) document.getElementById("n-name").focus();
+}
 function createSite(){
-  var name = prompt("Nombre del sitio:"); if(!name) return;
-  var dom = prompt("Dominio(s) autorizados, separados por coma (ej: cliente.com, pruebas.cliente.com).\nVacio = no se valida el origen:", "") || "";
-  j("POST","/dash/site/create",{name:name,domain:dom}).then(function(){ boot(); });
+  var name = document.getElementById("n-name").value.trim();
+  var dom  = document.getElementById("n-dom").value.trim();
+  var m    = document.getElementById("n-msg");
+  if(!name){ m.textContent = "Escribe un nombre para el sitio."; return; }
+  m.textContent = "Creando...";
+  j("POST","/dash/site/create",{name:name,domain:dom}).then(function(r){
+    if(!r.ok){ m.textContent = (r.d && r.d.error) ? r.d.error : "No se pudo crear."; return; }
+    document.getElementById("n-name").value = "";
+    document.getElementById("n-dom").value  = "";
+    toggleForm(false);
+    current = r.d.site_id;
+    boot(); openSite();
+  });
+}
+function deleteSite(s){
+  if(!confirm('Borrar "'+s.name+'" ('+s.site_id+')?\n\n'+
+              'Se eliminan su configuracion, su clave publica y sus registros de consentimiento. '+
+              'No se puede deshacer.')) return;
+  j("POST","/dash/site/delete",{site_id:s.site_id}).then(function(r){
+    if(!r.ok){ alert((r.d && r.d.error) ? r.d.error : "No se pudo borrar."); return; }
+    if(current === s.site_id){
+      current = null;
+      document.getElementById("detail").innerHTML = '<p class="hint">Selecciona un sitio.</p>';
+    }
+    boot();
+  });
 }
 function guardarDominio(){
   var dom = document.getElementById("dom").value;
@@ -140,13 +194,36 @@ function guardarDominio(){
     msg("dmsg", r.ok ? "Dominios guardados." : (r.d.error||"error"), !r.ok);
   });
 }
+function buildSnippet(d){
+  // El pre-bloqueador va INLINE y antes que nada: el bundle llega por red y
+  // para entonces el parser del navegador ya habria lanzado las etiquetas.
+  var rules = (d.config && d.config.autoBlock) || [];
+  var cfgObj = '{siteId:"'+d.site_id+'",apiBase:"'+API+'"'+
+    (rules.length ? ',autoBlock:'+JSON.stringify(rules) : '')+'}';
+  var s = "<!-- Consent Banner. En el <head>, lo primero, una sola vez -->\n"+
+    "<script>\nwindow.__consentConfig="+cfgObj+";\n";
+  if(rules.length){
+    s +=
+'(function(){var C=window.__consentConfig||{},R=C.autoBlock||[];if(!R.length)return;\n'+
+'var B={observer:null,blocked:[]};window.__consentBlocker=B;\n'+
+'function H(s){try{return new URL(s,location.href).hostname.toLowerCase()}catch(e){return ""}}\n'+
+'function hit(s){if(!s)return null;var h=H(s);if(!h||h===location.hostname.toLowerCase())return null;\n'+
+'for(var i=0;i<R.length;i++){var r=R[i];if(!r||!r.match)continue;var m=String(r.match).toLowerCase().replace(/^\\*?\\.?/,"");\n'+
+'if(h===m||h.slice(-(m.length+1))==="."+m)return r}return null}\n'+
+'function kill(n,r){var s=n.getAttribute("src");n.type="text/plain";n.setAttribute("type","text/plain");\n'+
+'n.setAttribute("data-src",s);n.setAttribute("data-consent-category",r.category);n.removeAttribute("src");B.blocked.push(s)}\n'+
+'B.observer=new MutationObserver(function(m){m.forEach(function(x){Array.prototype.forEach.call(x.addedNodes,function(n){\n'+
+'if(n.tagName==="SCRIPT"){var r=hit(n.getAttribute("src"));if(r)kill(n,r)}})})});\n'+
+'B.observer.observe(document.documentElement,{childList:true,subtree:true});})();\n';
+  }
+  s += '<\/script>\n<script async src="'+API+'/consent-banner.js"><\/script>';
+  return s;
+}
 function openSite(){
   j("GET","/dash/site/get?site_id="+encodeURIComponent(current)).then(function(r){
     if(!r.ok) return;
-    var snippet =
-"<!-- En el <head>, una sola vez -->\n"+
-'<script>window.__consentConfig={siteId:"'+r.d.site_id+'",apiBase:"'+API+'"};<\/script>\n'+
-'<script async src="'+API+'/consent-banner.js"><\/script>';
+    var snippet = buildSnippet(r.d);
+    var nrules = ((r.d.config && r.d.config.autoBlock) || []).length;
     var det = document.getElementById("detail");
     det.innerHTML =
       '<div class="tabs">'+
@@ -163,18 +240,38 @@ function openSite(){
         '<p class="hint">Al guardar, el bundle de ese sitio recibe esta config al recargar, sin tocar el sitio.</p>';
       document.getElementById("cfg").value = JSON.stringify(r.d.config, null, 2);
     } else if(tab==="install"){
-      tb.innerHTML = '<label>Pega esto en el sitio (site_id '+esc(r.d.site_id)+')</label>'+
+      tb.innerHTML = '<label>Pega esto en el &lt;head&gt;, lo primero de todo (site_id '+esc(r.d.site_id)+')</label>'+
         '<div class="snippet">'+esc(snippet)+'</div>'+
+        (nrules
+          ? '<p class="hint">Incluye el pre-bloqueador inline con '+nrules+' regla(s) de autoBlock. '+
+            'Tiene que ir <b>antes</b> de las etiquetas de HubSpot, GTM o analitica, o no llegara a tiempo. '+
+            'Comprueba en consola con <code>window.__consentBlocker.blocked</code>.</p>'
+          : '<p class="hint">Este sitio no tiene reglas <code>autoBlock</code> en su config, asi que el banner '+
+            'registra la decision pero no bloquea scripts de terceros. Anade reglas en la pestana Config, '+
+            'por ejemplo <code>"autoBlock":[{"match":"js.hs-scripts.com","category":"marketing"}]</code>, '+
+            'y vuelve aqui a copiar el snippet.</p>')+
         '<p class="hint">Clave publica (write-only de consentimiento): '+esc(r.d.publicKey)+'</p>'+
         '<label>Dominios autorizados (coma para varios; vacio = no se valida)</label>'+
         '<div class="row"><input type="text" id="dom" style="flex:1" value="'+esc(r.d.domain||"")+'" /></div>'+
         '<div class="row"><button class="btn ghost" onclick="guardarDominio()">Guardar dominios</button><span id="dmsg" class="msg"></span></div>'+
+        '<div class="row"><button class="btn ghost" onclick="copiarSnippet()">Copiar snippet</button><span id="cmsg" class="msg"></span></div>'+
         '<div class="row"><a class="btn ghost" target="_blank" href="'+API+'/sitio-demo.html?site_id='+encodeURIComponent(r.d.site_id)+'">Abrir sitio demo</a></div>';
     } else {
       tb.innerHTML = '<div class="counts" id="counts"></div><table id="logs"><thead><tr><th>ts</th><th>choice</th><th>idioma</th><th>version</th><th>consent_id</th></tr></thead><tbody></tbody></table><div class="row"><button class="btn ghost" onclick="openSite()">Refrescar</button></div>';
       loadLogs();
     }
   });
+}
+function copiarSnippet(){
+  var t = document.querySelector("#tabbody .snippet").textContent;
+  var done = function(){ msg("cmsg","Copiado.", false); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(done, function(){ msg("cmsg","No se pudo copiar.", true); });
+  } else {
+    var ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta);
+    ta.select(); try{ document.execCommand("copy"); done(); }catch(e){ msg("cmsg","No se pudo copiar.", true); }
+    document.body.removeChild(ta);
+  }
 }
 function saveCfg(){
   var cfg; try{ cfg = JSON.parse(document.getElementById("cfg").value); }

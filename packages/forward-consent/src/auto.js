@@ -4,6 +4,9 @@
 import api from "./core.js";
 
 if (typeof document !== "undefined") {
+  // El bloqueo automatico se instala YA, sin esperar a DOMContentLoaded ni a la
+  // config remota: si esperamos, el parser ya habria ejecutado las etiquetas.
+  try { api.blockNow(); } catch (e) {}
   var run = function () { api.start(); };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", run);
