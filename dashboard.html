@@ -152,6 +152,67 @@
        background:var(--line-soft);color:var(--muted)}
   .cat.on{background:#e6f4ea;color:#1e6b36}
 
+  /* ---------- panel visual de apariencia ---------- */
+  .modes{display:flex;gap:4px;background:var(--paper);border:1px solid var(--line);
+         border-radius:9px;padding:3px}
+  .modes button{border:0;background:transparent;padding:6px 14px;border-radius:7px;
+                font-size:12.5px;cursor:pointer;color:var(--muted);font-weight:500}
+  .modes button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(20,36,61,.08)}
+  .vis{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  @media (max-width:1050px){ .vis{grid-template-columns:1fr} }
+  .group{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden}
+  .group > summary{padding:11px 14px;cursor:pointer;font-weight:600;font-size:13px;
+                   background:var(--paper);list-style:none;display:flex;
+                   align-items:center;justify-content:space-between}
+  .group > summary::-webkit-details-marker{display:none}
+  .group > summary::after{content:"\25BE";font-size:10px;color:var(--muted);transition:transform .15s}
+  .group[open] > summary::after{transform:rotate(180deg)}
+  .group .body{padding:14px}
+  .ctl{display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center;margin-bottom:9px}
+  .ctl:last-child{margin-bottom:0}
+  .ctl > label{margin:0;font-size:12px}
+  .ctl input[type=text]{padding:7px 9px;font-size:12.5px}
+  .ctl select{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;
+              font-size:12.5px;background:#fff}
+  .ctl .colorbox{display:flex;gap:7px;align-items:center}
+  .ctl input[type=color]{width:34px;height:31px;padding:2px;border:1px solid var(--line);
+                         border-radius:7px;background:#fff;cursor:pointer;flex:none}
+  .ctl .colorbox input[type=text]{flex:1;font-family:ui-monospace,Menlo,monospace}
+  .ctl .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#1c2531}
+  .preview{position:sticky;top:76px;border:1px solid var(--line);border-radius:10px;
+           overflow:hidden;background:#fff}
+  .preview .bar{padding:9px 13px;background:var(--paper);border-bottom:1px solid var(--line);
+                font-size:12px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  .preview iframe{width:100%;height:520px;border:0;display:block;background:#fbfaf7}
+  /* ---------- cookies detectadas ---------- */
+  .ck-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+           flex-wrap:wrap;margin-bottom:14px}
+  .banner-info{background:#fdf0dc;border:1px solid #f0d9ae;color:#7a5510;
+               border-radius:10px;padding:11px 14px;font-size:12.5px;margin-bottom:14px;
+               line-height:1.55}
+  .banner-info b{font-weight:700}
+  .ck-tbl td{vertical-align:middle}
+  .ck-name{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:#1c2531;font-weight:600}
+  .ck-desc{font-size:11.5px;color:var(--muted);white-space:normal;max-width:330px;line-height:1.45}
+  .ck-sel{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12.5px;
+          background:#fff;min-width:140px}
+  .si-no{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .si-no button{border:0;background:#fff;padding:7px 14px;font-size:12.5px;cursor:pointer;
+                color:var(--muted);font-weight:600;white-space:nowrap}
+  .si-no button + button{border-left:1px solid var(--line)}
+  .si-no button:hover{background:var(--paper)}
+  .si-no button.on.si{background:#e6f4ea;color:#1e6b36}
+  .si-no button.on.no{background:#fdeceb;color:#a5342a}
+  tr.sin-decidir{background:#fffdf7}
+  tr.sin-decidir .ck-name{color:#8a5a12}
+  .nota-nec{font-size:11.5px;color:var(--ok);font-weight:600}
+  .sug{display:inline-block;font-size:10.5px;font-weight:600;border-radius:5px;
+       padding:2px 7px;background:#eef5f3;color:#2c6b5d;margin-left:6px;white-space:nowrap}
+  .sug.none{background:var(--line-soft);color:var(--muted)}
+  .st{display:inline-block;border-radius:999px;padding:2.5px 9px;font-size:11px;font-weight:600}
+  .st.nueva{background:#fdf0dc;color:#8a5a12}
+  .st.asignada{background:#e6f4ea;color:#1e6b36}
+  .st.ignorada{background:var(--line-soft);color:var(--muted)}
   .msg{font-size:12.5px}
   .ok{color:var(--ok)} .err{color:var(--danger)}
   .empty{text-align:center;padding:44px 20px;color:var(--muted);font-size:13.5px}
@@ -293,6 +354,7 @@ function pickSite(id){ current = id; menuOpen = false; renderPicker(); openTab(t
 var TABS = [
   {id:"config",    label:"Configuracion"},
   {id:"instalar",  label:"Instalar"},
+  {id:"cookies",   label:"Cookies detectadas"},
   {id:"registros", label:"Registros"},
   {id:"cuenta",    label:"Cuenta"}
 ];
@@ -313,13 +375,17 @@ function openTab(id){
       el("tabbody").innerHTML = '<div class="card"><div class="empty">No se pudo cargar el sitio.</div></div>';
       return;
     }
+    window._cfgActual = r.d.config || {};
     if(id==="config")    viewConfig(r.d);
     if(id==="instalar")  viewInstalar(r.d);
     if(id==="registros") viewRegistros(r.d);
+    if(id==="cookies")   viewCookies(r.d);
   });
 }
 
 /* ---------------- CONFIGURACION ---------------- */
+var cfgMode = "visual";   // visual | json
+
 function viewConfig(d){
   el("tabbody").innerHTML =
     '<div class="card">'+
@@ -327,19 +393,238 @@ function viewConfig(d){
         '<div class="left"><h2 style="margin:0">Configuracion del sitio</h2>'+
           '<span class="ver-chip">version '+esc(String(d.version))+'</span></div>'+
         '<div class="row">'+
+          '<div class="modes">'+
+            '<button id="m-visual" onclick="setCfgMode(\'visual\')">Apariencia</button>'+
+            '<button id="m-json" onclick="setCfgMode(\'json\')">JSON</button>'+
+          '</div>'+
           '<button class="btn ghost sm" onclick="formatCfg()">Formatear</button>'+
           '<button class="btn sm" id="btn-save" onclick="saveCfg()">Guardar nueva version</button>'+
         '</div>'+
       '</div>'+
-      '<div class="editor-wrap" id="ed-wrap"><textarea id="cfg" spellcheck="false"></textarea></div>'+
+      '<div id="pane-visual"></div>'+
+      '<div id="pane-json">'+
+        '<div class="editor-wrap" id="ed-wrap"><textarea id="cfg" spellcheck="false"></textarea></div>'+
+      '</div>'+
       '<div class="editor-foot"><span id="smsg" class="msg"></span></div>'+
       '<div class="checks" id="checks"></div>'+
       '<p class="hint">Al guardar, el bundle de este sitio recibe la configuracion al recargar. '+
       'No hace falta tocar el codigo instalado.</p>'+
     '</div>';
   el("cfg").value = JSON.stringify(d.config, null, 2);
-  el("cfg").addEventListener("input", validarCfg);
+  el("cfg").addEventListener("input", function(){ validarCfg(); });
+  setCfgMode(cfgMode);
+}
+
+function setCfgMode(m){
+  cfgMode = m;
+  var v = el("m-visual"), jb = el("m-json");
+  if(v) v.className = m==="visual" ? "on" : "";
+  if(jb) jb.className = m==="json" ? "on" : "";
+  el("pane-visual").classList.toggle("hide", m!=="visual");
+  el("pane-json").classList.toggle("hide", m!=="json");
+  if(m==="visual") renderVisual();
   validarCfg();
+}
+
+/* ---- descripcion de los controles -------------------------------------
+   Cada entrada dice donde vive el valor dentro del JSON (path), como se
+   edita (kind) y que texto lleva. Anadir una opcion nueva es anadir una
+   fila aqui; no hay que tocar el render. */
+var UI_GROUPS = [
+  { t:"Banner", open:true, items:[
+    {p:"banner.position",  k:"select", l:"Posicion", opts:[["bottom","Abajo"],["top","Arriba"]]},
+    {p:"banner.align",     k:"select", l:"Alineacion", opts:[["left","Izquierda"],["center","Centrado"],["right","Derecha"]]},
+    {p:"banner.maxWidth",  k:"text",   l:"Ancho maximo", ph:"1172px"},
+    {p:"banner.padding",   k:"text",   l:"Padding", ph:"22px 26px"},
+    {p:"banner.margin",    k:"text",   l:"Margen exterior", ph:"0 20px 20px"},
+    {p:"banner.radius",    k:"text",   l:"Radio", ph:"12px"},
+    {p:"banner.gap",       k:"text",   l:"Separacion", ph:"28px"},
+    {p:"banner.background",k:"color",  l:"Fondo"},
+    {p:"banner.color",     k:"color",  l:"Texto"}
+  ]},
+  { t:"Panel de preferencias", items:[
+    {p:"panel.maxWidth",    k:"text",  l:"Ancho maximo", ph:"560px"},
+    {p:"panel.maxHeight",   k:"text",  l:"Alto maximo", ph:"92vh"},
+    {p:"panel.radius",      k:"text",  l:"Radio", ph:"12px"},
+    {p:"panel.headPadding", k:"text",  l:"Padding cabecera", ph:"28px 28px 20px"},
+    {p:"panel.rowPadding",  k:"text",  l:"Padding filas", ph:"20px 28px"},
+    {p:"panel.footPadding", k:"text",  l:"Padding pie", ph:"20px 28px 24px"},
+    {p:"panel.overlay",     k:"text",  l:"Fondo del velo", ph:"rgba(22,35,59,.28)"},
+    {p:"panel.background",  k:"color", l:"Fondo del panel"}
+  ]},
+  { t:"Tipografia", items:[
+    {p:"fonts.heading", k:"text", l:"Familia titulos"},
+    {p:"fonts.body",    k:"text", l:"Familia texto"},
+    {p:"fonts.mono",    k:"text", l:"Familia mono"},
+    {p:"typography.panelTitle.size",   k:"text", l:"Titulo: tamano", ph:"26px"},
+    {p:"typography.panelTitle.weight", k:"text", l:"Titulo: peso", ph:"500"},
+    {p:"typography.bannerText.size",   k:"text", l:"Texto banner: tamano", ph:"15px"},
+    {p:"typography.bannerText.weight", k:"text", l:"Texto banner: peso", ph:"400"},
+    {p:"typography.bannerText.lineHeight", k:"text", l:"Texto banner: interlineado", ph:"1.55"},
+    {p:"typography.catName.size",      k:"text", l:"Categoria: tamano", ph:"15px"},
+    {p:"typography.catName.weight",    k:"text", l:"Categoria: peso", ph:"700"},
+    {p:"typography.button.size",       k:"text", l:"Botones: tamano", ph:"14px"},
+    {p:"typography.button.weight",     k:"text", l:"Botones: peso", ph:"500"},
+    {p:"typography.eyebrow.size",      k:"text", l:"Eyebrow: tamano", ph:"10px"},
+    {p:"typography.eyebrow.letterSpacing", k:"text", l:"Eyebrow: espaciado", ph:".14em"}
+  ]},
+  { t:"Botones", items:[
+    {p:"buttons.radius",            k:"text",  l:"Radio", ph:"8px"},
+    {p:"buttons.padding",           k:"text",  l:"Padding base", ph:"11px 18px"},
+    {p:"buttons.accept.background", k:"color", l:"Aceptar: fondo"},
+    {p:"buttons.accept.color",      k:"color", l:"Aceptar: texto"},
+    {p:"buttons.accept.padding",    k:"text",  l:"Aceptar: padding", ph:"12px 22px"},
+    {p:"buttons.reject.background", k:"text",  l:"Rechazar: fondo", ph:"transparent"},
+    {p:"buttons.reject.color",      k:"color", l:"Rechazar: texto"},
+    {p:"buttons.reject.border",     k:"text",  l:"Rechazar: borde", ph:"1px solid ..."},
+    {p:"buttons.save.background",   k:"color", l:"Guardar: fondo"},
+    {p:"buttons.save.color",        k:"color", l:"Guardar: texto"}
+  ]},
+  { t:"Pill de reapertura", items:[
+    {p:"chip.enabled",   k:"bool",   l:"Mostrar el pill", def:true},
+    {p:"chip.mode",      k:"select", l:"Contenido", opts:[["text","Solo texto"],["image","Solo imagen"],["both","Imagen y texto"]]},
+    {p:"chip.image",     k:"text",   l:"URL de la imagen", ph:"https://..."},
+    {p:"chip.imageAlt",  k:"text",   l:"Texto alternativo", ph:"Cookies"},
+    {p:"chip.imageSize", k:"text",   l:"Tamano imagen", ph:"18px"},
+    {p:"chip.position",  k:"select", l:"Esquina", opts:[["bottom-left","Abajo izquierda"],["bottom-right","Abajo derecha"],["top-left","Arriba izquierda"],["top-right","Arriba derecha"]]},
+    {p:"chip.offsetX",   k:"text",   l:"Separacion lateral", ph:"16px"},
+    {p:"chip.offsetY",   k:"text",   l:"Separacion vertical", ph:"16px"},
+    {p:"chip.padding",   k:"text",   l:"Padding", ph:"8px 13px"},
+    {p:"chip.radius",    k:"text",   l:"Radio", ph:"999px"},
+    {p:"chip.gap",       k:"text",   l:"Separacion interna", ph:"7px"},
+    {p:"chip.background",k:"color",  l:"Fondo"},
+    {p:"chip.color",     k:"color",  l:"Texto"},
+    {p:"chip.border",    k:"text",   l:"Borde", ph:"1px solid ..."}
+  ]},
+  { t:"Deteccion de cookies", items:[
+    {p:"cookieDiscovery",   k:"bool", l:"Detectar cookies", def:false},
+    {p:"discoverySeconds",  k:"num",  l:"Segundos de escucha", ph:"15"}
+  ]},
+  { t:"Colores del tema", items:[
+    {p:"colors.ink",       k:"color", l:"Fondo banner"},
+    {p:"colors.text",      k:"color", l:"Texto sobre banner"},
+    {p:"colors.accent",    k:"color", l:"Color principal"},
+    {p:"colors.accentHover",k:"color",l:"Principal (hover)"},
+    {p:"colors.accentPale",k:"color", l:"Eyebrow y enlaces"},
+    {p:"colors.panelBg",   k:"color", l:"Fondo panel"},
+    {p:"colors.heading",   k:"color", l:"Titulos"},
+    {p:"colors.body",      k:"color", l:"Texto secundario"},
+    {p:"colors.border",    k:"color", l:"Bordes"},
+    {p:"colors.cream",     k:"color", l:"Pie del panel"}
+  ]}
+];
+
+/* lectura y escritura por ruta "a.b.c" */
+function getPath(o, path){
+  var parts = path.split("."), v = o;
+  for(var i=0;i<parts.length;i++){
+    if(v==null || typeof v!=="object") return undefined;
+    v = v[parts[i]];
+  }
+  return v;
+}
+function setPath(o, path, value){
+  var parts = path.split("."), cur = o;
+  for(var i=0;i<parts.length-1;i++){
+    if(typeof cur[parts[i]]!=="object" || cur[parts[i]]===null) cur[parts[i]] = {};
+    cur = cur[parts[i]];
+  }
+  var last = parts[parts.length-1];
+  // Cadena vacia = "quitalo y usa el valor por defecto del bundle".
+  if(value==="" || value===undefined) delete cur[last];
+  else cur[last] = value;
+}
+
+function renderVisual(){
+  var obj;
+  try{ obj = JSON.parse(el("cfg").value); }
+  catch(e){
+    el("pane-visual").innerHTML =
+      '<div class="empty">El JSON tiene errores. Corrigelo en la pestana JSON para volver aqui.</div>';
+    return;
+  }
+  var groups = UI_GROUPS.map(function(g){
+    return '<details class="group"'+(g.open?' open':'')+'><summary>'+esc(g.t)+'</summary><div class="body">'+
+      g.items.map(function(it){ return control(obj, it); }).join('')+
+    '</div></details>';
+  }).join('');
+  el("pane-visual").innerHTML =
+    '<div class="vis">'+
+      '<div>'+groups+'</div>'+
+      '<div class="preview">'+
+        '<div class="bar"><span>Vista previa</span>'+
+          '<button class="btn ghost sm" onclick="refrescarPreview()">Recargar</button></div>'+
+        '<iframe id="prev"></iframe>'+
+      '</div>'+
+    '</div>';
+  refrescarPreview();
+}
+
+function control(obj, it){
+  var v = getPath(obj, it.p);
+  var id = "c_"+it.p.replace(/\./g,"_");
+  var body = "";
+  if(it.k==="color"){
+    var hex = /^#[0-9a-fA-F]{6}$/.test(v||"") ? v : "#ffffff";
+    body = '<div class="colorbox">'+
+      '<input type="color" value="'+hex+'" oninput="onCtl(\''+it.p+'\',this.value,\''+id+'\')" />'+
+      '<input type="text" id="'+id+'" value="'+esc(v==null?"":v)+'" placeholder="por defecto" '+
+        'oninput="onCtl(\''+it.p+'\',this.value)" /></div>';
+  } else if(it.k==="select"){
+    body = '<select id="'+id+'" onchange="onCtl(\''+it.p+'\',this.value)">'+
+      '<option value="">por defecto</option>'+
+      it.opts.map(function(o){
+        return '<option value="'+o[0]+'"'+(v===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';
+      }).join('')+'</select>';
+  } else if(it.k==="bool"){
+    // El valor por defecto de cada opcion lo dice el propio control (it.def):
+    // dar por hecho "activo" mostraria encendido algo que el bundle tiene apagado.
+    var marcado = (v === undefined || v === null) ? (it.def !== false) : (v !== false);
+    body = '<label class="chk"><input type="checkbox" id="'+id+'"'+(marcado?' checked':'')+
+      ' onchange="onCtl(\''+it.p+'\', this.checked?true:false)" /> activo</label>';
+  } else if(it.k==="num"){
+    // Numeros como numeros: guardarlos como texto rompe las comparaciones del bundle.
+    body = '<input type="text" id="'+id+'" value="'+esc(v==null?"":v)+'" placeholder="'+esc(it.ph||"")+'" '+
+      'oninput="onCtl(\''+it.p+'\', this.value===\'\' ? \'\' : Number(this.value))" />';
+  } else {
+    body = '<input type="text" id="'+id+'" value="'+esc(v==null?"":v)+'" placeholder="'+esc(it.ph||"por defecto")+'" '+
+      'oninput="onCtl(\''+it.p+'\',this.value)" />';
+  }
+  return '<div class="ctl"><label>'+esc(it.l)+'</label>'+body+'</div>';
+}
+
+var _prevTimer = null;
+function onCtl(path, value, mirrorId){
+  var obj;
+  try{ obj = JSON.parse(el("cfg").value); }catch(e){ return; }
+  setPath(obj, path, value);
+  el("cfg").value = JSON.stringify(obj, null, 2);
+  if(mirrorId){ var m = el(mirrorId); if(m) m.value = value; }   // color -> campo de texto
+  validarCfg();
+  clearTimeout(_prevTimer);
+  _prevTimer = setTimeout(refrescarPreview, 400);   // el iframe se rehace, no en cada tecla
+}
+
+/* La vista previa monta el bundle real dentro de un iframe con la config
+   que hay en el editor, sin guardar nada. */
+function refrescarPreview(){
+  var fr = el("prev"); if(!fr) return;
+  var cfg;
+  try{ cfg = JSON.parse(el("cfg").value); }catch(e){ return; }
+  cfg = JSON.parse(JSON.stringify(cfg));
+  // Sin siteId ni apiBase el bundle no pide la config remota ni registra nada:
+  // la vista previa se pinta solo con lo que hay en el editor.
+  delete cfg.endpoint; delete cfg.siteId; delete cfg.apiBase; delete cfg.publicKey;
+  cfg.consentVersion = "preview-" + Date.now();   // fuerza que el banner se muestre siempre
+  var html =
+    '<!doctype html><html><head><meta charset="utf-8">'+
+    '<style>body{margin:0;font-family:-apple-system,sans-serif;background:#fbfaf7;'+
+    'padding:22px;color:#8a8a8a;font-size:13px}</style></head><body>'+
+    '<p>Contenido de ejemplo del sitio.</p>'+
+    '<script>window.__consentConfig='+JSON.stringify(cfg)+';<\/script>'+
+    '<script src="'+API+'/consent-banner.js"><\/script>'+
+    '<\/body><\/html>';
+  fr.srcdoc = html;
 }
 
 function formatCfg(){
@@ -392,6 +677,7 @@ function validarCfg(){
       t:"<b>"+sinCat+" patron(es) sin categoria</b>: formato antiguo, se borran solo si la analitica queda denegada."});
     if(obj.webfont) res.push({s:"warn",
       t:"<b>webfont activo</b>: el banner pide tipografias a Google, generando una conexion a un tercero."});
+    avisosApariencia(obj, res);
   }
   el("ed-wrap").classList.toggle("bad", fatal);
   var b = el("btn-save"); if(b) b.disabled = fatal;
@@ -400,6 +686,65 @@ function validarCfg(){
     return '<div class="check '+c.s+'"><span class="ic">'+ic+'</span><span>'+c.t+'</span></div>';
   }).join('');
   return !fatal;
+}
+
+/* Avisos de legibilidad. Nunca bloquean: solo advierten de combinaciones que
+   dejarian el banner dificil de leer o de usar. */
+function hexToRgb(h){
+  if(!h) return null;
+  h = String(h).trim();
+  var m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(h);
+  if(!m) return null;
+  var x = m[1];
+  if(x.length===3) x = x[0]+x[0]+x[1]+x[1]+x[2]+x[2];
+  return [parseInt(x.slice(0,2),16), parseInt(x.slice(2,4),16), parseInt(x.slice(4,6),16)];
+}
+/* Luminancia relativa y ratio de contraste segun WCAG 2.1 */
+function luminancia(rgb){
+  var c = rgb.map(function(v){
+    v = v/255;
+    return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4);
+  });
+  return 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2];
+}
+function contraste(a, b){
+  var ra = hexToRgb(a), rb = hexToRgb(b);
+  if(!ra || !rb) return null;
+  var la = luminancia(ra), lb = luminancia(rb);
+  var hi = Math.max(la,lb), lo = Math.min(la,lb);
+  return (hi + 0.05) / (lo + 0.05);
+}
+function px(v){
+  var m = /^(-?[\d.]+)px$/.exec(String(v||"").trim());
+  return m ? parseFloat(m[1]) : null;
+}
+function avisosApariencia(o, res){
+  var C = o.colors || {}, B = o.banner || {}, P = o.panel || {}, T = o.typography || {}, H = o.chip || {};
+  var pares = [
+    [B.background || C.ink,   B.color || C.text,          "texto del banner"],
+    [P.background || C.panelBg, C.heading,                "titulos del panel"],
+    [P.background || C.panelBg, C.body,                   "descripciones del panel"],
+    [(o.buttons && o.buttons.accept && o.buttons.accept.background) || C.accent,
+     (o.buttons && o.buttons.accept && o.buttons.accept.color) || C.textBright, "boton de aceptar"],
+    [H.background || C.panelBg, H.color || C.body,        "pill de reapertura"]
+  ];
+  pares.forEach(function(par){
+    var r = contraste(par[0], par[1]);
+    if(r === null) return;                       // no son hex: no se puede medir
+    if(r < 3)      res.push({s:"warn", t:"Contraste muy bajo en el <b>"+par[2]+"</b> ("+r.toFixed(1)+":1). Por debajo de 3:1 cuesta leerlo."});
+    else if(r < 4.5) res.push({s:"warn", t:"Contraste justo en el <b>"+par[2]+"</b> ("+r.toFixed(1)+":1). WCAG pide 4.5:1 para texto normal."});
+  });
+  var bw = px(B.maxWidth), pw = px(P.maxWidth);
+  if(bw !== null && bw < 280) res.push({s:"warn", t:"<b>Ancho del banner</b> de "+bw+"px: por debajo de 280px el contenido se desborda."});
+  if(pw !== null && pw < 300) res.push({s:"warn", t:"<b>Ancho del panel</b> de "+pw+"px: los interruptores y sus textos no caben bien."});
+  var ts = px(T.bannerText && T.bannerText.size), cs = px(T.catDesc && T.catDesc.size);
+  if(ts !== null && ts < 12) res.push({s:"warn", t:"<b>Texto del banner</b> a "+ts+"px: por debajo de 12px es dificil de leer en movil."});
+  if(cs !== null && cs < 11) res.push({s:"warn", t:"<b>Descripcion de categorias</b> a "+cs+"px: demasiado pequeno para un texto legal."});
+  if(H.enabled === false) res.push({s:"warn", t:"<b>Pill desactivado</b>: sin el, el visitante no puede reabrir el panel para cambiar de opinion."});
+  if((H.mode === "image" || H.mode === "both") && !H.image)
+    res.push({s:"warn", t:"El pill esta en modo imagen pero <b>chip.image esta vacio</b>: se mostrara solo el texto."});
+  if(H.mode === "image" && H.image && !H.imageAlt)
+    res.push({s:"warn", t:"Pill con solo imagen y <b>sin texto alternativo</b>: un lector de pantalla no sabra que es."});
 }
 
 function saveCfg(){
@@ -552,6 +897,223 @@ function cats(raw){
   return '<div class="cats">'+ks.map(function(k){
     return '<span class="cat'+(o[k]?' on':'')+'">'+esc(k)+'</span>';
   }).join('')+'</div>';
+}
+
+/* ---------------- COOKIES DETECTADAS ---------------- */
+/* El bundle reporta que NOMBRES de cookie aparecen en el sitio real (nunca su
+   valor). Aqui se decide que es cada una. Solo las no esenciales acaban en
+   cookiePatterns: una cookie de sesion o de seguridad no se debe borrar. */
+var _ckCambios = {};     // nombre -> {category, status} pendiente de guardar
+
+function viewCookies(d){
+  var cats = (d.config && d.config.categories) || [];
+  window._ckCats = cats.map(function(c){ return c.id; });
+  el("tabbody").innerHTML =
+    '<div class="card">'+
+      '<div class="ck-head">'+
+        '<div><h2 style="margin:0">Cookies detectadas en el sitio</h2>'+
+        '<p class="sub" style="margin:4px 0 0">Clasifica cada una. Las esenciales nunca se borran.</p></div>'+
+        '<div class="row">'+
+          '<button class="btn ghost sm" onclick="aceptarSugerencias()">Aplicar sugerencias</button>'+
+          '<button class="btn ghost sm" onclick="loadCookies()">Refrescar</button>'+
+          '<button class="btn sm" id="ck-save" onclick="guardarCookies()">Guardar clasificacion</button>'+
+        '</div>'+
+      '</div>'+
+      '<div id="ck-aviso"></div>'+
+      '<div id="ck-body"><div class="empty">Cargando...</div></div>'+
+      '<div class="row mt"><span id="ck-msg" class="msg"></span></div>'+
+    '</div>';
+  loadCookies();
+}
+
+function loadCookies(){
+  _ckCambios = {};
+  j("GET","/dash/site/cookies?site_id="+encodeURIComponent(current)).then(function(r){
+    if(!r.ok){ el("ck-body").innerHTML = '<div class="empty">No se pudieron cargar.</div>'; return; }
+    window._ckRows = r.d.rows || [];
+    pintarCookies();
+  });
+}
+
+function pintarCookies(){
+  var rows = window._ckRows || [], cats = window._ckCats || [];
+  el("ck-aviso").innerHTML = avisoDeteccion(rows.length);
+  if(!rows.length){
+    el("ck-body").innerHTML = '<div class="empty">Todavia no se ha detectado ninguna cookie.</div>';
+    return;
+  }
+  var pend = rows.filter(function(x){ return x.status==="nueva"; }).length;
+
+  // Tipos entre los que se elige SOLO cuando la cookie no es necesaria.
+  // Son las categorias no bloqueadas de la config: si el sitio no tiene
+  // "marketing", aqui no aparece.
+  var tipos = cats.filter(function(c){ return c !== "esencial"; });
+
+  el("ck-body").innerHTML =
+    '<div class="stats">'+
+      '<div class="stat"><div class="n">'+rows.length+'</div><div class="l">Detectadas</div></div>'+
+      '<div class="stat cus"><div class="n">'+pend+'</div><div class="l">Sin decidir</div></div>'+
+      '<div class="stat acc"><div class="n">'+rows.filter(function(x){return x.category==="esencial";}).length+
+        '</div><div class="l">Necesarias</div></div>'+
+      '<div class="stat rej"><div class="n">'+rows.filter(function(x){
+          return x.status==="asignada" && x.category && x.category!=="esencial"; }).length+
+        '</div><div class="l">No necesarias</div></div>'+
+    '</div>'+
+    '<div class="table-wrap"><table class="ck-tbl"><thead><tr>'+
+      '<th>Cookie</th><th>Que es</th><th>&iquest;Es necesaria?</th><th>Tipo</th><th>Vista</th>'+
+    '</tr></thead><tbody>'+
+    rows.map(function(x){ return filaCookie(x, tipos); }).join('')+
+    '</tbody></table></div>';
+}
+
+/* Una fila: la pregunta es binaria (necesaria o no). El desplegable de tipo
+   solo tiene sentido cuando la respuesta es "no", y por eso se oculta. */
+function filaCookie(x, tipos){
+  var id = cssId(x.name);
+  var esNecesaria   = x.category === "esencial";
+  var esNoNecesaria = x.status === "asignada" && x.category && x.category !== "esencial";
+  var sinDecidir    = !esNecesaria && !esNoNecesaria;
+
+  var sug = "";
+  if (x.sugerida === "esencial")      sug = '<span class="sug">se sugiere: necesaria</span>';
+  else if (x.sugerida)                sug = '<span class="sug">se sugiere: no necesaria ('+esc(x.sugerida)+')</span>';
+  else                                sug = '<span class="sug none">desconocida</span>';
+
+  var desc = x.explicacion || "No esta en el catalogo. Averigua quien la escribe antes de decidir.";
+
+  var opciones = tipos.map(function(c){
+    return '<option value="'+esc(c)+'"'+(x.category===c?" selected":"")+'>'+esc(c)+'</option>';
+  }).join('');
+
+  return '<tr'+(sinDecidir?' class="sin-decidir"':'')+'>'+
+    '<td><div class="ck-name">'+esc(x.name)+'</div>'+sug+'</td>'+
+    '<td><div class="ck-desc">'+esc(desc)+'</div></td>'+
+    '<td>'+
+      '<div class="si-no" id="sn_'+id+'">'+
+        '<button type="button" class="'+(esNecesaria?"on si":"")+'" '+
+          'onclick="ckNecesaria(\''+esc(x.name).replace(/'/g,"")+'\',true)">Si, necesaria</button>'+
+        '<button type="button" class="'+(esNoNecesaria?"on no":"")+'" '+
+          'onclick="ckNecesaria(\''+esc(x.name).replace(/'/g,"")+'\',false)">No</button>'+
+      '</div>'+
+    '</td>'+
+    '<td>'+
+      '<select class="ck-sel" id="tp_'+id+'" style="'+(esNoNecesaria?"":"display:none")+'" '+
+        'onchange="ckTipo(\''+esc(x.name).replace(/'/g,"")+'\',this.value)">'+opciones+'</select>'+
+      '<span class="nota-nec" id="nn_'+id+'" style="'+(esNecesaria?"":"display:none")+'">'+
+        'Nunca se borra</span>'+
+    '</td>'+
+    '<td class="mono">'+esc(fecha(x.last_seen))+'<br><span style="font-size:10.5px">'+
+      esc(x.hits)+' veces, '+esc(x.phase||"")+'</span></td>'+
+  '</tr>';
+}
+
+function cssId(n){ return String(n).replace(/[^a-zA-Z0-9_]/g,"_"); }
+
+/* Aviso segun el estado de la deteccion: si no esta activada, no llegaran datos. */
+function avisoDeteccion(cuantas){
+  var activa = window._cfgActual && window._cfgActual.cookieDiscovery === true;
+  if(activa) return "";
+  return '<div class="banner-info"><b>La deteccion esta apagada.</b> '+
+    'Pon <code>"cookieDiscovery": true</code> en la configuracion para que el sitio '+
+    'empiece a reportar que cookies aparecen. '+
+    (cuantas ? 'Lo de abajo es lo que se detecto antes de apagarla.' : '')+'</div>';
+}
+
+/* Respuesta a "es necesaria?". Si es que NO, hay que decir de que tipo, y se
+   toma el tipo sugerido por el catalogo o el primero disponible. */
+function ckNecesaria(nombre, necesaria){
+  var fila = (window._ckRows||[]).filter(function(r){ return r.name===nombre; })[0];
+  if(!fila) return;
+  var id = cssId(nombre);
+  var tipos = (window._ckCats||[]).filter(function(c){ return c!=="esencial"; });
+
+  if(necesaria){
+    fila.category = "esencial"; fila.status = "asignada";
+  } else {
+    var elegido = fila.category && fila.category !== "esencial" ? fila.category : "";
+    if(!elegido && fila.sugerida && fila.sugerida !== "esencial" && tipos.indexOf(fila.sugerida) > -1){
+      elegido = fila.sugerida;                 // el catalogo ya sabe de que tipo es
+    }
+    if(!elegido) elegido = tipos[0] || "";
+    fila.category = elegido;
+    // Sin ningun tipo disponible no se puede clasificar como no necesaria.
+    fila.status = elegido ? "asignada" : "nueva";
+    if(!elegido){
+      msg("ck-msg","Para marcar cookies como no necesarias, anade alguna categoria "+
+                   "en la configuracion (aparte de las bloqueadas).", true);
+      return;
+    }
+  }
+  _ckCambios[nombre] = { category: fila.category, status: fila.status };
+
+  // Pintar el cambio sin rehacer toda la tabla, para no perder el scroll.
+  var grupo = el("sn_"+id);
+  if(grupo){
+    var bs = grupo.getElementsByTagName("button");
+    bs[0].className = necesaria ? "on si" : "";
+    bs[1].className = necesaria ? "" : "on no";
+  }
+  var sel = el("tp_"+id), nota = el("nn_"+id);
+  if(sel){ sel.style.display = necesaria ? "none" : ""; if(!necesaria) sel.value = fila.category; }
+  if(nota){ nota.style.display = necesaria ? "" : "none"; }
+  var tr = grupo && grupo.parentNode ? grupo.parentNode.parentNode : null;
+  if(tr) tr.className = "";
+  contarCambios();
+}
+
+function ckTipo(nombre, valor){
+  var fila = (window._ckRows||[]).filter(function(r){ return r.name===nombre; })[0];
+  if(!fila) return;
+  fila.category = valor; fila.status = "asignada";
+  _ckCambios[nombre] = { category: valor, status: "asignada" };
+  contarCambios();
+}
+
+function contarCambios(){
+  var n = Object.keys(_ckCambios).length;
+  msg("ck-msg", n ? n+" cambio(s) sin guardar. Pulsa Guardar." : "", false);
+}
+
+/* Responde por ti segun el catalogo: lo conocido como de sesion o seguridad
+   queda como necesaria, lo demas como no necesaria con su tipo. Lo desconocido
+   se queda sin decidir a proposito: eso lo tienes que mirar tu. */
+function aceptarSugerencias(){
+  var rows = window._ckRows || [];
+  var tipos = (window._ckCats||[]).filter(function(c){ return c!=="esencial"; });
+  var n = 0;
+  rows.forEach(function(x){
+    if(x.status === "asignada" || !x.sugerida) return;
+    if(x.sugerida === "esencial"){
+      x.category = "esencial"; x.status = "asignada";
+    } else {
+      if(tipos.indexOf(x.sugerida) < 0) return;   // ese tipo no existe en la config
+      x.category = x.sugerida; x.status = "asignada";
+    }
+    _ckCambios[x.name] = { category: x.category, status: "asignada" };
+    n++;
+  });
+  pintarCookies();
+  msg("ck-msg", n ? (n+" cookie(s) respondidas. Revisa y pulsa Guardar.")
+                  : "No hay sugerencias aplicables.", false);
+}
+
+function guardarCookies(){
+  var items = Object.keys(_ckCambios).map(function(k){
+    return { name:k, category:_ckCambios[k].category, status:_ckCambios[k].status };
+  });
+  if(!items.length){ msg("ck-msg","No hay cambios que guardar.", true); return; }
+  j("POST","/dash/site/cookies/classify",{site_id:current, items:items}).then(function(r){
+    if(!r.ok){ msg("ck-msg", r.d.error||"No se pudo guardar.", true); return; }
+    // Volcar a cookiePatterns crea una version nueva de la config.
+    j("POST","/dash/site/cookies/apply",{site_id:current}).then(function(r2){
+      if(r2.ok){
+        var n = (r2.d.anadidas||[]).length;
+        msg("ck-msg", "Guardado. "+(n ? n+" patron(es) anadidos a la configuracion (version "+r2.d.version+")."
+                                      : "Sin patrones nuevos que anadir."), false);
+        loadCookies();
+      } else msg("ck-msg", r2.d.error||"Guardado, pero no se pudo aplicar.", true);
+    });
+  });
 }
 
 /* ---------------- CUENTA ---------------- */

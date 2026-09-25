@@ -113,11 +113,102 @@ def init_db():
       token TEXT PRIMARY KEY, username TEXT, created_at TEXT);
     CREATE TABLE IF NOT EXISTS site_owners(
       username TEXT, site_id TEXT, PRIMARY KEY(username, site_id));
+    -- Cookies observadas en el sitio real por el bundle. Una fila por nombre.
+    -- status: nueva (sin clasificar) | asignada (ya tiene categoria) | ignorada
+    CREATE TABLE IF NOT EXISTS cookies_found(
+      site_id TEXT, name TEXT, first_seen TEXT, last_seen TEXT, hits INTEGER,
+      sample_domain TEXT, phase TEXT, status TEXT, category TEXT, note TEXT,
+      PRIMARY KEY(site_id, name));
     """)
     c.commit()
     if fresh:
         seed(c)
     c.close()
+
+# ---------------------------------------------------------------------------
+# Catalogo de cookies conocidas. Sirve para SUGERIR una categoria cuando el
+# bundle descubre una cookie nueva; la decision final siempre es del usuario.
+# El orden importa: gana la primera coincidencia, asi que lo especifico va
+# antes que lo generico ("_gat_" antes que "_ga").
+# tipo: esencial | analitica | marketing | funcional
+COOKIE_CATALOGO = [
+    # --- Google Analytics / Ads / Tag Manager ---
+    ("_gat",        "analitica", "Google Analytics: limita la frecuencia de peticiones."),
+    ("_gid",        "analitica", "Google Analytics: identifica al visitante durante 24 h."),
+    ("_ga",         "analitica", "Google Analytics: identifica al visitante (2 anos)."),
+    ("__utm",       "analitica", "Google Analytics clasico (Urchin)."),
+    ("_gcl",        "marketing", "Google Ads: atribucion de clics en campanas."),
+    ("_gac",        "marketing", "Google Ads: datos de campana."),
+    ("IDE",         "marketing", "DoubleClick de Google: publicidad y remarketing."),
+    ("test_cookie", "marketing", "DoubleClick: comprueba si el navegador acepta cookies."),
+    ("NID",         "marketing", "Google: preferencias y anuncios personalizados."),
+    ("1P_JAR",      "marketing", "Google: estadisticas de uso de sus servicios."),
+    ("SEARCH_SAMESITE", "esencial", "Google: control tecnico de envio de cookies."),
+    # --- HubSpot ---
+    ("hubspotutk",  "marketing", "HubSpot: identifica al visitante entre sesiones."),
+    ("__hstc",      "marketing", "HubSpot: seguimiento principal del visitante."),
+    ("__hssrc",     "esencial",  "HubSpot: detecta si es una sesion nueva."),
+    ("__hssc",      "analitica", "HubSpot: control de sesion para analitica."),
+    ("__hs_opt_out","esencial",  "HubSpot: recuerda el rechazo del propio banner de HubSpot."),
+    ("__hs_do_not_track", "esencial", "HubSpot: recuerda la peticion de no seguimiento."),
+    ("messagesUtk", "marketing", "HubSpot: identifica al usuario del chat."),
+    # --- Meta / redes ---
+    ("_fbp",        "marketing", "Meta (Facebook) Pixel: publicidad y medicion."),
+    ("fr",          "marketing", "Meta: publicidad y remarketing."),
+    ("_ttp",        "marketing", "TikTok Pixel: medicion de campanas."),
+    ("li_",         "marketing", "LinkedIn: seguimiento e insight tag."),
+    ("_pin_",       "marketing", "Pinterest: medicion de conversiones."),
+    # --- Analitica de terceros ---
+    ("_hj",         "analitica", "Hotjar: mapas de calor y grabacion de sesion."),
+    ("_clck",       "analitica", "Microsoft Clarity: identificador de analitica."),
+    ("_clsk",       "analitica", "Microsoft Clarity: une las visitas de una sesion."),
+    ("MUID",        "marketing", "Microsoft: identificador publicitario."),
+    ("_uetsid",     "marketing", "Microsoft Ads UET: seguimiento de conversiones."),
+    ("_uetvid",     "marketing", "Microsoft Ads UET: identificador persistente."),
+    ("mp_",         "analitica", "Mixpanel: analitica de producto."),
+    ("amplitude",   "analitica", "Amplitude: analitica de producto."),
+    ("ajs_",        "analitica", "Segment: analitica."),
+    ("_pk_",        "analitica", "Matomo: analitica."),
+    # --- Video / contenido embebido ---
+    ("vuid",        "analitica", "Vimeo: identificador de analitica del reproductor."),
+    ("player",      "funcional", "Vimeo: preferencias del reproductor."),
+    ("VISITOR_INFO1_LIVE", "marketing", "YouTube: estima el ancho de banda y personaliza."),
+    ("YSC",         "marketing", "YouTube: seguimiento de videos vistos."),
+    ("PREF",        "funcional", "YouTube/Google: preferencias del reproductor."),
+    # --- Infraestructura y sesion (esenciales) ---
+    ("PHPSESSID",   "esencial", "PHP: identificador de sesion del servidor."),
+    ("JSESSIONID",  "esencial", "Java: identificador de sesion del servidor."),
+    ("ASP.NET_SessionId", "esencial", "ASP.NET: identificador de sesion."),
+    ("__cf_bm",     "esencial", "Cloudflare: distingue humanos de bots."),
+    ("cf_clearance","esencial", "Cloudflare: recuerda que se supero la verificacion."),
+    ("__cfduid",    "esencial", "Cloudflare: identificacion de seguridad (obsoleta)."),
+    ("csrftoken",   "esencial", "Proteccion contra falsificacion de peticiones."),
+    ("XSRF-TOKEN",  "esencial", "Proteccion contra falsificacion de peticiones."),
+    ("wordpress_logged_in", "esencial", "WordPress: sesion iniciada."),
+    ("wp-settings", "funcional", "WordPress: preferencias del escritorio."),
+    ("woocommerce_cart_hash", "esencial", "WooCommerce: contenido del carrito."),
+    ("wp_woocommerce_session", "esencial", "WooCommerce: sesion de compra."),
+    ("PrestaShop",  "esencial", "PrestaShop: sesion de la tienda."),
+    ("laravel_session", "esencial", "Laravel: sesion del servidor."),
+    ("modx",        "esencial", "MODX: sesion del gestor de contenidos."),
+    ("SERVERID",    "esencial", "Balanceador de carga: mantiene el servidor asignado."),
+    ("AWSALB",      "esencial", "AWS: balanceo de carga."),
+    ("__stripe",    "esencial", "Stripe: prevencion de fraude en el pago."),
+    ("__Secure-",   "esencial", "Cookie de seguridad del navegador."),
+    ("__Host-",     "esencial", "Cookie de seguridad del navegador."),
+]
+
+def clasificar_cookie(nombre):
+    """Devuelve (categoria_sugerida, explicacion) o (None, None) si no se reconoce."""
+    n = (nombre or "").strip()
+    if not n:
+        return None, None
+    bajo = n.lower()
+    for prefijo, tipo, desc in COOKIE_CATALOGO:
+        if bajo.startswith(prefijo.lower()):
+            return tipo, desc
+    return None, None
+
 
 def now():
     return datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
@@ -154,11 +245,14 @@ LIMITES = {
     "consent": (60, 60),    # 60 registros por minuto y por IP
     "login":   (20, 300),   # 20 intentos de login por 5 minutos y por IP
     "config":  (120, 60),   # 120 lecturas de config por minuto y por IP
+    "cookies": (90, 60),    # 90 envios de inventario por minuto y por IP
 }
 _hits = {}
 _hits_lock = threading.Lock()
 
 def rate_ok(bucket, ip):
+    if bucket not in LIMITES:       # bucket sin configurar: no se limita, pero no se cae
+        return True
     tope, ventana = LIMITES[bucket]
     ahora = time.time()
     clave = (bucket, ip)
@@ -272,6 +366,8 @@ class H(BaseHTTPRequestHandler):
             return self.dash_site_get(q)
         if p == "/dash/site/logs":
             return self.dash_site_logs(q)
+        if p == "/dash/site/cookies":
+            return self.dash_site_cookies(q)
         return self._file(p.lstrip("/"))  # servir estaticos (sitio-demo.html, consent-banner.js)
 
     # ---- POST ----
@@ -279,6 +375,8 @@ class H(BaseHTTPRequestHandler):
         p = urlparse(self.path).path
         if p == "/api/consent":
             return self.api_consent()
+        if p == "/api/cookies":
+            return self.api_cookies()
         if p == "/dash/login":
             return self.dash_login()
         if p == "/dash/logout":
@@ -293,6 +391,10 @@ class H(BaseHTTPRequestHandler):
             return self.dash_password()
         if p == "/dash/site/domain":
             return self.dash_site_domain()
+        if p == "/dash/site/cookies/classify":
+            return self.dash_cookies_classify()
+        if p == "/dash/site/cookies/apply":
+            return self.dash_cookies_apply()
         self._send(404, {"error": "not found"})
 
     # ---- estaticos ----
@@ -500,6 +602,128 @@ class H(BaseHTTPRequestHandler):
         total = c.execute("SELECT COUNT(*) n FROM consent_logs WHERE site_id=?", (site_id,)).fetchone()["n"]
         c.close()
         self._send(200, {"counts": counts, "total": total, "rows": rows})
+
+    # ---- Deteccion de cookies -------------------------------------------
+    # El bundle manda lo que ve en document.cookie en el sitio real. No es una
+    # lista de consentimiento: es inventario, por eso se guarda aparte y solo
+    # se acumula (primera vez, ultima vez, cuantas veces).
+    def api_cookies(self):
+        if not rate_ok("cookies", ip_cliente(self)):
+            return self._send(429, {"error": "demasiadas peticiones"})
+        data = self._body()
+        site_id = data.get("site_id")
+        key = self.headers.get("X-Api-Key")
+        c = db()
+        valid = c.execute("SELECT 1 FROM api_keys WHERE key=? AND site_id=? AND kind='public' AND active=1",
+                          (key, site_id)).fetchone()
+        if not valid:
+            c.close(); return self._send(401, {"error": "invalid site_id or api key"})
+        row = c.execute("SELECT domain FROM sites WHERE site_id=?", (site_id,)).fetchone()
+        origen = host_de(self.headers.get("Origin") or self.headers.get("Referer"))
+        propio = host_de("http://" + (self.headers.get("Host") or ""))
+        if not origen_permitido(origen, propio, row["domain"] if row else ""):
+            c.close(); return self._send(403, {"error": "origen no autorizado para este site_id"})
+
+        vistas = data.get("cookies") or []
+        if not isinstance(vistas, list):
+            c.close(); return self._send(400, {"error": "cookies debe ser una lista"})
+        fase = str(data.get("phase") or "")[:20]
+        ts = now()
+        nuevas = 0
+        for item in vistas[:200]:                      # tope defensivo por peticion
+            nombre = (item.get("name") if isinstance(item, dict) else item) or ""
+            nombre = str(nombre).strip()[:120]
+            if not nombre:
+                continue
+            dominio = ""
+            if isinstance(item, dict):
+                dominio = str(item.get("domain") or "")[:120]
+            ya = c.execute("SELECT hits FROM cookies_found WHERE site_id=? AND name=?",
+                           (site_id, nombre)).fetchone()
+            if ya:
+                c.execute("UPDATE cookies_found SET last_seen=?, hits=hits+1 WHERE site_id=? AND name=?",
+                          (ts, site_id, nombre))
+            else:
+                c.execute("INSERT INTO cookies_found(site_id,name,first_seen,last_seen,hits,"
+                          "sample_domain,phase,status,category,note) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                          (site_id, nombre, ts, ts, 1, dominio, fase, "nueva", "", ""))
+                nuevas += 1
+        c.commit(); c.close()
+        self._send(200, {"ok": True, "nuevas": nuevas})
+
+    def dash_site_cookies(self, q):
+        u = self._user(); site_id = (q.get("site_id") or [""])[0]
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        c = db()
+        filas = []
+        for r in c.execute("SELECT name,first_seen,last_seen,hits,sample_domain,phase,status,"
+                           "category,note FROM cookies_found WHERE site_id=? ORDER BY "
+                           "CASE status WHEN 'nueva' THEN 0 ELSE 1 END, name", (site_id,)):
+            d = dict(r)
+            sug, expl = clasificar_cookie(d["name"])
+            d["sugerida"] = sug or ""
+            d["explicacion"] = expl or ""
+            filas.append(d)
+        c.close()
+        pend = len([f for f in filas if f["status"] == "nueva"])
+        self._send(200, {"rows": filas, "total": len(filas), "pendientes": pend})
+
+    def dash_cookies_classify(self):
+        u = self._user(); d = self._body(); site_id = d.get("site_id")
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        cambios = d.get("items") or []
+        if not isinstance(cambios, list):
+            return self._send(400, {"error": "items debe ser una lista"})
+        c = db()
+        for it in cambios:
+            if not isinstance(it, dict):
+                continue
+            nombre = str(it.get("name") or "").strip()
+            if not nombre:
+                continue
+            categoria = str(it.get("category") or "")[:60]
+            estado = str(it.get("status") or "")[:20]
+            if estado not in ("nueva", "asignada", "ignorada"):
+                estado = "asignada" if categoria else "nueva"
+            c.execute("UPDATE cookies_found SET category=?, status=? WHERE site_id=? AND name=?",
+                      (categoria, estado, site_id, nombre))
+        c.commit(); c.close()
+        self._send(200, {"ok": True, "actualizadas": len(cambios)})
+
+    # Vuelca las cookies ya clasificadas a cookiePatterns de la config, creando
+    # una version nueva. Las esenciales no se anaden: no se deben borrar nunca.
+    def dash_cookies_apply(self):
+        u = self._user(); d = self._body(); site_id = d.get("site_id")
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        c = db()
+        fila = c.execute("SELECT version,json FROM site_config WHERE site_id=?", (site_id,)).fetchone()
+        if not fila:
+            c.close(); return self._send(404, {"error": "sitio sin config"})
+        cfg = json.loads(fila["json"])
+        ids_validos = set(x.get("id") for x in (cfg.get("categories") or []) if isinstance(x, dict))
+        existentes = []
+        for p in (cfg.get("cookiePatterns") or []):
+            existentes.append(p.get("match") if isinstance(p, dict) else p)
+        anadidas = []
+        for r in c.execute("SELECT name,category FROM cookies_found WHERE site_id=? AND status='asignada'",
+                           (site_id,)):
+            nombre, categoria = r["name"], r["category"]
+            # Sin categoria, marcada como esencial, o categoria que ya no existe: no se toca.
+            if not categoria or categoria == "esencial" or categoria not in ids_validos:
+                continue
+            if nombre in existentes:
+                continue
+            cfg.setdefault("cookiePatterns", []).append({"match": nombre, "category": categoria})
+            existentes.append(nombre)
+            anadidas.append(nombre)
+        ver = fila["version"] + 1
+        c.execute("UPDATE site_config SET version=?, json=?, updated_at=? WHERE site_id=?",
+                  (ver, json.dumps(cfg), now(), site_id))
+        c.commit(); c.close()
+        self._send(200, {"ok": True, "version": ver, "anadidas": anadidas})
 
     def log_message(self, *a):
         pass

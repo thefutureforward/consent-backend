@@ -58,9 +58,94 @@ let _userConfig = null;
       body: "'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
       mono: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
     },
+
+    // ---- APARIENCIA -----------------------------------------------------
+    // Todo lo de aqui abajo es opcional: cada clave que no venga en la config
+    // del sitio cae a este valor. Se vuelca a variables CSS dentro del shadow
+    // root, de modo que anadir una opcion nueva no obliga a tocar la logica.
+
+    // Medidas y espaciados del banner inferior.
+    banner: {
+      position: "bottom",        // bottom | top
+      align: "center",           // left | center | right
+      maxWidth: "1172px",
+      padding: "22px 26px",
+      margin: "0 20px 20px",     // separacion respecto al borde de la ventana
+      radius: "12px",
+      gap: "28px",               // entre el bloque de texto y los botones
+      copyGap: "8px",            // entre eyebrow, titulo y cuerpo
+      border: "1px solid rgba(255,255,255,.14)",
+      shadow: "0 10px 40px rgba(15,24,38,.28)",
+      background: "",            // vacio = usa colors.ink
+      color: ""                  // vacio = usa colors.text
+    },
+
+    // Medidas del panel de preferencias.
+    panel: {
+      maxWidth: "560px",
+      maxHeight: "92vh",
+      radius: "12px",
+      headPadding: "28px 28px 20px",
+      rowPadding: "20px 28px",
+      footPadding: "20px 28px 24px",
+      rowGap: "20px",
+      shadow: "0 20px 60px rgba(22,35,59,.28)",
+      overlay: "rgba(22,35,59,.28)",
+      background: ""             // vacio = usa colors.panelBg
+    },
+
+    // Tipografia por elemento. size/weight/lineHeight/letterSpacing/transform,
+    // y family para elegir entre heading, body o mono (o una pila propia).
+    typography: {
+      eyebrow:   { family: "mono",    size: "10px",   weight: 400, letterSpacing: ".14em", transform: "uppercase" },
+      bannerText:{ family: "body",    size: "15px",   weight: 400, lineHeight: 1.55 },
+      panelTitle:{ family: "heading", size: "26px",   weight: 500, lineHeight: 1.2, letterSpacing: "-.01em" },
+      panelIntro:{ family: "body",    size: "14px",   weight: 400, lineHeight: 1.6 },
+      catName:   { family: "body",    size: "15px",   weight: 700 },
+      catDesc:   { family: "body",    size: "13.5px", weight: 400, lineHeight: 1.55 },
+      button:    { family: "body",    size: "14px",   weight: 500 },
+      chip:      { family: "mono",    size: "11px",   weight: 400, letterSpacing: ".1em", transform: "uppercase" }
+    },
+
+    // Botones. Cada uno se puede pintar por separado; lo que se deje vacio
+    // hereda del tema de colores.
+    buttons: {
+      radius: "8px",
+      padding: "11px 18px",
+      accept:    { background: "", color: "", border: "0",  weight: 600, padding: "12px 22px" },
+      reject:    { background: "transparent", color: "", border: "1px solid rgba(255,255,255,.32)", weight: 500, padding: "" },
+      customize: { background: "transparent", color: "", border: "0", weight: 500, padding: "11px 14px" },
+      save:      { background: "", color: "", border: "0",  weight: 600, padding: "12px 22px" }
+    },
+
+    // El pill que reabre el panel una vez cerrado.
+    // mode: "text" | "image" | "both". Con imagen, image es una URL.
+    chip: {
+      enabled: true,
+      mode: "text",
+      image: "",
+      imageSize: "18px",
+      imageAlt: "",
+      position: "bottom-left",   // bottom-left | bottom-right | top-left | top-right
+      offsetX: "16px",
+      offsetY: "16px",
+      padding: "8px 13px",
+      radius: "999px",
+      gap: "7px",
+      background: "",            // vacio = colors.panelBg
+      color: "",                 // vacio = colors.body
+      border: "",                // vacio = 1px solid colors.border
+      shadow: "0 2px 6px rgba(22,35,59,.07)"
+    },
+
     // Carga IBM Plex desde Google Fonts. Ponlo en false si la CSP del sitio
     // bloquea fonts.googleapis.com: se cae a las fuentes del sistema.
     webfont: true,
+    // Inventario de cookies: el bundle reporta al backend que NOMBRES de cookie
+    // aparecen en el sitio, para poder clasificarlos desde el dashboard.
+    // Nunca se envia el valor de la cookie, solo el nombre.
+    cookieDiscovery: false,
+    discoverySeconds: 15,      // cuantos segundos se sigue mirando tras cargar
     activeDeletion: true,
     manageScripts: false,          // bloqueo manual de scripts para sitios sin GTM
     // Categorias por defecto. Mapean a las 6 senales de Consent Mode v2.
@@ -272,8 +357,13 @@ let _userConfig = null;
     var root = host.split(".").slice(-2).join(".");
     var domains = ["", host, "." + host, root, "." + root];
     var deleted = [];
+    // La cookie donde vive la propia decision NUNCA se borra: si un patron la
+    // alcanzara (por ejemplo "fwc" con namespace "fwc_consent"), el banner
+    // borraria su propio consentimiento y volveria a preguntar en cada carga.
+    var propia = cookieName(C);
     document.cookie.split(";").forEach(function (raw) {
       var nm = raw.split("=")[0].trim();
+      if (nm === propia) return;
       var hit = patterns.some(function (p) { return nm.indexOf(p) === 0; });
       if (!hit || !nm) return;
       domains.forEach(function (dm) {
@@ -434,6 +524,61 @@ let _userConfig = null;
     log("audit", "POST " + C.endpoint + " (no bloquea la UI)");
   }
 
+  // ---- Deteccion de cookies -------------------------------------------------
+  // Inventario, no consentimiento: mira que cookies existen de verdad en el
+  // sitio para que el dueno pueda clasificarlas desde el dashboard en vez de
+  // adivinar. Solo viaja el NOMBRE de cada cookie, nunca su valor, que es
+  // donde estarian los identificadores y los datos personales.
+  var _sent = {};      // nombres ya reportados en esta carga, para no repetir
+
+  function cookieNames() {
+    var out = [], vistos = {};
+    String(document.cookie || "").split(";").forEach(function (raw) {
+      var nm = raw.split("=")[0].trim();
+      if (!nm || vistos[nm]) return;
+      vistos[nm] = 1;
+      out.push(nm);
+    });
+    return out;
+  }
+
+  function reportCookies(C, phase) {
+    if (!C.cookieDiscovery || !C.apiBase || !C.siteId) return;
+    var nuevas = cookieNames().filter(function (n) { return !_sent[n]; });
+    if (!nuevas.length) return;
+    nuevas.forEach(function (n) { _sent[n] = 1; });
+    var headers = { "Content-Type": "application/json" };
+    if (C.publicKey) headers["X-Api-Key"] = C.publicKey;
+    var url = String(C.apiBase).replace(/\/$/, "") + "/api/cookies";
+    try {
+      fetch(url, {
+        method: "POST", keepalive: true, headers: headers,
+        body: JSON.stringify({
+          site_id: C.siteId,
+          phase: phase || "",
+          cookies: nuevas.map(function (n) { return { name: n, domain: location.hostname }; })
+        })
+      }).then(function () {
+        log("discovery", "Inventario enviado (" + phase + "): " + nuevas.join(", "));
+      }).catch(function () { /* el inventario nunca debe romper el sitio */ });
+    } catch (e) { /* idem */ }
+  }
+
+  // Varias pasadas: al arrancar solo estan las cookies del servidor; las de
+  // terceros aparecen segundos despues, y otras solo tras aceptar.
+  function startDiscovery(C) {
+    if (!C.cookieDiscovery) return;
+    reportCookies(C, "inicial");
+    var segundos = C.discoverySeconds == null ? 15 : C.discoverySeconds;
+    if (segundos <= 0) return;
+    var pasos = 0;
+    var timer = setInterval(function () {
+      pasos++;
+      reportCookies(C, "tardia");
+      if (pasos >= segundos) clearInterval(timer);
+    }, 1000);
+  }
+
   // ---- Estado y persist -----------------------------------------------------
   var state = { lang: "es", chosen: {} };
 
@@ -466,6 +611,9 @@ let _userConfig = null;
     else stopDeletionWatch();
     // 5. Auditoria (no bloquea).
     postAudit(C, consent);
+    // Aceptar libera scripts que escriben cookies que antes no existian:
+    // se vuelve a mirar para que el inventario las recoja.
+    if (C.cookieDiscovery) setTimeout(function () { reportCookies(C, "tras-decision"); }, 3000);
     if (typeof C.onConsentChange === "function") C.onConsentChange(consent);
   }
 
@@ -474,65 +622,111 @@ let _userConfig = null;
 
   // Estilos "Expediente": mismos tokens que styles/tokens.css del frontend
   // (ink navy, paper calido, verdigris teal, trio IBM Plex).
+  // Resuelve "heading" | "body" | "mono" a la pila real; cualquier otra cosa
+  // se pasa tal cual, por si el sitio quiere una familia propia.
+  function fam(C, v) {
+    if (!v) return C.fonts.body;
+    return C.fonts[v] || v;
+  }
+  // Devuelve las declaraciones de un bloque de tipografia.
+  function typo(C, key) {
+    var t = (C.typography && C.typography[key]) || {};
+    var out = "font-family:" + fam(C, t.family) + ";";
+    if (t.size)          out += "font-size:" + t.size + ";";
+    if (t.weight)        out += "font-weight:" + t.weight + ";";
+    if (t.lineHeight)    out += "line-height:" + t.lineHeight + ";";
+    if (t.letterSpacing) out += "letter-spacing:" + t.letterSpacing + ";";
+    if (t.transform)     out += "text-transform:" + t.transform + ";";
+    return out;
+  }
+  // Declaraciones de un boton concreto, con herencia del tema.
+  function btn(C, key, fallbackBg, fallbackFg) {
+    var B = C.buttons || {}, b = B[key] || {};
+    var out = "";
+    out += "background:" + (b.background || fallbackBg) + ";";
+    out += "color:" + (b.color || fallbackFg) + ";";
+    if (b.border !== undefined && b.border !== "") out += "border:" + b.border + ";";
+    if (b.weight)  out += "font-weight:" + b.weight + ";";
+    out += "padding:" + (b.padding || B.padding || "11px 18px") + ";";
+    return out;
+  }
+  function chipAnchor(C) {
+    var P = C.chip || {}, pos = P.position || "bottom-left";
+    var x = P.offsetX || "16px", y = P.offsetY || "16px", out = "";
+    out += (pos.indexOf("top") === 0 ? "top:" : "bottom:") + y + ";";
+    out += (pos.indexOf("right") > -1 ? "right:" : "left:") + x + ";";
+    return out;
+  }
+
+  // Estilos "Expediente": mismos tokens que styles/tokens.css del frontend
+  // (ink navy, paper calido, verdigris teal, trio IBM Plex). Todas las medidas
+  // salen de la config, con los valores de DEFAULTS como red de seguridad.
   function css(C) {
     var K = C.colors, F = C.fonts;
+    var BN = C.banner || {}, PN = C.panel || {}, BT = C.buttons || {}, CH = C.chip || {};
+    var bnBg = BN.background || K.ink, bnFg = BN.color || K.text;
+    var pnBg = PN.background || K.panelBg;
+    var justify = BN.align === "left" ? "flex-start" : (BN.align === "right" ? "flex-end" : "center");
+    var vert = BN.position === "top" ? "top:0;bottom:auto;" : "bottom:0;top:auto;";
     return "" +
     ":host{all:initial}" +
     "*{box-sizing:border-box;font-family:" + F.body + "}" +
     // ---- Banner: tarjeta flotante sobre ink, no barra a sangre ----
-    ".cb-banner{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;justify-content:center;padding:0 20px 20px}" +
-    ".cb-inner{width:100%;max-width:1172px;background:" + K.ink + ";color:" + K.text + ";border:1px solid rgba(255,255,255,.14);border-radius:12px;box-shadow:0 10px 40px rgba(15,24,38,.28);padding:22px 26px;display:flex;flex-wrap:wrap;gap:28px;align-items:center;justify-content:space-between;animation:cb-rise .26s cubic-bezier(.2,.6,.2,1)}" +
-    ".cb-copy{flex:1 1 380px;display:flex;flex-direction:column;gap:8px;min-width:0}" +
-    ".cb-eyebrow{margin:0;font-family:" + F.mono + ";font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:" + K.accentPale + "}" +
-    ".cb-body{margin:0;font-size:15px;line-height:1.55;color:" + K.text + ";max-width:68ch}" +
+    ".cb-banner{position:fixed;left:0;right:0;" + vert + "z-index:2147483000;display:flex;justify-content:" + justify + ";padding:0;margin:" + (BN.margin || "0 20px 20px") + "}" +
+    ".cb-inner{width:100%;max-width:" + (BN.maxWidth || "1172px") + ";background:" + bnBg + ";color:" + bnFg + ";border:" + (BN.border || "1px solid rgba(255,255,255,.14)") + ";border-radius:" + (BN.radius || "12px") + ";box-shadow:" + (BN.shadow || "0 10px 40px rgba(15,24,38,.28)") + ";padding:" + (BN.padding || "22px 26px") + ";display:flex;flex-wrap:wrap;gap:" + (BN.gap || "28px") + ";align-items:center;justify-content:space-between;animation:cb-rise .26s cubic-bezier(.2,.6,.2,1)}" +
+    ".cb-copy{flex:1 1 380px;display:flex;flex-direction:column;gap:" + (BN.copyGap || "8px") + ";min-width:0}" +
+    ".cb-eyebrow{margin:0;" + typo(C, "eyebrow") + "color:" + K.accentPale + "}" +
+    ".cb-body{margin:0;" + typo(C, "bannerText") + "color:" + bnFg + ";max-width:68ch}" +
     ".cb-body a{color:" + K.accentPale + ";text-decoration:underline;text-underline-offset:2px;white-space:nowrap}" +
     ".cb-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end}" +
-    ".cb-btn{border:0;border-radius:8px;padding:11px 18px;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .14s,border-color .14s,opacity .14s}" +
+    ".cb-btn{border:0;border-radius:" + (BT.radius || "8px") + ";" + typo(C, "button") + "cursor:pointer;white-space:nowrap;transition:background .14s,border-color .14s,opacity .14s}" +
     ".cb-btn:focus-visible{outline:2px solid " + K.accentPale + ";outline-offset:2px}" +
-    ".cb-ghost{background:transparent;color:" + K.text + ";border:1px solid rgba(255,255,255,.32)}" +
+    // rechazar
+    ".cb-ghost{" + btn(C, "reject", "transparent", bnFg) + "}" +
     ".cb-ghost:hover{border-color:rgba(255,255,255,.6)}" +
-    ".cb-actions .cb-ghost:first-child{border-color:transparent;padding:11px 14px}" +   // \"Personalizar\" es boton de texto
-    ".cb-actions .cb-ghost:first-child:hover{border-color:transparent;text-decoration:underline;text-underline-offset:3px}" +
-    ".cb-accept{background:" + K.accent + ";color:" + K.textBright + ";font-weight:600;padding:12px 22px}" +
+    // "Personalizar" es boton de texto
+    ".cb-actions .cb-ghost:first-child{" + btn(C, "customize", "transparent", bnFg) + "}" +
+    ".cb-actions .cb-ghost:first-child:hover{text-decoration:underline;text-underline-offset:3px}" +
+    ".cb-accept{" + btn(C, "accept", K.accent, K.textBright) + "border-radius:" + (BT.radius || "8px") + "}" +
     ".cb-accept:hover{background:" + K.accentHover + "}" +
     // ---- Panel ----
-    ".cb-overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483001;background:rgba(22,35,59,.28);display:flex;align-items:center;justify-content:center;padding:24px;animation:cb-fade .2s ease}" +
-    ".cb-panel{background:" + K.panelBg + ";color:" + K.heading + ";width:100%;max-width:560px;max-height:92vh;overflow:auto;border:1px solid " + K.border + ";border-radius:12px;box-shadow:0 20px 60px rgba(22,35,59,.28);animation:cb-rise .24s cubic-bezier(.2,.6,.2,1)}" +
-    ".cb-head{padding:28px 28px 20px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid " + K.border + "}" +
-    ".cb-eyebrow2{margin:0;font-family:" + F.mono + ";font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:" + K.accentHover + "}" +
-    ".cb-panel h2{margin:0;font-family:" + F.heading + ";font-weight:500;font-size:26px;letter-spacing:-.01em;line-height:1.2;color:" + K.heading + "}" +
-    ".cb-intro{margin:0;font-size:14px;line-height:1.6;color:" + K.body + "}" +
+    ".cb-overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483001;background:" + (PN.overlay || "rgba(22,35,59,.28)") + ";display:flex;align-items:center;justify-content:center;padding:24px;animation:cb-fade .2s ease}" +
+    ".cb-panel{background:" + pnBg + ";color:" + K.heading + ";width:100%;max-width:" + (PN.maxWidth || "560px") + ";max-height:" + (PN.maxHeight || "92vh") + ";overflow:auto;border:1px solid " + K.border + ";border-radius:" + (PN.radius || "12px") + ";box-shadow:" + (PN.shadow || "0 20px 60px rgba(22,35,59,.28)") + ";animation:cb-rise .24s cubic-bezier(.2,.6,.2,1)}" +
+    ".cb-head{padding:" + (PN.headPadding || "28px 28px 20px") + ";display:flex;flex-direction:column;gap:10px;border-bottom:1px solid " + K.border + "}" +
+    ".cb-eyebrow2{margin:0;" + typo(C, "eyebrow") + "color:" + K.accentHover + "}" +
+    ".cb-panel h2{margin:0;" + typo(C, "panelTitle") + "color:" + K.heading + "}" +
+    ".cb-intro{margin:0;" + typo(C, "panelIntro") + "color:" + K.body + "}" +
     ".cb-rows{display:flex;flex-direction:column}" +
-    ".cb-row{display:flex;gap:20px;align-items:flex-start;padding:20px 28px;border-bottom:1px solid " + K.border + "}" +
+    ".cb-row{display:flex;gap:" + (PN.rowGap || "20px") + ";align-items:flex-start;padding:" + (PN.rowPadding || "20px 28px") + ";border-bottom:1px solid " + K.border + "}" +
     ".cb-row .t{flex:1 1 auto;display:flex;flex-direction:column;gap:5px;min-width:0}" +
-    ".cb-row .t strong{font-size:15px;font-weight:700;color:" + K.heading + "}" +
-    ".cb-row .t span{font-size:13.5px;line-height:1.55;color:" + K.body + "}" +
+    ".cb-row .t strong{" + typo(C, "catName") + "color:" + K.heading + "}" +
+    ".cb-row .t span{" + typo(C, "catDesc") + "color:" + K.body + "}" +
     ".cb-row .t .cb-pill{display:inline-block;margin-left:10px;font-family:" + F.mono + ";font-size:9px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:" + K.pillFg + ";background:" + K.pillBg + ";padding:4px 9px;border-radius:100px;vertical-align:middle}" +
     ".cb-sw{position:relative;width:46px;height:26px;border-radius:100px;background:" + K.switchOff + ";border:1px solid " + K.borderStrong + ";cursor:pointer;flex:none;padding:0;transition:background .16s cubic-bezier(.2,.6,.2,1),border-color .16s}" +
     ".cb-sw[aria-checked='true']{background:" + K.accent + ";border-color:" + K.accent + "}" +
     ".cb-sw[disabled]{background:" + K.accentSoft + ";border-color:" + K.accentPale + ";opacity:.9;cursor:default}" +
     ".cb-sw:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}" +
-    ".cb-knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:" + K.panelBg + ";box-shadow:0 1px 3px rgba(22,35,59,.25);transition:left .18s cubic-bezier(.2,.6,.2,1)}" +
+    ".cb-knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:" + pnBg + ";box-shadow:0 1px 3px rgba(22,35,59,.25);transition:left .18s cubic-bezier(.2,.6,.2,1)}" +
     ".cb-sw[aria-checked='true'] .cb-knob{left:23px;background:" + K.textBright + "}" +
     ".cb-sw[disabled] .cb-knob{left:23px;background:" + K.accent + ";box-shadow:none}" +
-    ".cb-foot{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:" + K.cream + ";padding:20px 28px 24px;border-radius:0 0 11px 11px}" +
-    ".cb-btn2{border-radius:8px;padding:11px 18px;font-size:14px;font-weight:500;cursor:pointer;transition:background .14s,border-color .14s}" +
+    ".cb-foot{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:" + K.cream + ";padding:" + (PN.footPadding || "20px 28px 24px") + ";border-radius:0 0 " + (PN.radius || "12px") + " " + (PN.radius || "12px") + "}" +
+    ".cb-btn2{border-radius:" + (BT.radius || "8px") + ";" + typo(C, "button") + "cursor:pointer;transition:background .14s,border-color .14s}" +
     ".cb-btn2:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}" +
-    ".cb-outline{background:transparent;border:1px solid " + K.borderStrong + ";color:" + K.heading + "}"
-    + ".cb-foot-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}" +
+    ".cb-outline{background:transparent;border:1px solid " + K.borderStrong + ";color:" + K.heading + "}" +
+    ".cb-foot-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}" +
     ".cb-outline:hover{border-color:" + K.heading + "}" +
     ".cb-text{background:transparent;border:0;color:" + K.heading + ";padding:11px 14px}" +
     ".cb-text:hover{text-decoration:underline;text-underline-offset:3px}" +
-    ".cb-save{background:" + K.accent + ";border:0;color:" + K.textBright + ";font-weight:600;padding:12px 22px}" +
+    ".cb-save{" + btn(C, "save", K.accent, K.textBright) + "border-radius:" + (BT.radius || "8px") + "}" +
     ".cb-save:hover{background:" + K.accentHover + "}" +
-    // ---- Chip para reabrir ----
-    ".cb-chip{position:fixed;left:16px;bottom:16px;z-index:2147482999;display:none;align-items:center;gap:7px;background:" + K.panelBg + ";color:" + K.body + ";border:1px solid " + K.border + ";border-radius:999px;padding:8px 13px;font-family:" + F.mono + ";font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;box-shadow:0 2px 6px rgba(22,35,59,.07)}" +
+    // ---- Pill para reabrir. Sin punto: lo que se ve sale de chip.mode ----
+    ".cb-chip{position:fixed;" + chipAnchor(C) + "z-index:2147482999;display:none;align-items:center;gap:" + (CH.gap || "7px") + ";background:" + (CH.background || pnBg) + ";color:" + (CH.color || K.body) + ";border:" + (CH.border || ("1px solid " + K.border)) + ";border-radius:" + (CH.radius || "999px") + ";padding:" + (CH.padding || "8px 13px") + ";" + typo(C, "chip") + "cursor:pointer;box-shadow:" + (CH.shadow || "0 2px 6px rgba(22,35,59,.07)") + "}" +
     ".cb-chip[data-on='1']{display:flex}" +
-    ".cb-chip .cb-dot{width:7px;height:7px;border-radius:50%;background:" + K.accent + "}" +
+    ".cb-chip img{display:block;width:" + (CH.imageSize || "18px") + ";height:" + (CH.imageSize || "18px") + ";object-fit:contain}" +
     ".cb-chip:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}" +
     "@keyframes cb-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}" +
     "@keyframes cb-fade{from{opacity:0}to{opacity:1}}" +
-    "@media (max-width:720px){.cb-inner{flex-direction:column;align-items:stretch;gap:18px}.cb-actions{justify-content:flex-start}.cb-row{padding:18px 20px}.cb-head{padding:24px 20px 18px}.cb-foot{padding:18px 20px 20px;align-items:stretch;flex-direction:column}.cb-foot-right{justify-content:space-between}}" +
+    "@media (max-width:720px){.cb-inner{flex-direction:column;align-items:stretch;gap:18px}.cb-copy{flex:0 0 auto}.cb-actions{justify-content:flex-start}.cb-row{padding:18px 20px}.cb-head{padding:24px 20px 18px}.cb-foot{padding:18px 20px 20px;align-items:stretch;flex-direction:column}.cb-foot-right{justify-content:space-between}}" +
     "@media (prefers-reduced-motion:reduce){.cb-inner,.cb-panel,.cb-overlay{animation:none}}";
   }
 
@@ -560,6 +754,23 @@ let _userConfig = null;
     shadow.appendChild(style);
     document.body.appendChild(host);
     root = shadow; // a partir de aqui todo se monta dentro del shadow root
+  }
+
+  // Texto multiidioma de una categoria. Sin esto, una categoria que solo
+  // define "es" sale como "undefined" en cuanto el idioma activo es otro.
+  // Orden: idioma activo -> idioma por defecto -> es -> en -> primero que haya.
+  function lang(obj, C) {
+    if (obj == null) return "";
+    if (typeof obj === "string") return obj;          // admite label:"Texto"
+    var candidatos = [state.lang, C && C.defaultLanguage, "es", "en"], i;
+    for (i = 0; i < candidatos.length; i++) {
+      var k = candidatos[i];
+      if (k && obj[k] != null && obj[k] !== "") return obj[k];
+    }
+    for (var key in obj) {
+      if (obj.hasOwnProperty(key) && obj[key] != null && obj[key] !== "") return obj[key];
+    }
+    return "";
   }
 
   function t() {
@@ -611,7 +822,7 @@ let _userConfig = null;
         ? "<button class='cb-sw' role='switch' aria-checked='true' aria-disabled='true' disabled><span class='cb-knob'></span></button>"
         : "<button class='cb-sw' role='switch' aria-checked='" + checked + "' data-cat='" + cat.id + "'><span class='cb-knob'></span></button>";
       return "<div class='cb-row'>" +
-        "<div class='t'><strong>" + cat.label[state.lang] + pill + "</strong><span>" + cat.desc[state.lang] + "</span></div>" +
+        "<div class='t'><strong>" + lang(cat.label, C) + pill + "</strong><span>" + lang(cat.desc, C) + "</span></div>" +
         control +
       "</div>";
     }).join("");
@@ -652,10 +863,25 @@ let _userConfig = null;
     return overlay;
   }
 
+  // El pill ya no lleva punto de color: su contenido lo decide chip.mode.
+  //   text  -> solo la etiqueta de textos.chip
+  //   image -> solo la imagen de chip.image (con alt para lectores de pantalla)
+  //   both  -> imagen + etiqueta
   function buildChip(C) {
+    var P = C.chip || {}, mode = P.mode || "text", label = t().chip, html = "";
+    var img = P.image
+      ? "<img src='" + String(P.image).replace(/'/g, "&#39;") +
+        "' alt='" + String(P.imageAlt || "").replace(/'/g, "&#39;") + "'>"
+      : "";
+    if (mode === "image" && img)      html = img;
+    else if (mode === "both" && img)  html = img + "<span>" + label + "</span>";
+    else                              html = "<span>" + label + "</span>";
     var el = document.createElement("button");
     el.className = "cb-chip";
-    el.innerHTML = "<span class='cb-dot'></span>" + t().chip;
+    el.type = "button";
+    el.innerHTML = html;
+    // Con solo imagen el boton se queda sin texto accesible: se etiqueta aparte.
+    if (mode === "image" && img) el.setAttribute("aria-label", P.imageAlt || label);
     el.onclick = function () { openPanel(C); };
     return el;
   }
@@ -665,7 +891,12 @@ let _userConfig = null;
   function hideBanner() { if (bannerEl) bannerEl.style.display = "none"; }
   function openPanel(C) { ensureRoot(C); panelEl = buildPanel(C); root.appendChild(panelEl); }
   function hidePanel() { if (panelEl && panelEl.parentNode) panelEl.parentNode.removeChild(panelEl); panelEl = null; }
-  function showChip(C) { ensureRoot(C); if (!chipEl) { chipEl = buildChip(C); root.appendChild(chipEl); } chipEl.setAttribute("data-on", "1"); }
+  function showChip(C) {
+    if (C.chip && C.chip.enabled === false) return;   // el sitio no quiere pill
+    ensureRoot(C);
+    if (!chipEl) { chipEl = buildChip(C); root.appendChild(chipEl); }
+    chipEl.setAttribute("data-on", "1");
+  }
 
   function acceptAll(C) {
     var chosen = {}; C.categories.forEach(function (c) { chosen[c.id] = true; });
@@ -724,6 +955,7 @@ let _userConfig = null;
       log("init", prev ? "Version de consentimiento cambio: se vuelve a preguntar." : "Sin decision previa: se muestra el banner.");
       showBanner(C);
     }
+    startDiscovery(C);
   }
 
 
