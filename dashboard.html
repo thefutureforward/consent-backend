@@ -172,6 +172,8 @@
   .ctl:last-child{margin-bottom:0}
   .ctl > label{margin:0;font-size:12px}
   .ctl input[type=text]{padding:7px 9px;font-size:12.5px}
+  .ctl textarea{width:100%;padding:7px 9px;font-size:12.5px;font-family:inherit;
+                border:1px solid var(--line);border-radius:7px;resize:vertical;line-height:1.5}
   .ctl select{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;
               font-size:12.5px;background:#fff}
   .ctl .colorbox{display:flex;gap:7px;align-items:center}
@@ -434,6 +436,40 @@ function setCfgMode(m){
    edita (kind) y que texto lleva. Anadir una opcion nueva es anadir una
    fila aqui; no hay que tocar el render. */
 var UI_GROUPS = [
+  { t:"Idioma", open:true, items:[
+    {p:"autoDetectLanguage", k:"bool",   l:"Detectar el idioma del navegador", def:true},
+    {p:"defaultLanguage",    k:"select", l:"Idioma de respaldo", opts:[["es","Espanol"],["en","Ingles"]]}
+  ]},
+  { t:"Textos en espanol", items:[
+    {p:"texts.es.eyebrow", k:"text", l:"Etiqueta pequena", ph:"por defecto"},
+    {p:"texts.es.body", k:"area", l:"Texto del banner", ph:"por defecto"},
+    {p:"texts.es.policy", k:"text", l:"Enlace a la politica", ph:"por defecto"},
+    {p:"texts.es.manage", k:"text", l:"Boton personalizar", ph:"por defecto"},
+    {p:"texts.es.reject", k:"text", l:"Boton rechazar", ph:"por defecto"},
+    {p:"texts.es.accept", k:"text", l:"Boton aceptar", ph:"por defecto"},
+    {p:"texts.es.rejectOptional", k:"text", l:"Rechazar opcionales (panel)", ph:"por defecto"},
+    {p:"texts.es.panelEyebrow", k:"text", l:"Etiqueta del panel", ph:"por defecto"},
+    {p:"texts.es.panelTitle", k:"text", l:"Titulo del panel", ph:"por defecto"},
+    {p:"texts.es.panelIntro", k:"text", l:"Intro del panel", ph:"por defecto"},
+    {p:"texts.es.always", k:"text", l:"Etiqueta siempre activas", ph:"por defecto"},
+    {p:"texts.es.save", k:"text", l:"Boton guardar", ph:"por defecto"},
+    {p:"texts.es.chip", k:"text", l:"Texto del pill", ph:"por defecto"}
+  ]},
+  { t:"Textos en ingles", items:[
+    {p:"texts.en.eyebrow", k:"text", l:"Etiqueta pequena", ph:"por defecto"},
+    {p:"texts.en.body", k:"area", l:"Texto del banner", ph:"por defecto"},
+    {p:"texts.en.policy", k:"text", l:"Enlace a la politica", ph:"por defecto"},
+    {p:"texts.en.manage", k:"text", l:"Boton personalizar", ph:"por defecto"},
+    {p:"texts.en.reject", k:"text", l:"Boton rechazar", ph:"por defecto"},
+    {p:"texts.en.accept", k:"text", l:"Boton aceptar", ph:"por defecto"},
+    {p:"texts.en.rejectOptional", k:"text", l:"Rechazar opcionales (panel)", ph:"por defecto"},
+    {p:"texts.en.panelEyebrow", k:"text", l:"Etiqueta del panel", ph:"por defecto"},
+    {p:"texts.en.panelTitle", k:"text", l:"Titulo del panel", ph:"por defecto"},
+    {p:"texts.en.panelIntro", k:"text", l:"Intro del panel", ph:"por defecto"},
+    {p:"texts.en.always", k:"text", l:"Etiqueta siempre activas", ph:"por defecto"},
+    {p:"texts.en.save", k:"text", l:"Boton guardar", ph:"por defecto"},
+    {p:"texts.en.chip", k:"text", l:"Texto del pill", ph:"por defecto"}
+  ]},
   { t:"Banner", open:true, items:[
     {p:"banner.position",  k:"select", l:"Posicion", opts:[["bottom","Abajo"],["top","Arriba"]]},
     {p:"banner.align",     k:"select", l:"Alineacion", opts:[["left","Izquierda"],["center","Centrado"],["right","Derecha"]]},
@@ -538,6 +574,22 @@ function setPath(o, path, value){
   else cur[last] = value;
 }
 
+// Quita una clave y, si el objeto que la contenia se queda vacio, lo quita
+// tambien. Asi la config no se llena de {"texts":{"en":{}}} cada vez que
+// alguien escribe y borra en un campo.
+function borrarPath(o, path){
+  var parts = path.split("."), pila = [], cur = o, i;
+  for(i=0;i<parts.length-1;i++){
+    if(cur[parts[i]] == null || typeof cur[parts[i]] !== "object") return;
+    pila.push([cur, parts[i]]); cur = cur[parts[i]];
+  }
+  delete cur[parts[parts.length-1]];
+  for(i=pila.length-1;i>=0;i--){
+    var padre = pila[i][0], clave = pila[i][1];
+    if(Object.keys(padre[clave]).length === 0) delete padre[clave]; else break;
+  }
+}
+
 function renderVisual(){
   var obj;
   try{ obj = JSON.parse(el("cfg").value); }
@@ -561,11 +613,16 @@ function renderVisual(){
             '<button id="pv-panel"  onclick="setPreview(\'panel\')">Panel</button>'+
             '<button id="pv-chip"   onclick="setPreview(\'chip\')">Pill</button>'+
           '</div>'+
+          '<div class="modes prev-modes" style="margin-left:8px">'+
+            '<button id="pl-es" onclick="setPrevLang(\'es\')">ES</button>'+
+            '<button id="pl-en" onclick="setPrevLang(\'en\')">EN</button>'+
+          '</div>'+
           '<button class="btn ghost sm" onclick="refrescarPreview()">Recargar</button></div>'+
         '<iframe id="prev"></iframe>'+
       '</div>'+
     '</div>';
   setPreview(prevEstado);
+  marcarLang();
 }
 
 function control(obj, it){
@@ -594,6 +651,9 @@ function control(obj, it){
     // Numeros como numeros: guardarlos como texto rompe las comparaciones del bundle.
     body = '<input type="text" id="'+id+'" value="'+esc(v==null?"":v)+'" placeholder="'+esc(it.ph||"")+'" '+
       'oninput="onCtl(\''+it.p+'\', this.value===\'\' ? \'\' : Number(this.value))" />';
+  } else if(it.k==="area"){
+    body = '<textarea id="'+id+'" rows="3" placeholder="'+esc(it.ph||"por defecto")+'" '+
+      'oninput="onCtl(\''+it.p+'\',this.value)">'+esc(v==null?"":v)+'</textarea>';
   } else {
     body = '<input type="text" id="'+id+'" value="'+esc(v==null?"":v)+'" placeholder="'+esc(it.ph||"por defecto")+'" '+
       'oninput="onCtl(\''+it.p+'\',this.value)" />';
@@ -605,7 +665,10 @@ var _prevTimer = null;
 function onCtl(path, value, mirrorId){
   var obj;
   try{ obj = JSON.parse(el("cfg").value); }catch(e){ return; }
-  setPath(obj, path, value);
+  // Un campo vacio significa "usa el texto de serie", no "pon cadena vacia".
+  // Si guardaramos "" el banner mostraria un hueco en vez del texto por defecto.
+  if(value === "" || value === null){ borrarPath(obj, path); }
+  else { setPath(obj, path, value); }
   el("cfg").value = JSON.stringify(obj, null, 2);
   if(mirrorId){ var m = el(mirrorId); if(m) m.value = value; }   // color -> campo de texto
   validarCfg();
@@ -628,6 +691,16 @@ function setPreview(modo){
 /* La previa monta el bundle real con la config del editor, sin guardar nada.
    El estado decide que se ve: el banner de entrada, el panel de preferencias
    o el pill, que en el sitio real solo aparece DESPUES de decidir. */
+// Idioma que se fuerza en la previa. No cambia la config: solo deja ver como
+// queda el banner en cada idioma sin tener que cambiar el navegador.
+var prevLang = "es";
+function setPrevLang(l){ prevLang = l; marcarLang(); refrescarPreview(); }
+function marcarLang(){
+  ["es","en"].forEach(function(l){
+    var b = el("pl-"+l); if(b) b.className = (l===prevLang ? "on" : "");
+  });
+}
+
 function refrescarPreview(){
   var fr = el("prev"); if(!fr) return;
   var cfg;
@@ -638,6 +711,10 @@ function refrescarPreview(){
   cfg.consentVersion = "preview-" + Date.now();   // sin decision previa: se muestra el banner
   cfg.activeDeletion = false;                     // la previa no toca cookies
   cfg.cookieDiscovery = false;                    // ni reporta nada
+  // La previa manda sobre la deteccion: queremos ver el idioma elegido en la
+  // barra, no el del navegador de quien mira el dashboard.
+  cfg.autoDetectLanguage = false;
+  cfg.defaultLanguage = prevLang;
 
   // Guion que lleva al banner hasta el estado pedido, en cuanto esta montado.
   var guion = "";
@@ -722,6 +799,7 @@ function validarCfg(){
     if(obj.webfont) res.push({s:"warn",
       t:"<b>webfont activo</b>: el banner pide tipografias a Google, generando una conexion a un tercero."});
     avisosApariencia(obj, res);
+  avisosIdioma(obj, res);
   }
   el("ed-wrap").classList.toggle("bad", fatal);
   var b = el("btn-save"); if(b) b.disabled = fatal;
@@ -762,6 +840,26 @@ function px(v){
   var m = /^(-?[\d.]+)px$/.exec(String(v||"").trim());
   return m ? parseFloat(m[1]) : null;
 }
+// Si una categoria no esta traducida, el banner cae al idioma que tenga y esa
+// fila aparece en espanol dentro de un panel en ingles. No rompe nada, pero
+// queda raro y conviene decirlo.
+function avisosIdioma(o, res){
+  if(o.autoDetectLanguage === false) return;   // sin deteccion, solo se usa uno
+  var idiomas = ["es", "en"];
+  var cats = o.categories || [];
+  idiomas.forEach(function(lg){
+    var faltan = cats.filter(function(c){
+      var l = c.label, d = c.desc;
+      var sinL = l && typeof l === "object" && !l[lg];
+      var sinD = d && typeof d === "object" && !d[lg];
+      return sinL || sinD;
+    }).map(function(c){ return c.id; });
+    if(faltan.length) res.push({s:"warn",
+      t:"Sin traducir al <b>"+(lg==="es"?"espanol":"ingles")+"</b>: "+faltan.join(", ")+
+        ". Esa fila del panel saldra en el otro idioma."});
+  });
+}
+
 function avisosApariencia(o, res){
   var C = o.colors || {}, B = o.banner || {}, P = o.panel || {}, T = o.typography || {}, H = o.chip || {};
   var pares = [

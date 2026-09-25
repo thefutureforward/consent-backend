@@ -17,6 +17,8 @@ let _userConfig = null;
     endpoint: "",                  // vacio = sin auditoria backend
     consentVersion: "2025-01",     // al cambiar, se vuelve a preguntar
     defaultLanguage: "es",
+    autoDetectLanguage: true,          // mirar el idioma del navegador
+    languages: ["es", "en"],           // idiomas que el sitio admite
     cookie: { lifetimeMonths: 6, domain: "" },
     // Prefijos de cookie que borra activeDeletion al denegar analitica.
     // Ampliable por sitio desde la config remota.
@@ -756,6 +758,82 @@ let _userConfig = null;
     root = shadow; // a partir de aqui todo se monta dentro del shadow root
   }
 
+  // ---- Deteccion de idioma --------------------------------------------------
+  // Que idiomas sabe hablar este banner: los que trae de serie (COPY) mas los
+  // que el sitio haya escrito a mano en texts. Si la config declara una lista
+  // en "languages", manda esa, porque un sitio puede querer ofrecer solo dos
+  // aunque el bundle sepa mas.
+  function idiomasDisponibles(C) {
+    var set = {}, k;
+    for (k in COPY) if (COPY.hasOwnProperty(k)) set[k] = true;
+    if (C && C.texts) for (k in C.texts) if (C.texts.hasOwnProperty(k)) set[k] = true;
+    var todos = []; for (k in set) if (set.hasOwnProperty(k)) todos.push(k);
+    if (C && C.languages && C.languages.length) {
+      var permitidos = C.languages.map(function (x) { return String(x).toLowerCase(); });
+      var filtrados = todos.filter(function (x) { return permitidos.indexOf(x) !== -1; });
+      if (filtrados.length) return filtrados;   // si la lista deja todo fuera, la ignoramos
+    }
+    return todos;
+  }
+
+  // "es-419", "ES_es" o "es" tienen que acabar todos en "es". Comparamos solo
+  // la parte base salvo que exista una variante exacta (por si algun dia hay
+  // "pt-br" separado de "pt").
+  function normalizaIdioma(valor, disponibles) {
+    if (!valor) return null;
+    var v = String(valor).toLowerCase().replace("_", "-");
+    if (disponibles.indexOf(v) !== -1) return v;
+    var base = v.split("-")[0];
+    return disponibles.indexOf(base) !== -1 ? base : null;
+  }
+
+  // Orden de mando, de mas explicito a menos:
+  //   1. ?consentLang=en en la URL      -> para poder probar y enlazar
+  //   2. window.__consentLang            -> si el CMS ya sabe el idioma
+  //   3. navigator.languages             -> lo que el visitante pidio
+  //   4. <html lang="en">                -> el idioma de la pagina servida
+  //   5. defaultLanguage
+  // navigator va antes que <html lang> a proposito: un sitio con paginas solo
+  // en espanol puede recibir a un aleman con el navegador en ingles, y el
+  // ingles le sirve de mas que el espanol.
+  function detectaIdioma(C) {
+    var disp = idiomasDisponibles(C), elegido = null, i;
+
+    try {
+      var q = location.search.match(/[?&]consentLang=([^&]+)/);
+      if (q) elegido = normalizaIdioma(decodeURIComponent(q[1]), disp);
+    } catch (e) {}
+
+    if (!elegido && window.__consentLang) {
+      elegido = normalizaIdioma(window.__consentLang, disp);
+    }
+
+    if (!elegido && C.autoDetectLanguage !== false) {
+      var pref = [];
+      try {
+        if (navigator.languages && navigator.languages.length) {
+          pref = Array.prototype.slice.call(navigator.languages);
+        } else if (navigator.language) {
+          pref = [navigator.language];
+        }
+      } catch (e) {}
+      // Respetamos el orden de preferencia del visitante: si pidio fr, de, en
+      // y solo tenemos en, le damos ingles.
+      for (i = 0; i < pref.length && !elegido; i++) {
+        elegido = normalizaIdioma(pref[i], disp);
+      }
+      if (!elegido) {
+        try {
+          var h = document.documentElement.getAttribute("lang");
+          elegido = normalizaIdioma(h, disp);
+        } catch (e) {}
+      }
+    }
+
+    if (!elegido) elegido = normalizaIdioma(C.defaultLanguage, disp) || C.defaultLanguage || "es";
+    return elegido;
+  }
+
   // Texto multiidioma de una categoria. Sin esto, una categoria que solo
   // define "es" sale como "undefined" en cuanto el idioma activo es otro.
   // Orden: idioma activo -> idioma por defecto -> es -> en -> primero que haya.
@@ -938,7 +1016,9 @@ let _userConfig = null;
   }
 
   function proceed(C) {
-    state.lang = C.defaultLanguage || "es";
+    state.lang = detectaIdioma(C);
+    log("init", "Idioma del banner: " + state.lang +
+        " (navegador: " + ((navigator.languages || [navigator.language || "?"])[0]) + ").");
     var prev = readConsent(C);
     if (prev && prev.version === C.consentVersion) {
       // Ya decidio: no mostrar banner, cargar toggles, limpiar si hace falta.
@@ -971,7 +1051,18 @@ export function reset() {
   location.reload();
 }
 export function setLanguage(l) {
-  state.lang = l;
-  if (bannerEl) { bannerEl.remove(); bannerEl = null; showBanner(merged()); }
+  var C = merged();
+  var disp = idiomasDisponibles(C);
+  var norm = normalizaIdioma(l, disp);
+  if (!norm) { log("lang", "Idioma no disponible: " + l + ". Se mantiene " + state.lang + "."); return; }
+  if (norm === state.lang) return;
+  state.lang = norm;
+  // Hay que repintar TODO lo que este en pantalla, no solo el banner: si el
+  // visitante tenia el panel abierto o el pill puesto, se quedaban en el
+  // idioma anterior hasta recargar.
+  if (bannerEl) { bannerEl.remove(); bannerEl = null; showBanner(C); }
+  if (panelEl) { hidePanel(); openPanel(C); }
+  if (chipEl) { chipEl.remove(); chipEl = null; showChip(C); }
 }
-export default { start: start, open: open, reset: reset, setLanguage: setLanguage, blockNow: blockNow };
+export function getLanguage() { return state.lang; }
+export default { start: start, open: open, reset: reset, setLanguage: setLanguage, getLanguage: getLanguage, blockNow: blockNow };
