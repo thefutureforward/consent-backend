@@ -30,6 +30,9 @@
             transition:background .15s,border-color .15s}
   .icon-btn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.5)}
 
+  .lang-sw{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);padding:2px}
+  .lang-sw button{color:rgba(255,255,255,.65);padding:5px 11px;font-size:12px}
+  .lang-sw button.on{background:rgba(255,255,255,.92);color:var(--ink)}
   .site-picker{position:relative}
   .site-current{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.08);
                 border:1px solid rgba(255,255,255,.16);border-radius:9px;padding:6px 12px;
@@ -251,11 +254,12 @@
 
 <!-- ============ APP ============ -->
 <div id="app" class="hide">
-  <div class="topbar">
+  <div class="topbar" id="topbar">
     <div class="brand">Consent Banner<span>Dashboard</span></div>
     <div class="site-picker" id="picker"></div>
     <div class="spacer"></div>
     <span class="who" id="who"></span>
+    <div class="modes lang-sw" id="lang-sw"></div>
     <button class="icon-btn" onclick="logout()">Salir</button>
   </div>
   <div class="shell">
@@ -279,10 +283,391 @@ function j(method, path, body){
     });
 }
 function el(id){ return document.getElementById(id); }
+
+/* ===================== IDIOMA DEL DASHBOARD =====================
+   El dashboard se pinta en espanol y se traduce al vuelo al inyectarlo.
+   Traducir el HTML ya montado, en vez de sembrar claves por 600 literales,
+   evita tocar cada cadena y deja el codigo legible.
+
+   Se traduce SOLO el texto que queda entre etiquetas y los placeholders.
+   Nunca dentro de una etiqueta, asi que clases, ids y atributos quedan
+   intactos aunque coincidan con una entrada del diccionario.                */
+
+var DICT = {
+  /* --- barra, pestanas, login --- */
+  "Entra para gestionar tus sitios.": "Sign in to manage your sites.",
+  "Usuario": "Username",
+  "Contrasena actual": "Current password",
+  "Contrasena nueva": "New password",
+  "Contrasena": "Password",
+  "Entrar": "Sign in",
+  "Salir": "Sign out",
+  "Configuracion": "Settings",
+  "Instalar": "Install",
+  "Cookies detectadas en el sitio": "Cookies detected on the site",
+  "Cookies detectadas": "Detected cookies",
+  "Registros": "Records",
+  "Cuenta": "Account",
+  "Sitios": "Sites",
+  "Nuevo sitio": "New site",
+  "Crear sitio": "Create site",
+  "Crear primer sitio": "Create first site",
+  "Borrar sitio": "Delete site",
+  "Crea un sitio para empezar.": "Create a site to get started.",
+  "No se pudo cargar el sitio.": "The site could not be loaded.",
+  "Pon un nombre para identificarlo.": "Give it a name to identify it.",
+  "Puedes cambiar los dominios mas tarde.": "You can change the domains later.",
+  "Nombre": "Name",
+  "Tienda del cliente": "Client store",
+  "Dominios (separados por coma)": "Domains (comma separated)",
+  "Dominios autorizados": "Allowed domains",
+  "Separados por coma. Solo desde estos dominios se aceptan registros.":
+    "Comma separated. Records are only accepted from these domains.",
+  "Guardar dominios": "Save domains",
+  "Cancelar": "Cancel",
+  "Si, borrar": "Yes, delete",
+  "Borrar": "Delete",
+  "No se pudo borrar.": "Could not delete.",
+  "No se pudo crear.": "Could not create.",
+
+  /* --- configuracion --- */
+  "Configuracion del sitio": "Site settings",
+  "version": "version",
+  "Apariencia": "Appearance",
+  "Formatear": "Format",
+  "Guardar nueva version": "Save new version",
+  "Guardado. Version": "Saved. Version",
+  "No se pudo guardar.": "Could not save.",
+  "Corrige los errores antes de guardar.": "Fix the errors before saving.",
+  "JSON invalido, no se puede formatear.": "Invalid JSON, cannot format.",
+  "JSON invalido.": "Invalid JSON.",
+  "JSON valido.": "Valid JSON.",
+  "El JSON tiene errores. Corrigelo en la pestana JSON para volver aqui.":
+    "The JSON has errors. Fix it in the JSON tab to come back here.",
+  "Al guardar, el bundle de este sitio recibe la configuracion al recargar. No hace falta tocar el codigo instalado.":
+    "Once saved, this site's bundle picks up the settings on reload. No need to touch the installed code.",
+  "Categorias:": "Categories:",
+  "Todas las categorias referenciadas existen.": "Every referenced category exists.",
+  "no se bloquea ningun script, solo se borran cookies despues.":
+    "no script is blocked, cookies are only deleted afterwards.",
+  "autoBlock vacio": "empty autoBlock",
+  "webfont activo": "webfont on",
+
+  /* --- grupos de apariencia --- */
+  "Idioma": "Language",
+  "Detectar el idioma del navegador": "Detect the browser language",
+  "Idioma de respaldo": "Fallback language",
+  "Espanol": "Spanish",
+  "Ingles": "English",
+  "espanol": "Spanish",
+  "ingles": "English",
+  "Textos en espanol": "Spanish texts",
+  "Textos en ingles": "English texts",
+  "Banner": "Banner",
+  "Panel de preferencias": "Preferences panel",
+  "Tipografia": "Typography",
+  "Botones": "Buttons",
+  "Pill de reapertura": "Reopen pill",
+  "Deteccion de cookies": "Cookie detection",
+  "Colores del tema": "Theme colours",
+  "Posicion": "Position",
+  "Alineacion": "Alignment",
+  "Abajo derecha": "Bottom right",
+  "Abajo izquierda": "Bottom left",
+  "Arriba derecha": "Top right",
+  "Arriba izquierda": "Top left",
+  "Abajo": "Bottom",
+  "Arriba": "Top",
+  "Izquierda": "Left",
+  "Centrado": "Centered",
+  "Derecha": "Right",
+  "Ancho maximo": "Max width",
+  "Alto maximo": "Max height",
+  "Margen exterior": "Outer margin",
+  "Radio": "Radius",
+  "Separacion interna": "Inner spacing",
+  "Separacion lateral": "Side offset",
+  "Separacion vertical": "Vertical offset",
+  "Separacion": "Spacing",
+  "Fondo del panel": "Panel background",
+  "Fondo del velo": "Overlay background",
+  "Padding cabecera": "Header padding",
+  "Padding filas": "Row padding",
+  "Padding pie": "Footer padding",
+  "Padding base": "Base padding",
+  "Padding": "Padding",
+  "Fondo": "Background",
+  "Texto": "Text",
+  "Familia titulos": "Heading family",
+  "Familia texto": "Body family",
+  "Familia mono": "Mono family",
+  "Eyebrow: tamano": "Eyebrow: size",
+  "Eyebrow: espaciado": "Eyebrow: letter spacing",
+  "Texto banner: tamano": "Banner text: size",
+  "Texto banner: peso": "Banner text: weight",
+  "Texto banner: interlineado": "Banner text: line height",
+  "Titulo: tamano": "Title: size",
+  "Titulo: peso": "Title: weight",
+  "Categoria: tamano": "Category: size",
+  "Categoria: peso": "Category: weight",
+  "Botones: tamano": "Buttons: size",
+  "Botones: peso": "Buttons: weight",
+  "Aceptar: fondo": "Accept: background",
+  "Aceptar: texto": "Accept: text",
+  "Aceptar: padding": "Accept: padding",
+  "Rechazar: fondo": "Reject: background",
+  "Rechazar: texto": "Reject: text",
+  "Rechazar: borde": "Reject: border",
+  "Guardar: fondo": "Save: background",
+  "Guardar: texto": "Save: text",
+  "Mostrar el pill": "Show the pill",
+  "Solo texto": "Text only",
+  "Solo imagen": "Image only",
+  "Imagen y texto": "Image and text",
+  "URL de la imagen": "Image URL",
+  "Tamano imagen": "Image size",
+  "Texto alternativo": "Alt text",
+  "Detectar cookies": "Detect cookies",
+  "Segundos de escucha": "Seconds of listening",
+  "por defecto": "default",
+  "activo": "on",
+
+  /* --- textos del banner --- */
+  "Etiqueta pequena": "Small label",
+  "Texto del banner": "Banner text",
+  "Enlace a la politica": "Policy link",
+  "Boton personalizar": "Customize button",
+  "Boton rechazar": "Reject button",
+  "Boton aceptar": "Accept button",
+  "Rechazar opcionales (panel)": "Reject optional (panel)",
+  "Etiqueta del panel": "Panel label",
+  "Titulo del panel": "Panel title",
+  "Intro del panel": "Panel intro",
+  "Etiqueta siempre activas": "Always on label",
+  "Boton guardar": "Save button",
+  "Texto del pill": "Pill text",
+
+  /* --- avisos --- */
+  "Contraste muy bajo en el": "Very low contrast in the",
+  "Contraste justo en el": "Tight contrast in the",
+  "Por debajo de 3:1 cuesta leerlo.": "Below 3:1 it is hard to read.",
+  "WCAG pide 4.5:1 para texto normal.": "WCAG asks for 4.5:1 for body text.",
+  "Ancho del banner": "Banner width",
+  "Ancho del panel": "Panel width",
+  "por debajo de 280px el contenido se desborda.": "below 280px the content overflows.",
+  "los interruptores y sus textos no caben bien.": "the switches and their labels do not fit.",
+  "Pill desactivado": "Pill disabled",
+  "La deteccion esta apagada.": "Detection is off.",
+  "Sin traducir al": "Not translated into",
+  "Esa fila del panel saldra en el otro idioma.": "That panel row will show in the other language.",
+  "texto del banner": "banner text",
+  "titulos del panel": "panel titles",
+  "descripciones del panel": "panel descriptions",
+  "boton de aceptar": "accept button",
+  "pill de reapertura": "reopen pill",
+
+  /* --- instalar --- */
+  "Codigo para el sitio": "Code for the site",
+  "Copia el bloque completo.": "Copy the whole block.",
+  "Pegalo en el": "Paste it into the",
+  ", antes de cualquier otro script.": ", before any other script.",
+  "Limpia la cache del sitio y recarga.": "Clear the site cache and reload.",
+  "Copiar codigo": "Copy code",
+  "No se pudo copiar.": "Could not copy.",
+  "Abrir sitio demo": "Open demo site",
+  "Abre el sitio de ejemplo para verificar que el banner responde con esta configuracion.":
+    "Open the sample site to check the banner responds with these settings.",
+  "Comprobar": "Check",
+
+  /* --- registros --- */
+  "Registro de consentimientos": "Consent records",
+  "Total": "Total",
+  "Aceptan todo": "Accept all",
+  "Rechazan": "Reject",
+  "Personalizan": "Customize",
+  "Todavia no hay registros.": "No records yet.",
+  "Fecha": "Date",
+  "Decision": "Decision",
+  "Categorias aceptadas": "Accepted categories",
+  "Version": "Version",
+  "sin datos": "no data",
+
+  /* --- cookies detectadas --- */
+  "Clasifica cada una. Las esenciales nunca se borran.":
+    "Classify each one. Essential cookies are never deleted.",
+  "Aplicar sugerencias": "Apply suggestions",
+  "Refrescar": "Refresh",
+  "Guardar clasificacion": "Save classification",
+  "Detectadas": "Detected",
+  "Sin decidir": "Undecided",
+  "Necesarias": "Necessary",
+  "No necesarias": "Not necessary",
+  "Esencial (no se borra)": "Essential (never deleted)",
+  "Nunca se borra": "Never deleted",
+  "Cookie": "Cookie",
+  "Que es": "What it is",
+  "Categoria": "Category",
+  "Vista": "Seen",
+  "veces": "times",
+  "inicial": "initial",
+  "tardia": "late",
+  "tras-decision": "after-decision",
+  "desconocida": "unknown",
+  "se sugiere: necesaria": "suggested: necessary",
+  "se sugiere: no necesaria": "suggested: not necessary",
+  "No esta en el catalogo. Averigua quien la escribe antes de decidir.":
+    "Not in the catalogue. Find out what writes it before deciding.",
+  "Todavia no se ha detectado ninguna cookie.": "No cookies detected yet.",
+  "No se pudieron cargar.": "Could not load.",
+  "No hay cambios que guardar.": "No changes to save.",
+  "No hay sugerencias aplicables.": "No applicable suggestions.",
+  "cookie(s) respondidas. Revisa y pulsa Guardar.":
+    "cookie(s) answered. Review and press Save.",
+  "patron(es) anadidos a la configuracion (version": "pattern(s) added to the settings (version",
+  "Aqui solo aparecen las cookies de": "Only cookies from",
+  "tu propio dominio": "your own domain",
+  "no son visibles desde JavaScript, asi que ningun banner puede detectarlas ni borrarlas. Para el informe de auditoria hay que anotarlas a mano desde DevTools":
+    "are not visible to JavaScript, so no banner can detect or delete them. For the audit report they must be noted by hand from DevTools",
+  "Las de terceros": "Third party ones",
+  "y las marcadas": "and those marked",
+
+  /* --- cuenta --- */
+  "Cambiar contrasena": "Change password",
+  "Al cambiarla se cierran las demas sesiones abiertas.":
+    "Changing it signs out every other open session.",
+  "Minimo 8 caracteres": "At least 8 characters",
+  "Guardar contrasena": "Save password",
+  "Contrasena actualizada. Las demas sesiones se cerraron.":
+    "Password updated. All other sessions were closed.",
+  "No se pudo cambiar.": "Could not change it.",
+
+  /* --- previa --- */
+  "Recargar": "Reload",
+  "Panel": "Panel",
+  "Pill": "Pill",
+  "Contenido de ejemplo del sitio.": "Sample site content.",
+  "El pill esta desactivado en la configuracion, por eso no aparece nada.":
+    "The pill is disabled in the settings, that is why nothing shows.",
+  "Cargando...": "Loading...",
+
+  /* --- descripciones del catalogo de cookies --- */
+  "PHP: identificador de sesion del servidor.": "PHP: server session id.",
+  "Cloudflare: distingue humanos de bots.": "Cloudflare: tells humans from bots.",
+  "Google Analytics: identifica al visitante (2 anos).":
+    "Google Analytics: identifies the visitor (2 years).",
+  "Google Analytics: limita la frecuencia de peticiones.":
+    "Google Analytics: throttles request rate.",
+  "Google Analytics: distingue usuarios (24 h).":
+    "Google Analytics: tells users apart (24 h).",
+  "HubSpot: seguimiento principal del visitante.": "HubSpot: main visitor tracking.",
+  "HubSpot: control de sesion para analitica.": "HubSpot: session control for analytics.",
+  "HubSpot: detecta si es una sesion nueva.": "HubSpot: detects whether the session is new.",
+  "HubSpot: identifica al visitante entre sesiones.":
+    "HubSpot: identifies the visitor across sessions.",
+  "Meta (Facebook) Pixel: publicidad y medicion.":
+    "Meta (Facebook) Pixel: advertising and measurement.",
+  "Google Ads: atribucion de campanas.": "Google Ads: campaign attribution.",
+  "Hotjar: grabacion y mapas de calor.": "Hotjar: recordings and heatmaps.",
+  "Vimeo: reproduccion y medicion de video.": "Vimeo: video playback and measurement."
+};
+
+/* Claves ordenadas de mas larga a mas corta: si "Contrasena" fuese antes que
+   "Contrasena nueva", la segunda quedaria traducida a medias.              */
+var DICT_KEYS = Object.keys(DICT).sort(function(a, b){ return b.length - a.length; });
+
+var LANG = "es";
+
+function frase(t){
+  if(LANG === "es" || !t) return t;
+  var limpio = t.trim();
+  if(DICT[limpio]) return t.replace(limpio, DICT[limpio]);   // conserva espacios
+  var out = t;
+  for(var i = 0; i < DICT_KEYS.length; i++){
+    var k = DICT_KEYS[i];
+    if(out.indexOf(k) !== -1) out = out.split(k).join(DICT[k]);
+  }
+  return out;
+}
+
+/* Un unico punto de intercepcion: cualquier innerHTML que se asigne en esta
+   pagina pasa por el traductor. Envolver las 25 llamadas a mano era fragil
+   (una expresion regular con comillas dentro basto para romper el parseo) y
+   ademas habria que acordarse de envolver cada pintado nuevo.
+   El editor JSON y los campos de texto usan .value, no innerHTML, asi que la
+   configuracion del cliente no pasa por aqui y no hay riesgo de traducirla.  */
+(function(){
+  var d = Object.getOwnPropertyDescriptor(Element.prototype, "innerHTML");
+  if(!d || !d.set) return;
+  Object.defineProperty(Element.prototype, "innerHTML", {
+    configurable: true,
+    get: function(){ return d.get.call(this); },
+    set: function(v){ d.set.call(this, tr(v)); }
+  });
+})();
+
+function tr(h){
+  if(LANG === "es" || typeof h !== "string") return h;
+  h = h.replace(/>([^<>]+)</g, function(m, txt){ return ">" + frase(txt) + "<"; });
+  h = h.replace(/placeholder="([^"]*)"/g, function(m, t){ return 'placeholder="' + frase(t) + '"'; });
+  return h;
+}
+
+/* El idioma del navegador manda la primera vez; despues, lo que el usuario
+   haya elegido a mano. Se guarda por navegador, no en el servidor: es una
+   preferencia de quien mira, no del sitio.                                  */
+function idiomaInicial(){
+  try{
+    var g = localStorage.getItem("dash_lang");
+    if(g === "es" || g === "en") return g;
+  }catch(e){}
+  var n = [];
+  try{ n = navigator.languages && navigator.languages.length
+            ? navigator.languages : [navigator.language || ""]; }catch(e){}
+  for(var i = 0; i < n.length; i++){
+    var b = String(n[i]).toLowerCase().split("-")[0];
+    if(b === "es") return "es";
+    if(b === "en") return "en";
+  }
+  return "es";
+}
+
+var _estaticoES = null;
+function setLang(l){
+  if(l !== "es" && l !== "en") return;
+  LANG = l;
+  try{ localStorage.setItem("dash_lang", l); }catch(e){}
+  document.documentElement.setAttribute("lang", l);
+  aplicarEstatico();
+  if(el("app") && !el("app").classList.contains("hide")){
+    renderTabs(); openTab(tab);
+  }
+}
+
+/* El login y la barra superior son HTML fijo, no pasan por ningun render.
+   Guardamos el original en espanol para poder traducir y volver.           */
+function aplicarEstatico(){
+  if(_estaticoES === null){
+    _estaticoES = { login: el("login").innerHTML, top: el("topbar").innerHTML };
+  }
+  el("login").innerHTML  = _estaticoES.login;
+  el("topbar").innerHTML = _estaticoES.top;
+  pintarSelectorIdioma();
+  if(window._usuario && el("who")) el("who").textContent = window._usuario;
+  if(typeof sites !== "undefined" && sites && sites.length) renderPicker();
+}
+
+function pintarSelectorIdioma(){
+  var host = el("lang-sw"); if(!host) return;
+  host.innerHTML =
+    '<button class="'+(LANG==="es"?"on":"")+'" onclick="setLang(\'es\')">ES</button>'+
+    '<button class="'+(LANG==="en"?"on":"")+'" onclick="setLang(\'en\')">EN</button>';
+}
+/* ================== FIN IDIOMA DEL DASHBOARD ================== */
+
 function val(id){ var e=el(id); return e?e.value:""; }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
-function msg(id,t,err){var e=el(id); if(!e)return; e.textContent=t; e.className="msg "+(err?"err":"ok");}
+function msg(id,t,err){var e=el(id); if(!e)return; e.textContent=frase(t); e.className="msg "+(err?"err":"ok");}
 function show(which){
   el("login").classList.toggle("hide", which!=="login");
   el("app").classList.toggle("hide", which!=="app");
@@ -305,9 +690,13 @@ function login(){
 function logout(){ j("POST","/dash/logout").then(function(){ location.reload(); }); }
 
 function boot(){
+  LANG = idiomaInicial();
+  document.documentElement.setAttribute("lang", LANG);
+  aplicarEstatico();
   j("GET","/dash/me").then(function(r){
     if(!r.ok){ show("login"); return; }
     show("app");
+    window._usuario = r.d.username;
     el("who").textContent = r.d.username;
     sites = r.d.sites || [];
     var existe = sites.filter(function(s){ return s.site_id===current; }).length;
@@ -726,15 +1115,15 @@ function refrescarPreview(){
   }
   var aviso = "";
   if(prevEstado === "chip" && cfg.chip && cfg.chip.enabled === false){
-    aviso = "<p style='color:#b45309'>El pill esta desactivado en la configuracion, "+
-            "por eso no aparece nada.</p>";
+    aviso = "<p style='color:#b45309'>" + frase("El pill esta desactivado en la configuracion, "+
+            "por eso no aparece nada.") + "</p>";
   }
 
   var html =
     '<!doctype html><html><head><meta charset="utf-8">'+
     '<style>body{margin:0;font-family:-apple-system,sans-serif;background:#fbfaf7;'+
     'padding:22px;color:#8a8a8a;font-size:13px}</style></head><body>'+
-    '<p>Contenido de ejemplo del sitio.</p>'+ aviso +
+    '<p>'+frase("Contenido de ejemplo del sitio.")+'</p>'+ aviso +
     '<script>window.__consentConfig='+JSON.stringify(cfg)+';<\/script>'+
     '<script src="'+API+'/consent-banner.js"><\/script>'+
     '<script>'+
@@ -1286,11 +1675,11 @@ function cambiarPass(){
   j("POST","/dash/password",{actual:val("pw-actual"),nueva:val("pw-nueva")}).then(function(r){
     var m = el("pw-msg");
     if(r.ok){
-      m.textContent = "Contrasena actualizada. Las demas sesiones se cerraron.";
+      m.textContent = frase("Contrasena actualizada. Las demas sesiones se cerraron.");
       m.className = "hint ok";
       el("pw-actual").value=""; el("pw-nueva").value="";
     } else {
-      m.textContent = (r.d && r.d.error) ? r.d.error : "No se pudo cambiar.";
+      m.textContent = (r.d && r.d.error) ? r.d.error : frase("No se pudo cambiar.");
       m.className = "hint err";
     }
   });
