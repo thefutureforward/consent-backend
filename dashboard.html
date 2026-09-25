@@ -197,13 +197,13 @@
   .ck-desc{font-size:11.5px;color:var(--muted);white-space:normal;max-width:330px;line-height:1.45}
   .ck-sel{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12.5px;
           background:#fff;min-width:140px}
-  .si-no{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
-  .si-no button{border:0;background:#fff;padding:7px 14px;font-size:12.5px;cursor:pointer;
-                color:var(--muted);font-weight:600;white-space:nowrap}
-  .si-no button + button{border-left:1px solid var(--line)}
-  .si-no button:hover{background:var(--paper)}
-  .si-no button.on.si{background:#e6f4ea;color:#1e6b36}
-  .si-no button.on.no{background:#fdeceb;color:#a5342a}
+  .ck-sel.es-nec{border-color:#9dcfae;background:#f2faf5;color:#1e6b36;font-weight:600}
+  .ck-sel.no-nec{border-color:#e6b5af;background:#fdf6f5;color:#a5342a;font-weight:600}
+  .ck-sel.sin-dec{border-color:var(--warn);background:#fffdf7}
+  .banner-nota{background:#eef3f8;border:1px solid #d6e2ee;color:#3d5a75;
+               border-radius:10px;padding:11px 14px;font-size:12.5px;margin-bottom:14px;
+               line-height:1.55}
+  .banner-nota code{background:#dde8f2;color:#2c4a63}
   tr.sin-decidir{background:#fffdf7}
   tr.sin-decidir .ck-name{color:#8a5a12}
   .nota-nec{font-size:11.5px;color:var(--ok);font-weight:600}
@@ -385,6 +385,7 @@ function openTab(id){
 }
 
 /* ---------------- CONFIGURACION ---------------- */
+var _trasRecargar = "";   // mensaje que sobrevive al repintado
 var cfgMode = "visual";   // visual | json
 
 function viewConfig(d){
@@ -414,6 +415,7 @@ function viewConfig(d){
   el("cfg").value = JSON.stringify(d.config, null, 2);
   el("cfg").addEventListener("input", function(){ validarCfg(); });
   setCfgMode(cfgMode);
+  if(_trasRecargar){ msg("smsg", _trasRecargar, false); _trasRecargar = ""; }
 }
 
 function setCfgMode(m){
@@ -795,7 +797,12 @@ function saveCfg(){
   try{ cfg = JSON.parse(el("cfg").value); }
   catch(e){ msg("smsg","JSON invalido.",true); return; }
   j("POST","/dash/site/save",{site_id:current,config:cfg}).then(function(r){
-    if(r.ok){ msg("smsg","Guardado. Version "+r.d.version+".",false); openTab("config"); }
+    if(r.ok){
+      // openTab repinta la pestana entera, asi que el mensaje se escribe
+      // DESPUES de repintar o se pierde y parece que no se guardo nada.
+      _trasRecargar = "Guardado. Version " + r.d.version + ".";
+      openTab("config");
+    }
     else msg("smsg", r.d.error||"No se pudo guardar.", true);
   });
 }
@@ -949,7 +956,10 @@ var _ckCambios = {};     // nombre -> {category, status} pendiente de guardar
 
 function viewCookies(d){
   var cats = (d.config && d.config.categories) || [];
-  window._ckCats = cats.map(function(c){ return c.id; });
+  // Solo las categorias que el visitante puede denegar. Asignar una cookie a
+  // una categoria bloqueada no tendria efecto: nunca se deniega, luego nunca
+  // se borraria, que es justo lo que significa "esencial".
+  window._ckCats = cats.filter(function(c){ return !c.locked; }).map(function(c){ return c.id; });
   el("tabbody").innerHTML =
     '<div class="card">'+
       '<div class="ck-head">'+
@@ -962,6 +972,11 @@ function viewCookies(d){
         '</div>'+
       '</div>'+
       '<div id="ck-aviso"></div>'+
+      '<div class="banner-nota">Aqui solo aparecen las cookies de <b>tu propio dominio</b>. '+
+      'Las de terceros (<code>.google.com</code>, <code>.vimeo.com</code>) y las marcadas '+
+      '<code>HttpOnly</code> no son visibles desde JavaScript, asi que ningun banner puede '+
+      'detectarlas ni borrarlas. Para el informe de auditoria hay que anotarlas a mano desde '+
+      'DevTools &rarr; Application &rarr; Cookies.</div>'+
       '<div id="ck-body"><div class="empty">Cargando...</div></div>'+
       '<div class="row mt"><span id="ck-msg" class="msg"></span></div>'+
     '</div>';
@@ -992,7 +1007,7 @@ function pintarCookies(){
   var tipos = cats.filter(function(c){ return c !== "esencial"; });
 
   el("ck-body").innerHTML =
-    '<div class="stats">'+
+    '<div class="stats" id="ck-stats">'+
       '<div class="stat"><div class="n">'+rows.length+'</div><div class="l">Detectadas</div></div>'+
       '<div class="stat cus"><div class="n">'+pend+'</div><div class="l">Sin decidir</div></div>'+
       '<div class="stat acc"><div class="n">'+rows.filter(function(x){return x.category==="esencial";}).length+
@@ -1002,7 +1017,7 @@ function pintarCookies(){
         '</div><div class="l">No necesarias</div></div>'+
     '</div>'+
     '<div class="table-wrap"><table class="ck-tbl"><thead><tr>'+
-      '<th>Cookie</th><th>Que es</th><th>&iquest;Es necesaria?</th><th>Tipo</th><th>Vista</th>'+
+      '<th>Cookie</th><th>Que es</th><th>Categoria</th><th></th><th>Vista</th>'+
     '</tr></thead><tbody>'+
     rows.map(function(x){ return filaCookie(x, tipos); }).join('')+
     '</tbody></table></div>';
@@ -1023,27 +1038,27 @@ function filaCookie(x, tipos){
 
   var desc = x.explicacion || "No esta en el catalogo. Averigua quien la escribe antes de decidir.";
 
-  var opciones = tipos.map(function(c){
-    return '<option value="'+esc(c)+'"'+(x.category===c?" selected":"")+'>'+esc(c)+'</option>';
-  }).join('');
+  // Un solo desplegable con todo: sin decidir, esencial, y las categorias
+  // que el sitio tenga configuradas.
+  var opciones =
+    '<option value=""'+(sinDecidir?" selected":"")+'>Sin decidir</option>'+
+    '<option value="esencial"'+(esNecesaria?" selected":"")+'>Esencial (no se borra)</option>'+
+    tipos.map(function(c){
+      return '<option value="'+esc(c)+'"'+(x.category===c?" selected":"")+'>'+esc(c)+'</option>';
+    }).join('');
 
-  return '<tr'+(sinDecidir?' class="sin-decidir"':'')+'>'+
+  var clase = "ck-sel" + (esNecesaria ? " es-nec" : (esNoNecesaria ? " no-nec" : " sin-dec"));
+  var nombreSeguro = esc(x.name).replace(/'/g,"");
+
+  return '<tr'+(sinDecidir?' class="sin-decidir"':'')+' id="row_'+id+'">'+
     '<td><div class="ck-name">'+esc(x.name)+'</div>'+sug+'</td>'+
     '<td><div class="ck-desc">'+esc(desc)+'</div></td>'+
     '<td>'+
-      '<div class="si-no" id="sn_'+id+'">'+
-        '<button type="button" class="'+(esNecesaria?"on si":"")+'" '+
-          'onclick="ckNecesaria(\''+esc(x.name).replace(/'/g,"")+'\',true)">Si, necesaria</button>'+
-        '<button type="button" class="'+(esNoNecesaria?"on no":"")+'" '+
-          'onclick="ckNecesaria(\''+esc(x.name).replace(/'/g,"")+'\',false)">No</button>'+
-      '</div>'+
+      '<select class="'+clase+'" id="tp_'+id+'" '+
+        'onchange="ckTipo(\''+nombreSeguro+'\',this.value)">'+opciones+'</select>'+
     '</td>'+
-    '<td>'+
-      '<select class="ck-sel" id="tp_'+id+'" style="'+(esNoNecesaria?"":"display:none")+'" '+
-        'onchange="ckTipo(\''+esc(x.name).replace(/'/g,"")+'\',this.value)">'+opciones+'</select>'+
-      '<span class="nota-nec" id="nn_'+id+'" style="'+(esNecesaria?"":"display:none")+'">'+
-        'Nunca se borra</span>'+
-    '</td>'+
+    '<td><span class="nota-nec" id="nn_'+id+'" style="'+(esNecesaria?"":"display:none")+'">'+
+      'Nunca se borra</span></td>'+
     '<td class="mono">'+esc(fecha(x.last_seen))+'<br><span style="font-size:10.5px">'+
       esc(x.hits)+' veces, '+esc(x.phase||"")+'</span></td>'+
   '</tr>';
@@ -1061,54 +1076,38 @@ function avisoDeteccion(cuantas){
     (cuantas ? 'Lo de abajo es lo que se detecto antes de apagarla.' : '')+'</div>';
 }
 
-/* Respuesta a "es necesaria?". Si es que NO, hay que decir de que tipo, y se
-   toma el tipo sugerido por el catalogo o el primero disponible. */
-function ckNecesaria(nombre, necesaria){
-  var fila = (window._ckRows||[]).filter(function(r){ return r.name===nombre; })[0];
-  if(!fila) return;
-  var id = cssId(nombre);
-  var tipos = (window._ckCats||[]).filter(function(c){ return c!=="esencial"; });
-
-  if(necesaria){
-    fila.category = "esencial"; fila.status = "asignada";
-  } else {
-    var elegido = fila.category && fila.category !== "esencial" ? fila.category : "";
-    if(!elegido && fila.sugerida && fila.sugerida !== "esencial" && tipos.indexOf(fila.sugerida) > -1){
-      elegido = fila.sugerida;                 // el catalogo ya sabe de que tipo es
-    }
-    if(!elegido) elegido = tipos[0] || "";
-    fila.category = elegido;
-    // Sin ningun tipo disponible no se puede clasificar como no necesaria.
-    fila.status = elegido ? "asignada" : "nueva";
-    if(!elegido){
-      msg("ck-msg","Para marcar cookies como no necesarias, anade alguna categoria "+
-                   "en la configuracion (aparte de las bloqueadas).", true);
-      return;
-    }
-  }
-  _ckCambios[nombre] = { category: fila.category, status: fila.status };
-
-  // Pintar el cambio sin rehacer toda la tabla, para no perder el scroll.
-  var grupo = el("sn_"+id);
-  if(grupo){
-    var bs = grupo.getElementsByTagName("button");
-    bs[0].className = necesaria ? "on si" : "";
-    bs[1].className = necesaria ? "" : "on no";
-  }
-  var sel = el("tp_"+id), nota = el("nn_"+id);
-  if(sel){ sel.style.display = necesaria ? "none" : ""; if(!necesaria) sel.value = fila.category; }
-  if(nota){ nota.style.display = necesaria ? "" : "none"; }
-  var tr = grupo && grupo.parentNode ? grupo.parentNode.parentNode : null;
-  if(tr) tr.className = "";
-  contarCambios();
-}
-
+/* Un solo desplegable decide todo: vacio = sin decidir, "esencial" = necesaria
+   y no se borra nunca, cualquier otro valor = la categoria bajo la que se
+   borrara cuando el visitante la deniegue. */
 function ckTipo(nombre, valor){
   var fila = (window._ckRows||[]).filter(function(r){ return r.name===nombre; })[0];
   if(!fila) return;
-  fila.category = valor; fila.status = "asignada";
-  _ckCambios[nombre] = { category: valor, status: "asignada" };
+  fila.category = valor;
+  fila.status = valor ? "asignada" : "nueva";
+  _ckCambios[nombre] = { category: fila.category, status: fila.status };
+
+  // Repintar solo esta fila, para no perder el scroll ni cerrar el desplegable.
+  var id = cssId(nombre);
+  var sel = el("tp_"+id), nota = el("nn_"+id), tr = el("row_"+id);
+  if(sel) sel.className = "ck-sel" + (valor === "esencial" ? " es-nec"
+                                    : (valor ? " no-nec" : " sin-dec"));
+  if(nota) nota.style.display = (valor === "esencial") ? "" : "none";
+  if(tr) tr.className = valor ? "" : "sin-decidir";
+  refrescarContadores();
   contarCambios();
+}
+
+/* Las tarjetas de arriba se recalculan sin rehacer la tabla entera. */
+function refrescarContadores(){
+  var rows = window._ckRows || [];
+  var cont = el("ck-stats"); if(!cont) return;
+  var nec = rows.filter(function(x){ return x.category === "esencial"; }).length;
+  var no  = rows.filter(function(x){ return x.category && x.category !== "esencial"; }).length;
+  cont.innerHTML =
+    '<div class="stat"><div class="n">'+rows.length+'</div><div class="l">Detectadas</div></div>'+
+    '<div class="stat cus"><div class="n">'+(rows.length-nec-no)+'</div><div class="l">Sin decidir</div></div>'+
+    '<div class="stat acc"><div class="n">'+nec+'</div><div class="l">Necesarias</div></div>'+
+    '<div class="stat rej"><div class="n">'+no+'</div><div class="l">No necesarias</div></div>';
 }
 
 function contarCambios(){

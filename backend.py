@@ -175,6 +175,11 @@ COOKIE_CATALOGO = [
     ("VISITOR_INFO1_LIVE", "marketing", "YouTube: estima el ancho de banda y personaliza."),
     ("YSC",         "marketing", "YouTube: seguimiento de videos vistos."),
     ("PREF",        "funcional", "YouTube/Google: preferencias del reproductor."),
+    # --- El propio banner ---
+    # Guarda la decision del visitante. Es esencial por definicion y ademas el
+    # bundle la protege de su propio borrado: sin ella volveria a preguntar.
+    ("fwc_consent",  "esencial", "Este banner: guarda la decision del visitante."),
+    ("cookie_consent", "esencial", "Banner de consentimiento: guarda la decision."),
     # --- Infraestructura y sesion (esenciales) ---
     ("PHPSESSID",   "esencial", "PHP: identificador de sesion del servidor."),
     ("JSESSIONID",  "esencial", "Java: identificador de sesion del servidor."),
@@ -197,6 +202,18 @@ COOKIE_CATALOGO = [
     ("__Secure-",   "esencial", "Cookie de seguridad del navegador."),
     ("__Host-",     "esencial", "Cookie de seguridad del navegador."),
 ]
+
+def cookie_propia(c, site_id):
+    """Nombre de la cookie donde el banner guarda la decision, segun el
+    namespace configurado. Se calcula igual que en el bundle (core.js)."""
+    fila = c.execute("SELECT json FROM site_config WHERE site_id=?", (site_id,)).fetchone()
+    if not fila:
+        return ""
+    try:
+        return (json.loads(fila["json"]).get("namespace") or "") + "_cookie_consent"
+    except Exception:
+        return ""
+
 
 def clasificar_cookie(nombre):
     """Devuelve (categoria_sugerida, explicacion) o (None, None) si no se reconoce."""
@@ -627,13 +644,16 @@ class H(BaseHTTPRequestHandler):
         vistas = data.get("cookies") or []
         if not isinstance(vistas, list):
             c.close(); return self._send(400, {"error": "cookies debe ser una lista"})
+        # La cookie del propio banner no se inventaria: la ponemos nosotros, es
+        # esencial por definicion y no hay nada que decidir sobre ella.
+        propia = cookie_propia(c, site_id)
         fase = str(data.get("phase") or "")[:20]
         ts = now()
         nuevas = 0
         for item in vistas[:200]:                      # tope defensivo por peticion
             nombre = (item.get("name") if isinstance(item, dict) else item) or ""
             nombre = str(nombre).strip()[:120]
-            if not nombre:
+            if not nombre or (propia and nombre == propia):
                 continue
             dominio = ""
             if isinstance(item, dict):
@@ -656,11 +676,16 @@ class H(BaseHTTPRequestHandler):
         if not u or not self._owns(u, site_id):
             return self._send(401, {"error": "no auth"})
         c = db()
+        # El nombre de la cookie propia depende del namespace del sitio, asi que
+        # se calcula igual que lo hace el bundle en vez de adivinarlo por prefijo.
+        propia = cookie_propia(c, site_id)
         filas = []
         for r in c.execute("SELECT name,first_seen,last_seen,hits,sample_domain,phase,status,"
                            "category,note FROM cookies_found WHERE site_id=? ORDER BY "
                            "CASE status WHEN 'nueva' THEN 0 ELSE 1 END, name", (site_id,)):
             d = dict(r)
+            if propia and d["name"] == propia:
+                continue                      # es nuestra: ni se lista ni se pregunta
             sug, expl = clasificar_cookie(d["name"])
             d["sugerida"] = sug or ""
             d["explicacion"] = expl or ""
