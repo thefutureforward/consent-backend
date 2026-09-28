@@ -209,6 +209,8 @@
     border:1px solid var(--line);border-radius:7px}
   .ab-row.ab-mala select{border-color:var(--warn);background:#fffdf7}
   .ab-sug{display:flex;flex-wrap:wrap;gap:7px}
+  .ab-otros{margin-top:10px}
+  .ab-otros summary{font-size:12px;color:var(--muted);cursor:pointer}
   .ab-sug .ab-ya{opacity:.5;cursor:default}
   .ctl-wide{display:block}
   .u-sitios{display:flex;flex-wrap:wrap;gap:8px 14px;max-width:520px}
@@ -489,6 +491,12 @@ var DICT = {
   "Sin reglas: no se bloquea nada.": "No rules: nothing is blocked.",
   "Anadir dominio": "Add domain",
   "Servicios habituales": "Common services",
+  "Detectados en este sitio": "Detected on this site",
+  "Otros servicios": "Other services",
+  "Cargando las cookies detectadas...": "Loading the detected cookies...",
+  "Aun no hay cookies detectadas y clasificadas en este sitio. Clasificalas en la pestana Cookies detectadas y aqui apareceran solo los servicios que use.":
+    "No detected and classified cookies yet on this site. Classify them in the Detected cookies tab and only the services it actually uses will show here.",
+  "Detectado por:": "Detected from:",
   "sin categoria": "no category",
   "(no existe)": "(does not exist)",
   "Recuerda copiar de nuevo el codigo de la pestana": "Remember to copy the code again from the",
@@ -806,7 +814,11 @@ function renderMenu(){
 }
 function toggleMenu(e){ if(e) e.stopPropagation(); menuOpen = !menuOpen; renderPicker(); }
 document.addEventListener("click", function(){ if(menuOpen){ menuOpen=false; renderPicker(); } });
-function pickSite(id){ current = id; menuOpen = false; renderPicker(); openTab(tab); }
+function pickSite(id){
+  current = id; menuOpen = false;
+  window._ckDetectadas = undefined;   // son de otro sitio: hay que volver a pedirlas
+  renderPicker(); openTab(tab);
+}
 
 /* ---------------- pestanas ---------------- */
 var TABS = [
@@ -1063,6 +1075,7 @@ function borrarPath(o, path){
 }
 
 function renderVisual(){
+  cargarDetectadas();
   var obj;
   try{ obj = JSON.parse(el("cfg").value); }
   catch(e){
@@ -1105,19 +1118,24 @@ function renderVisual(){
 // Servicios habituales, para no tener que recordar los dominios de memoria.
 // Cada entrada son los dominios que ese servicio usa realmente.
 var CATALOGO_BLOQUEO = [
-  {n:"HubSpot", cat:"marketing", d:["js.hs-scripts.com","js.hs-banner.com",
-                                    "js.hs-analytics.net","js.hsforms.net"]},
-  {n:"Google Tag Manager", cat:"analitica", d:["googletagmanager.com"]},
-  {n:"Google Analytics",   cat:"analitica", d:["google-analytics.com"]},
-  {n:"Meta (Facebook)",    cat:"marketing", d:["connect.facebook.net"]},
-  {n:"LinkedIn",           cat:"marketing", d:["snap.licdn.com"]},
-  {n:"TikTok",             cat:"marketing", d:["analytics.tiktok.com"]},
-  {n:"Hotjar",             cat:"analitica", d:["static.hotjar.com","script.hotjar.com"]},
-  {n:"Clarity",            cat:"analitica", d:["clarity.ms"]},
-  {n:"Vimeo",              cat:"marketing", d:["player.vimeo.com"]},
-  {n:"YouTube",            cat:"marketing", d:["youtube.com","ytimg.com"]},
-  {n:"Google Ads",         cat:"marketing", d:["googleadservices.com","googlesyndication.com"]},
-  {n:"Intercom",           cat:"funcional", d:["widget.intercom.io"]}
+  {n:"HubSpot", cat:"marketing", ck:["__hs","hubspotutk"],
+   d:["js.hs-scripts.com","js.hs-banner.com","js.hs-analytics.net","js.hsforms.net"]},
+  {n:"Google Tag Manager", cat:"analitica", ck:["_gtm","_dc_gtm"], d:["googletagmanager.com"]},
+  {n:"Google Analytics",   cat:"analitica", ck:["_ga","_gid","_gat","__utm"],
+   d:["google-analytics.com","googletagmanager.com"]},
+  {n:"Meta (Facebook)",    cat:"marketing", ck:["_fbp","_fbc","fr"], d:["connect.facebook.net"]},
+  {n:"LinkedIn",           cat:"marketing", ck:["li_","bcookie","lidc","UserMatchHistory"],
+   d:["snap.licdn.com"]},
+  {n:"TikTok",             cat:"marketing", ck:["_ttp","tt_"], d:["analytics.tiktok.com"]},
+  {n:"Hotjar",             cat:"analitica", ck:["_hj"],
+   d:["static.hotjar.com","script.hotjar.com"]},
+  {n:"Clarity",            cat:"analitica", ck:["_clck","_clsk","CLID"], d:["clarity.ms"]},
+  {n:"Vimeo",              cat:"marketing", ck:["vuid"], d:["player.vimeo.com"]},
+  {n:"YouTube",            cat:"marketing", ck:["VISITOR_INFO1_LIVE","YSC"],
+   d:["youtube.com","ytimg.com"]},
+  {n:"Google Ads",         cat:"marketing", ck:["_gcl","_gac","IDE","test_cookie"],
+   d:["googleadservices.com","googlesyndication.com","doubleclick.net"]},
+  {n:"Intercom",           cat:"funcional", ck:["intercom-"], d:["widget.intercom.io"]}
 ];
 
 function bloqueoUI(reglas){
@@ -1138,21 +1156,44 @@ function bloqueoUI(reglas){
     '</div>';
   }).join('');
 
-  var sugeridos = CATALOGO_BLOQUEO.map(function(s, i){
-    var puesto = s.d.every(function(dom){
+  // Los servicios se parten en dos: los que este sitio carga de verdad, segun
+  // las cookies detectadas y ya clasificadas como NO esenciales, y el resto.
+  // Sugerir doce servicios genericos a un sitio que solo usa dos es ruido.
+  var det = serviciosDetectados();
+  function boton(i){
+    var sv = CATALOGO_BLOQUEO[i];
+    var puesto = sv.d.every(function(dom){
       return reglas.some(function(r){ return r.match === dom; });
     });
+    var por = det.porQue[sv.n];
     return '<button class="btn ghost sm'+(puesto?" ab-ya":"")+'" onclick="abAnadirServicio('+i+')"'+
-      (puesto?" disabled":"")+'>'+(puesto?"&#10003; ":"+ ")+esc(s.n)+'</button>';
-  }).join('');
+      (puesto?" disabled":"")+(por?' title="Detectado por: '+esc(por)+'"':"")+'>'+
+      (puesto?"&#10003; ":"+ ")+esc(sv.n)+'</button>';
+  }
+
+  var bloqueSug = "";
+  if(det.hay.length){
+    bloqueSug =
+      '<p class="sub" style="margin:14px 0 6px">Detectados en este sitio</p>'+
+      '<div class="ab-sug">'+ det.hay.map(boton).join('') +'</div>';
+    if(det.resto.length){
+      bloqueSug += '<details class="ab-otros"><summary>Otros servicios</summary>'+
+        '<div class="ab-sug" style="margin-top:8px">'+ det.resto.map(boton).join('') +'</div></details>';
+    }
+  } else {
+    bloqueSug =
+      '<p class="sub" style="margin:14px 0 6px">Servicios habituales</p>'+
+      '<p class="ck-desc" style="display:block;margin:0 0 8px">'+ det.motivo +'</p>'+
+      '<div class="ab-sug">'+ det.resto.map(boton).join('') +'</div>';
+  }
+  var sugeridos = bloqueSug;
 
   return '<div class="ctl ctl-wide">'+
     '<p class="sub" style="margin:0 0 10px">Los scripts de estos dominios no se ejecutan hasta '+
       'que el visitante acepta su categoria. La cookie no llega a crearse.</p>'+
     '<div class="ab-list">'+ (filas || '<span class="ck-desc">Sin reglas: no se bloquea nada.</span>') +'</div>'+
     '<div class="row mt"><button class="btn ghost sm" onclick="abAnadir()">Anadir dominio</button></div>'+
-    '<p class="sub" style="margin:14px 0 6px">Servicios habituales</p>'+
-    '<div class="ab-sug">'+sugeridos+'</div>'+
+    sugeridos +
     '<p class="hint" style="margin-top:12px">Recuerda copiar de nuevo el codigo de la pestana '+
       '<b>Instalar</b>: el pre-bloqueador vive en el HTML del sitio y hay que actualizarlo alli.</p>'+
   '</div>';
@@ -1161,6 +1202,47 @@ function bloqueoUI(reglas){
 // Categorias que el visitante puede denegar. Bloquear bajo una categoria
 // bloqueada no tendria sentido: nunca se deniega, luego nunca se liberaria...
 // al reves, se liberaria siempre.
+/* Cruza las cookies detectadas con el catalogo de servicios. Solo cuentan
+   las clasificadas y NO esenciales: una cookie esencial nunca se deniega, asi
+   que bloquear su script seria bloquearlo para siempre.                    */
+function serviciosDetectados(){
+  var rows = window._ckDetectadas;
+  if(rows === null || rows === undefined)
+    return {hay:[], resto:todosLosIndices(), porQue:{},
+            motivo:"Cargando las cookies detectadas..."};
+  var utiles = rows.filter(function(x){ return x.category && x.category !== "esencial"; });
+  if(!utiles.length)
+    return {hay:[], resto:todosLosIndices(), porQue:{},
+            motivo:"Aun no hay cookies detectadas y clasificadas en este sitio. "+
+                   "Clasificalas en la pestana Cookies detectadas y aqui apareceran "+
+                   "solo los servicios que use."};
+
+  var hay = [], resto = [], porQue = {};
+  CATALOGO_BLOQUEO.forEach(function(sv, i){
+    var casan = utiles.filter(function(x){
+      return (sv.ck || []).some(function(pre){ return x.name.indexOf(pre) === 0; });
+    }).map(function(x){ return x.name; });
+    if(casan.length){ hay.push(i); porQue[sv.n] = casan.join(", "); }
+    else resto.push(i);
+  });
+  return {hay:hay, resto:resto, porQue:porQue, motivo:""};
+}
+
+function todosLosIndices(){
+  return CATALOGO_BLOQUEO.map(function(_, i){ return i; });
+}
+
+/* Se piden una vez por sitio. Si fallan, seguimos con el catalogo completo:
+   el editor tiene que funcionar aunque la deteccion no haya corrido nunca. */
+function cargarDetectadas(){
+  if(window._ckDetectadas !== undefined) return;
+  window._ckDetectadas = null;
+  j("GET","/dash/site/cookies?site_id="+encodeURIComponent(current)).then(function(r){
+    window._ckDetectadas = (r.ok && r.d.rows) ? r.d.rows : [];
+    if(el("cfg") && cfgMode === "visual") renderVisual();
+  });
+}
+
 function catsDelSitio(){
   var o = objActual();
   return ((o && o.categories) || []).filter(function(c){ return !c.locked; })
@@ -1835,6 +1917,9 @@ function guardarCookies(){
     return { name:k, category:_ckCambios[k].category, status:_ckCambios[k].status };
   });
   if(!items.length){ msg("ck-msg","No hay cambios que guardar.", true); return; }
+  // La clasificacion alimenta las sugerencias de bloqueo, asi que hay que
+  // volver a pedirlas la proxima vez que se pinte el editor.
+  window._ckDetectadas = undefined;
   j("POST","/dash/site/cookies/classify",{site_id:current, items:items}).then(function(r){
     if(!r.ok){ msg("ck-msg", r.d.error||"No se pudo guardar.", true); return; }
     // Volcar a cookiePatterns crea una version nueva de la config.
