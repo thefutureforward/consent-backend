@@ -28,7 +28,7 @@ NOTA DE PRODUCCION: esto es un esqueleto. Para produccion hay que endurecer
 (HTTPS, secretos fuera del codigo, rate limiting, y mover consent_logs a una
 base con retencion y copias). El registro es append-only: solo se inserta.
 """
-import json, os, sqlite3, uuid, hashlib, secrets, datetime, http.cookies, time, threading
+import json, os, re, sqlite3, uuid, hashlib, secrets, datetime, http.cookies, time, threading
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -108,7 +108,8 @@ def init_db():
       choice TEXT, categories TEXT, version_texto TEXT, language TEXT,
       ts TEXT, ip TEXT, user_agent TEXT);
     CREATE TABLE IF NOT EXISTS users(
-      username TEXT PRIMARY KEY, pw_hash TEXT, salt TEXT, created_at TEXT);
+      username TEXT PRIMARY KEY, pw_hash TEXT, salt TEXT, created_at TEXT,
+      role TEXT DEFAULT 'user');
     CREATE TABLE IF NOT EXISTS sessions(
       token TEXT PRIMARY KEY, username TEXT, created_at TEXT);
     CREATE TABLE IF NOT EXISTS site_owners(
@@ -120,6 +121,14 @@ def init_db():
       sample_domain TEXT, phase TEXT, status TEXT, category TEXT, note TEXT,
       PRIMARY KEY(site_id, name));
     """)
+    # Migracion para bases anteriores al rol. ALTER TABLE falla si la columna
+    # ya existe, y no hay IF NOT EXISTS para columnas en SQLite.
+    cols = [r[1] for r in c.execute("PRAGMA table_info(users)").fetchall()]
+    if "role" not in cols:
+        c.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+        # Quien ya existia era el unico que habia: se queda como admin para
+        # no dejar la instalacion sin nadie que pueda gestionar usuarios.
+        c.execute("UPDATE users SET role='admin'")
     c.commit()
     if fresh:
         seed(c)
@@ -236,7 +245,7 @@ def hash_pw(pw, salt):
 def seed(c):
     salt = secrets.token_hex(16)
     pw = os.environ.get("ADMIN_PASSWORD", "admin")       # en produccion, definir la variable
-    c.execute("INSERT INTO users VALUES(?,?,?,?)", ("admin", hash_pw(pw, salt), salt, now()))
+    c.execute("INSERT INTO users VALUES(?,?,?,?,?)", ("admin", hash_pw(pw, salt), salt, now(), "admin"))
     site_id = "site_" + secrets.token_hex(4)
     key = "pk_" + secrets.token_hex(16)
     c.execute("INSERT INTO sites VALUES(?,?,?,?,?)", (site_id, "Sitio demo", "localhost", "pro", now()))
@@ -360,7 +369,20 @@ class H(BaseHTTPRequestHandler):
         c.close()
         return r["username"] if r else None
 
+    def _role(self, user):
+        if not user:
+            return None
+        c = db()
+        r = c.execute("SELECT role FROM users WHERE username=?", (user,)).fetchone()
+        c.close()
+        return (r["role"] if r else None) or "user"
+
+    def _es_admin(self, user):
+        return self._role(user) == "admin"
+
     def _owns(self, user, site_id):
+        if self._es_admin(user):
+            return True          # el administrador llega a todos los sitios
         c = db()
         r = c.execute("SELECT 1 FROM site_owners WHERE username=? AND site_id=?", (user, site_id)).fetchone()
         c.close()
@@ -377,6 +399,8 @@ class H(BaseHTTPRequestHandler):
             return self._file("dashboard.html")
         if p == "/api/config":
             return self.api_config(q)
+        if p == "/dash/users":
+            return self.dash_users_list()
         if p == "/dash/me":
             return self.dash_me()
         if p == "/dash/site/get":
@@ -404,6 +428,14 @@ class H(BaseHTTPRequestHandler):
             return self.dash_site_save()
         if p == "/dash/site/delete":
             return self.dash_site_delete()
+        if p == "/dash/users/create":
+            return self.dash_user_create()
+        if p == "/dash/users/delete":
+            return self.dash_user_delete()
+        if p == "/dash/users/assign":
+            return self.dash_user_assign()
+        if p == "/dash/users/password":
+            return self.dash_user_password()
         if p == "/dash/password":
             return self.dash_password()
         if p == "/dash/site/domain":
@@ -499,18 +531,133 @@ class H(BaseHTTPRequestHandler):
         if not u:
             return self._send(401, {"error": "no auth"})
         c = db()
-        rows = c.execute("SELECT s.site_id,s.name,s.domain,s.plan FROM sites s "
-                         "JOIN site_owners o ON o.site_id=s.site_id WHERE o.username=?", (u,)).fetchall()
+        if self._es_admin(u):
+            rows = c.execute("SELECT site_id,name,domain,plan FROM sites ORDER BY name").fetchall()
+        else:
+            rows = c.execute("SELECT s.site_id,s.name,s.domain,s.plan FROM sites s "
+                             "JOIN site_owners o ON o.site_id=s.site_id WHERE o.username=?", (u,)).fetchall()
         sites = []
         for r in rows:
             d = dict(r); d["publicKey"] = public_key_for(c, r["site_id"]); sites.append(d)
         c.close()
-        self._send(200, {"username": u, "sites": sites})
+        self._send(200, {"username": u, "sites": sites, "role": self._role(u)})
 
-    def dash_site_create(self):
+    # ---- Gestion de usuarios (solo admin) ---------------------------------
+    # El acceso a un sitio se decide en site_owners, que ya se comprueba en
+    # cada endpoint. Aqui solo se administra esa tabla; no hay que tocar nada
+    # mas para que un usuario deje de ver un sitio.
+
+    def _solo_admin(self):
+        """Devuelve el usuario si es admin; si no, responde y devuelve None."""
         u = self._user()
         if not u:
-            return self._send(401, {"error": "no auth"})
+            self._send(401, {"error": "no auth"}); return None
+        if not self._es_admin(u):
+            self._send(403, {"error": "solo un administrador puede gestionar usuarios"})
+            return None
+        return u
+
+    def dash_users_list(self):
+        if not self._solo_admin():
+            return
+        c = db()
+        users = []
+        for r in c.execute("SELECT username, role, created_at FROM users ORDER BY username").fetchall():
+            sids = [x["site_id"] for x in c.execute(
+                "SELECT site_id FROM site_owners WHERE username=?", (r["username"],)).fetchall()]
+            users.append({"username": r["username"], "role": r["role"] or "user",
+                          "created_at": r["created_at"], "sites": sids})
+        sitios = [dict(x) for x in c.execute(
+            "SELECT site_id, name FROM sites ORDER BY name").fetchall()]
+        c.close()
+        self._send(200, {"users": users, "sites": sitios})
+
+    def dash_user_create(self):
+        if not self._solo_admin():
+            return
+        d = self._body()
+        nombre = (d.get("username") or "").strip().lower()
+        pw = d.get("password") or ""
+        rol = "admin" if d.get("role") == "admin" else "user"
+        if not re.match(r"^[a-z0-9._-]{3,32}$", nombre):
+            return self._send(400, {"error": "usuario: de 3 a 32 caracteres, letras, numeros, punto, guion o guion bajo"})
+        if len(pw) < 8:
+            return self._send(400, {"error": "la contrasena debe tener al menos 8 caracteres"})
+        c = db()
+        if c.execute("SELECT 1 FROM users WHERE username=?", (nombre,)).fetchone():
+            c.close(); return self._send(400, {"error": "ese usuario ya existe"})
+        salt = secrets.token_hex(16)
+        c.execute("INSERT INTO users VALUES(?,?,?,?,?)",
+                  (nombre, hash_pw(pw, salt), salt, now(), rol))
+        for sid in (d.get("sites") or []):
+            if c.execute("SELECT 1 FROM sites WHERE site_id=?", (sid,)).fetchone():
+                c.execute("INSERT OR IGNORE INTO site_owners VALUES(?,?)", (nombre, sid))
+        c.commit(); c.close()
+        self._send(200, {"ok": True, "username": nombre})
+
+    def dash_user_delete(self):
+        yo = self._solo_admin()
+        if not yo:
+            return
+        nombre = (self._body().get("username") or "").strip().lower()
+        if nombre == yo:
+            return self._send(400, {"error": "no puedes borrarte a ti mismo"})
+        c = db()
+        if not c.execute("SELECT 1 FROM users WHERE username=?", (nombre,)).fetchone():
+            c.close(); return self._send(404, {"error": "ese usuario no existe"})
+        # Nunca dejar la instalacion sin ningun administrador.
+        if self._es_admin(nombre):
+            n = c.execute("SELECT COUNT(*) n FROM users WHERE role='admin'").fetchone()["n"]
+            if n <= 1:
+                c.close(); return self._send(400, {"error": "es el unico administrador que queda"})
+        c.execute("DELETE FROM users        WHERE username=?", (nombre,))
+        c.execute("DELETE FROM site_owners  WHERE username=?", (nombre,))
+        c.execute("DELETE FROM sessions     WHERE username=?", (nombre,))   # cerrarle la sesion
+        c.commit(); c.close()
+        self._send(200, {"ok": True})
+
+    def dash_user_assign(self):
+        """Reemplaza la lista completa de sitios de un usuario."""
+        yo = self._solo_admin()
+        if not yo:
+            return
+        d = self._body()
+        nombre = (d.get("username") or "").strip().lower()
+        sids = d.get("sites") or []
+        c = db()
+        if not c.execute("SELECT 1 FROM users WHERE username=?", (nombre,)).fetchone():
+            c.close(); return self._send(404, {"error": "ese usuario no existe"})
+        c.execute("DELETE FROM site_owners WHERE username=?", (nombre,))
+        n = 0
+        for sid in sids:
+            if c.execute("SELECT 1 FROM sites WHERE site_id=?", (sid,)).fetchone():
+                c.execute("INSERT OR IGNORE INTO site_owners VALUES(?,?)", (nombre, sid)); n += 1
+        c.commit(); c.close()
+        self._send(200, {"ok": True, "sites": n})
+
+    def dash_user_password(self):
+        """El admin fija una contrasena nueva sin conocer la anterior."""
+        if not self._solo_admin():
+            return
+        d = self._body()
+        nombre = (d.get("username") or "").strip().lower()
+        pw = d.get("password") or ""
+        if len(pw) < 8:
+            return self._send(400, {"error": "la contrasena debe tener al menos 8 caracteres"})
+        c = db()
+        if not c.execute("SELECT 1 FROM users WHERE username=?", (nombre,)).fetchone():
+            c.close(); return self._send(404, {"error": "ese usuario no existe"})
+        salt = secrets.token_hex(16)
+        c.execute("UPDATE users SET pw_hash=?, salt=? WHERE username=?",
+                  (hash_pw(pw, salt), salt, nombre))
+        c.execute("DELETE FROM sessions WHERE username=?", (nombre,))   # se cierran sus sesiones
+        c.commit(); c.close()
+        self._send(200, {"ok": True})
+
+    def dash_site_create(self):
+        u = self._solo_admin()
+        if not u:
+            return
         d = self._body()
         name = (d.get("name") or "").strip()
         if not name:
@@ -560,9 +707,10 @@ class H(BaseHTTPRequestHandler):
     def dash_site_delete(self):
         """Borra un sitio y todo lo que cuelga de el: config, claves, registros.
         Irreversible. El bundle instalado en ese dominio dejara de recibir config."""
-        u = self._user(); d = self._body(); site_id = d.get("site_id")
-        if not u or not self._owns(u, site_id):
-            return self._send(401, {"error": "no auth"})
+        u = self._solo_admin()
+        if not u:
+            return
+        d = self._body(); site_id = d.get("site_id")
         c = db()
         c.execute("DELETE FROM consent_logs WHERE site_id=?", (site_id,))
         c.execute("DELETE FROM site_config  WHERE site_id=?", (site_id,))

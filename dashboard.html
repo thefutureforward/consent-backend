@@ -202,6 +202,9 @@
   .ck-desc{font-size:11.5px;color:var(--muted);white-space:normal;max-width:330px;line-height:1.45}
   .ck-sel{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12.5px;
           background:#fff;min-width:140px}
+  .u-sitios{display:flex;flex-wrap:wrap;gap:8px 14px;max-width:520px}
+  .u-chk{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#1c2531;
+         margin:0;font-weight:400}
   .ck-sel.es-nec{border-color:#9dcfae;background:#f2faf5;color:#1e6b36;font-weight:600}
   .ck-sel.no-nec{border-color:#e6b5af;background:#fdf6f5;color:#a5342a;font-weight:600}
   .ck-sel.sin-dec{border-color:var(--warn);background:#fffdf7}
@@ -471,6 +474,28 @@ var DICT = {
   ", lo mas arriba posible y una sola vez.": ", as high up as possible and only once.",
   "sitio(s) en esta cuenta.": "site(s) in this account.",
   "Color principal": "Main colour",
+  "Usuarios": "Users",
+  "Crear usuario": "Create user",
+  "Cada usuario ve solo los sitios que le asignes. Los administradores ven todos y pueden gestionar usuarios.":
+    "Each user only sees the sites you assign them. Administrators see all of them and can manage users.",
+  "Rol": "Role",
+  "Sitios asignados": "Assigned sites",
+  "Todos los sitios": "All sites",
+  "No hay sitios todavia.": "No sites yet.",
+  "usuario": "user",
+  "Usuario (solo sus sitios)": "User (their sites only)",
+  "Administrador (todo)": "Administrator (everything)",
+  "Elige los sitios que podra ver. Se cambia despues cuando quieras.":
+    "Pick the sites they will see. You can change this later.",
+  "Minimo 8 caracteres": "At least 8 characters",
+  "Contrasena de": "Password for",
+  "Se cierran sus sesiones abiertas. No hace falta la anterior.":
+    "Their open sessions are closed. The old password is not needed.",
+  "Guardar contrasena": "Save password",
+  "Borrar a": "Delete",
+  "Pierde el acceso al instante. Los sitios y sus registros no se tocan.":
+    "They lose access immediately. Sites and their records are untouched.",
+  "Guardado.": "Saved.",
   "Comportamiento": "Behaviour",
   "Recargar tras decidir": "Reload after deciding",
   "Al retirar permiso (recomendado)": "When permission is withdrawn (recommended)",
@@ -716,6 +741,7 @@ function boot(){
     if(!r.ok){ show("login"); return; }
     show("app");
     window._usuario = r.d.username;
+    esAdmin = (r.d.role === "admin");
     el("who").textContent = r.d.username;
     sites = r.d.sites || [];
     var existe = sites.filter(function(s){ return s.site_id===current; }).length;
@@ -767,16 +793,22 @@ var TABS = [
   {id:"instalar",  label:"Instalar"},
   {id:"cookies",   label:"Cookies detectadas"},
   {id:"registros", label:"Registros"},
-  {id:"cuenta",    label:"Cuenta"}
+  {id:"cuenta",    label:"Cuenta"},
+  {id:"usuarios",  label:"Usuarios", admin:true}
 ];
+// Lo rellena /dash/me. Ocultar la pestana es comodidad, no seguridad: quien
+// llame al endpoint a mano recibe un 403 del backend igualmente.
+var esAdmin = false;
 function renderTabs(){
-  el("tabbar").innerHTML = TABS.map(function(t){
+  var lista = TABS.filter(function(t){ return !t.admin || esAdmin; });
+  el("tabbar").innerHTML = lista.map(function(t){
     return '<button class="'+(t.id===tab?'on':'')+'" onclick="openTab(\''+t.id+'\')">'+t.label+'</button>';
   }).join('');
 }
 function openTab(id){
   tab = id; renderTabs();
   if(id==="cuenta") return viewCuenta();
+  if(id==="usuarios") return viewUsuarios();
   if(!current){
     el("tabbody").innerHTML = '<div class="card"><div class="empty">Crea un sitio para empezar.</div></div>';
     return;
@@ -1672,6 +1704,152 @@ function guardarCookies(){
 }
 
 /* ---------------- CUENTA ---------------- */
+/* ---------------- USUARIOS (solo admin) ---------------- */
+var _usuarios = [], _sitiosTodos = [];
+
+function viewUsuarios(){
+  el("tabbody").innerHTML =
+    '<div class="card">'+
+      '<div class="ck-head">'+
+        '<div><h2>Usuarios</h2>'+
+          '<p class="sub" style="margin:0">Cada usuario ve solo los sitios que le asignes. '+
+          'Los administradores ven todos y pueden gestionar usuarios.</p></div>'+
+        '<button class="btn" onclick="modalNuevoUsuario()">Crear usuario</button>'+
+      '</div>'+
+      '<div id="u-body"><div class="empty">Cargando...</div></div>'+
+    '</div>';
+  cargarUsuarios();
+}
+
+function cargarUsuarios(){
+  j("GET","/dash/users").then(function(r){
+    if(!r.ok){ el("u-body").innerHTML = '<div class="empty">No se pudieron cargar.</div>'; return; }
+    _usuarios = r.d.users || []; _sitiosTodos = r.d.sites || [];
+    pintarUsuarios();
+  });
+}
+
+function pintarUsuarios(){
+  el("u-body").innerHTML =
+    '<div class="table-wrap"><table class="ck-tbl"><thead><tr>'+
+      '<th>Usuario</th><th>Rol</th><th>Sitios asignados</th><th></th>'+
+    '</tr></thead><tbody>'+ _usuarios.map(filaUsuario).join('') +'</tbody></table></div>'+
+    '<p class="hint" id="u-msg"></p>';
+}
+
+function filaUsuario(u){
+  var id = cssId(u.username), admin = (u.role === "admin");
+  // Un admin llega a todos los sitios por definicion, asi que asignarle
+  // sitios uno a uno no significaria nada.
+  var sitios = admin
+    ? '<span class="nota-nec">Todos los sitios</span>'
+    : '<div class="u-sitios">'+ _sitiosTodos.map(function(s){
+        var on = (u.sites || []).indexOf(s.site_id) !== -1;
+        return '<label class="u-chk"><input type="checkbox" '+(on?"checked":"")+' '+
+          'onchange="asignar(\''+esc(u.username)+'\',\''+esc(s.site_id)+'\',this.checked)" /> '+
+          esc(s.name)+'</label>';
+      }).join('') + (_sitiosTodos.length ? '' : '<span class="ck-desc">No hay sitios todavia.</span>')+'</div>';
+
+  return '<tr id="u_'+id+'">'+
+    '<td><div class="ck-name">'+esc(u.username)+'</div></td>'+
+    '<td>'+(admin ? '<span class="tag all">admin</span>' : '<span class="tag custom">usuario</span>')+'</td>'+
+    '<td style="white-space:normal">'+sitios+'</td>'+
+    '<td style="text-align:right;white-space:nowrap">'+
+      '<button class="btn ghost sm" onclick="modalPassUsuario(\''+esc(u.username)+'\')">Contrasena</button> '+
+      '<button class="btn danger sm" onclick="modalBorrarUsuario(\''+esc(u.username)+'\')">Borrar</button>'+
+    '</td>'+
+  '</tr>';
+}
+
+/* Cada casilla manda la lista completa, no el cambio suelto: asi el servidor
+   no tiene que adivinar el estado previo y dos pestanas abiertas no se pisan
+   a medias. */
+function asignar(usuario, siteId, marcado){
+  var u = _usuarios.filter(function(x){ return x.username===usuario; })[0];
+  if(!u) return;
+  u.sites = u.sites || [];
+  var i = u.sites.indexOf(siteId);
+  if(marcado && i === -1) u.sites.push(siteId);
+  if(!marcado && i !== -1) u.sites.splice(i,1);
+  j("POST","/dash/users/assign",{username:usuario, sites:u.sites}).then(function(r){
+    msg("u-msg", r.ok ? "Guardado." : (r.d.error || "No se pudo guardar."), !r.ok);
+    if(!r.ok) cargarUsuarios();
+  });
+}
+
+function modalNuevoUsuario(){
+  var checks = _sitiosTodos.map(function(s){
+    return '<label class="u-chk"><input type="checkbox" class="nu-site" value="'+esc(s.site_id)+'" /> '+
+      esc(s.name)+'</label>';
+  }).join('') || '<span class="ck-desc">No hay sitios todavia.</span>';
+  el("modal-host").innerHTML =
+    '<div class="modal-bg" onclick="if(event.target===this)cerrarModal()"><div class="modal">'+
+      '<h3>Crear usuario</h3>'+
+      '<p class="sub">Elige los sitios que podra ver. Se cambia despues cuando quieras.</p>'+
+      '<div class="field"><label>Usuario</label><input id="nu-name" type="text" placeholder="maria" /></div>'+
+      '<div class="field"><label>Contrasena</label><input id="nu-pass" type="password" placeholder="Minimo 8 caracteres" /></div>'+
+      '<div class="field"><label>Rol</label><select id="nu-role" class="ck-sel" style="width:100%">'+
+        '<option value="user">Usuario (solo sus sitios)</option>'+
+        '<option value="admin">Administrador (todo)</option></select></div>'+
+      '<div class="field"><label>Sitios</label><div class="u-sitios">'+checks+'</div></div>'+
+      '<p class="hint" id="nu-msg"></p>'+
+      '<div class="row mt"><button class="btn" onclick="crearUsuario()">Crear usuario</button>'+
+      '<button class="btn ghost" onclick="cerrarModal()">Cancelar</button></div>'+
+    '</div></div>';
+}
+
+function crearUsuario(){
+  var sids = [];
+  Array.prototype.forEach.call(document.querySelectorAll(".nu-site"), function(c){
+    if(c.checked) sids.push(c.value);
+  });
+  j("POST","/dash/users/create",{
+    username: val("nu-name"), password: val("nu-pass"),
+    role: el("nu-role").value, sites: sids
+  }).then(function(r){
+    if(!r.ok){ msg("nu-msg", r.d.error || "No se pudo crear.", true); return; }
+    cerrarModal(); cargarUsuarios();
+  });
+}
+
+function modalPassUsuario(usuario){
+  el("modal-host").innerHTML =
+    '<div class="modal-bg" onclick="if(event.target===this)cerrarModal()"><div class="modal">'+
+      '<h3>Contrasena de '+esc(usuario)+'</h3>'+
+      '<p class="sub">Se cierran sus sesiones abiertas. No hace falta la anterior.</p>'+
+      '<div class="field"><label>Contrasena nueva</label>'+
+      '<input id="up-pass" type="password" placeholder="Minimo 8 caracteres" /></div>'+
+      '<p class="hint" id="up-msg"></p>'+
+      '<div class="row mt"><button class="btn" onclick="guardarPassUsuario(\''+esc(usuario)+'\')">Guardar contrasena</button>'+
+      '<button class="btn ghost" onclick="cerrarModal()">Cancelar</button></div>'+
+    '</div></div>';
+}
+
+function guardarPassUsuario(usuario){
+  j("POST","/dash/users/password",{username:usuario, password:val("up-pass")}).then(function(r){
+    if(!r.ok){ msg("up-msg", r.d.error || "No se pudo guardar.", true); return; }
+    cerrarModal(); cargarUsuarios();
+  });
+}
+
+function modalBorrarUsuario(usuario){
+  el("modal-host").innerHTML =
+    '<div class="modal-bg" onclick="if(event.target===this)cerrarModal()"><div class="modal">'+
+      '<h3>Borrar a '+esc(usuario)+'</h3>'+
+      '<p class="sub">Pierde el acceso al instante. Los sitios y sus registros no se tocan.</p>'+
+      '<p class="hint" id="ub-msg"></p>'+
+      '<div class="row mt"><button class="btn danger" onclick="borrarUsuario(\''+esc(usuario)+'\')">Si, borrar</button>'+
+      '<button class="btn ghost" onclick="cerrarModal()">Cancelar</button></div>'+
+    '</div></div>';
+}
+
+function borrarUsuario(usuario){
+  j("POST","/dash/users/delete",{username:usuario}).then(function(r){
+    if(!r.ok){ msg("ub-msg", r.d.error || "No se pudo borrar.", true); return; }
+    cerrarModal(); cargarUsuarios();
+  });
+}
+
 function viewCuenta(){
   el("tabbody").innerHTML =
     '<div class="cols">'+
