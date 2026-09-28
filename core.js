@@ -17,6 +17,15 @@ let _userConfig = null;
     endpoint: "",                  // vacio = sin auditoria backend
     consentVersion: "2025-01",     // al cambiar, se vuelve a preguntar
     defaultLanguage: "es",
+    // Recargar tras una decision. Rechazar es el caso que de verdad lo pide:
+    // un script ya ejecutado no se puede "desejecutar", solo dejar de cargar
+    // en la siguiente carga. Aceptar suele no necesitarlo porque el bundle
+    // libera los scripts bloqueados en caliente.
+    //   never  -> nunca
+    //   accept -> al conceder alguna categoria nueva
+    //   reduce -> al retirar alguna categoria concedida  (recomendado)
+    //   always -> ante cualquier decision
+    reloadAfter: "never",
     autoDetectLanguage: true,          // mirar el idioma del navegador
     languages: ["es", "en"],           // idiomas que el sitio admite
     cookie: { lifetimeMonths: 6, domain: "" },
@@ -595,6 +604,17 @@ let _userConfig = null;
       ts: Date.now(),
       version: C.consentVersion
     };
+    // Que cambia respecto a lo que habia, para decidir si toca recargar.
+    var antes = state.chosen || {};
+    var concede = false, retira = false;
+    C.categories.forEach(function (c) {
+      // Las bloqueadas no se deciden: van siempre concedidas. Si contaran,
+      // rechazar pareceria "conceder" porque las esenciales pasan de nada a si.
+      if (c.locked) return;
+      if (chosen[c.id] && !antes[c.id]) concede = true;
+      if (!chosen[c.id] && antes[c.id]) retira = true;
+    });
+
     // 1. Guardar en cookie.
     writeConsent(C, consent);
     log("save", "Guardado en cookie " + cookieName(C) + " (choice=" + choice + ")");
@@ -617,6 +637,17 @@ let _userConfig = null;
     // se vuelve a mirar para que el inventario las recoja.
     if (C.cookieDiscovery) setTimeout(function () { reportCookies(C, "tras-decision"); }, 3000);
     if (typeof C.onConsentChange === "function") C.onConsentChange(consent);
+
+    // 6. Recarga opcional. Va la ultima y con un respiro, para no cortar el
+    //    envio de auditoria que acaba de salir.
+    var modo = C.reloadAfter || "never";
+    var toca = (modo === "always") ||
+               (modo === "accept" && concede) ||
+               (modo === "reduce" && retira);
+    if (toca) {
+      log("reload", "Recargando la pagina tras la decision (reloadAfter=" + modo + ").");
+      setTimeout(function () { location.reload(); }, 400);
+    }
   }
 
   // ---- UI (Shadow DOM llega en Fase 1; aqui va sobre el documento) ----------

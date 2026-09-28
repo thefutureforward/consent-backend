@@ -466,6 +466,22 @@ var DICT = {
   "boton de aceptar": "accept button",
   "pill de reapertura": "reopen pill",
 
+  "Los 25 registros mas recientes. Cada fila es la prueba de una decision concreta: cuando, que acepto y con que version del texto.":
+    "The 25 most recent records. Each row is the proof of one decision: when, what was accepted and with which version of the text.",
+  ", lo mas arriba posible y una sola vez.": ", as high up as possible and only once.",
+  "sitio(s) en esta cuenta.": "site(s) in this account.",
+  "Color principal": "Main colour",
+  "Comportamiento": "Behaviour",
+  "Recargar tras decidir": "Reload after deciding",
+  "Al retirar permiso (recomendado)": "When permission is withdrawn (recommended)",
+  "Al conceder permiso": "When permission is granted",
+  "Nunca": "Never",
+  "Siempre": "Always",
+  "recarga desactivada": "reload off",
+  "Se eliminan tambien su configuracion y todos sus registros de consentimiento. Esta accion no se puede deshacer.":
+    "Its settings and all of its consent records are deleted too. This cannot be undone.",
+  "Pie del panel": "Panel footer",
+
   /* --- instalar --- */
   "Codigo para el sitio": "Code for the site",
   "Copia el bloque completo.": "Copy the whole block.",
@@ -575,7 +591,7 @@ var DICT = {
    "Contrasena nueva", la segunda quedaria traducida a medias.              */
 var DICT_KEYS = Object.keys(DICT).sort(function(a, b){ return b.length - a.length; });
 
-var LANG = "es";
+var LANG = "en";   // hasta que idiomaInicial() decida
 
 function frase(t){
   if(LANG === "es" || !t) return t;
@@ -628,7 +644,10 @@ function idiomaInicial(){
     if(b === "es") return "es";
     if(b === "en") return "en";
   }
-  return "es";
+  // Ingles por defecto: solo se llega aqui si el navegador no pide ni espanol
+  // ni ingles (un aleman, por ejemplo), o si no se pudo leer la lista. El
+  // ingles es la apuesta mas segura para alguien de fuera.
+  return "en";
 }
 
 var _estaticoES = null;
@@ -828,6 +847,14 @@ var UI_GROUPS = [
   { t:"Idioma", open:true, items:[
     {p:"autoDetectLanguage", k:"bool",   l:"Detectar el idioma del navegador", def:true},
     {p:"defaultLanguage",    k:"select", l:"Idioma de respaldo", opts:[["es","Espanol"],["en","Ingles"]]}
+  ]},
+  { t:"Comportamiento", items:[
+    {p:"reloadAfter", k:"select", l:"Recargar tras decidir", opts:[
+      ["never","Nunca"],
+      ["reduce","Al retirar permiso (recomendado)"],
+      ["accept","Al conceder permiso"],
+      ["always","Siempre"]
+    ]}
   ]},
   { t:"Textos en espanol", items:[
     {p:"texts.es.eyebrow", k:"text", l:"Etiqueta pequena", ph:"por defecto"},
