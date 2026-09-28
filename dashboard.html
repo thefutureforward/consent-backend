@@ -202,6 +202,15 @@
   .ck-desc{font-size:11.5px;color:var(--muted);white-space:normal;max-width:330px;line-height:1.45}
   .ck-sel{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12.5px;
           background:#fff;min-width:140px}
+  .ab-row{display:flex;gap:8px;align-items:center;margin-bottom:7px}
+  .ab-row input[type=text]{flex:1 1 auto;padding:7px 9px;font-size:12.5px;
+    border:1px solid var(--line);border-radius:7px;font-family:ui-monospace,monospace}
+  .ab-row select{flex:0 0 150px;padding:7px 9px;font-size:12.5px;
+    border:1px solid var(--line);border-radius:7px}
+  .ab-row.ab-mala select{border-color:var(--warn);background:#fffdf7}
+  .ab-sug{display:flex;flex-wrap:wrap;gap:7px}
+  .ab-sug .ab-ya{opacity:.5;cursor:default}
+  .ctl-wide{display:block}
   .u-sitios{display:flex;flex-wrap:wrap;gap:8px 14px;max-width:520px}
   .u-chk{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#1c2531;
          margin:0;font-weight:400}
@@ -474,6 +483,18 @@ var DICT = {
   ", lo mas arriba posible y una sola vez.": ", as high up as possible and only once.",
   "sitio(s) en esta cuenta.": "site(s) in this account.",
   "Color principal": "Main colour",
+  "Bloqueo de scripts": "Script blocking",
+  "Los scripts de estos dominios no se ejecutan hasta que el visitante acepta su categoria. La cookie no llega a crearse.":
+    "Scripts from these domains do not run until the visitor accepts their category. The cookie is never created.",
+  "Sin reglas: no se bloquea nada.": "No rules: nothing is blocked.",
+  "Anadir dominio": "Add domain",
+  "Servicios habituales": "Common services",
+  "sin categoria": "no category",
+  "(no existe)": "(does not exist)",
+  "Recuerda copiar de nuevo el codigo de la pestana": "Remember to copy the code again from the",
+  ": el pre-bloqueador vive en el HTML del sitio y hay que actualizarlo alli.":
+    " tab: the pre-blocker lives in the site's HTML and must be updated there.",
+  "Quitar": "Remove",
   "Usuarios": "Users",
   "Crear usuario": "Create user",
   "Cada usuario ve solo los sitios que le asignes. Los administradores ven todos y pueden gestionar usuarios.":
@@ -880,6 +901,9 @@ var UI_GROUPS = [
     {p:"autoDetectLanguage", k:"bool",   l:"Detectar el idioma del navegador", def:true},
     {p:"defaultLanguage",    k:"select", l:"Idioma de respaldo", opts:[["es","Espanol"],["en","Ingles"]]}
   ]},
+  { t:"Bloqueo de scripts", open:true, items:[
+    {p:"autoBlock", k:"bloqueo", l:""}
+  ]},
   { t:"Comportamiento", items:[
     {p:"reloadAfter", k:"select", l:"Recargar tras decidir", opts:[
       ["never","Nunca"],
@@ -1073,6 +1097,126 @@ function renderVisual(){
   marcarLang();
 }
 
+/* ---------------- Editor de autoBlock ----------------
+   autoBlock es la lista de dominios cuyos <script> se neutralizan hasta que
+   el visitante concede su categoria. Es bloqueo previo, no borrado posterior:
+   la cookie no llega a existir.                                            */
+
+// Servicios habituales, para no tener que recordar los dominios de memoria.
+// Cada entrada son los dominios que ese servicio usa realmente.
+var CATALOGO_BLOQUEO = [
+  {n:"HubSpot", cat:"marketing", d:["js.hs-scripts.com","js.hs-banner.com",
+                                    "js.hs-analytics.net","js.hsforms.net"]},
+  {n:"Google Tag Manager", cat:"analitica", d:["googletagmanager.com"]},
+  {n:"Google Analytics",   cat:"analitica", d:["google-analytics.com"]},
+  {n:"Meta (Facebook)",    cat:"marketing", d:["connect.facebook.net"]},
+  {n:"LinkedIn",           cat:"marketing", d:["snap.licdn.com"]},
+  {n:"TikTok",             cat:"marketing", d:["analytics.tiktok.com"]},
+  {n:"Hotjar",             cat:"analitica", d:["static.hotjar.com","script.hotjar.com"]},
+  {n:"Clarity",            cat:"analitica", d:["clarity.ms"]},
+  {n:"Vimeo",              cat:"marketing", d:["player.vimeo.com"]},
+  {n:"YouTube",            cat:"marketing", d:["youtube.com","ytimg.com"]},
+  {n:"Google Ads",         cat:"marketing", d:["googleadservices.com","googlesyndication.com"]},
+  {n:"Intercom",           cat:"funcional", d:["widget.intercom.io"]}
+];
+
+function bloqueoUI(reglas){
+  var cats = catsDelSitio();
+  var filas = reglas.map(function(r, i){
+    var opts = cats.map(function(c){
+      return '<option value="'+esc(c)+'"'+(r.category===c?" selected":"")+'>'+esc(c)+'</option>';
+    }).join('');
+    var mala = cats.length && cats.indexOf(r.category) === -1;
+    return '<div class="ab-row'+(mala?" ab-mala":"")+'">'+
+      '<input type="text" value="'+esc(r.match||"")+'" placeholder="js.ejemplo.com" '+
+        'oninput="abSet('+i+',\'match\',this.value)" />'+
+      '<select onchange="abSet('+i+',\'category\',this.value)">'+
+        '<option value="">sin categoria</option>'+opts+
+        (mala ? '<option value="'+esc(r.category)+'" selected>'+esc(r.category)+' (no existe)</option>' : '')+
+      '</select>'+
+      '<button class="btn ghost sm" onclick="abQuitar('+i+')" title="Quitar">&times;</button>'+
+    '</div>';
+  }).join('');
+
+  var sugeridos = CATALOGO_BLOQUEO.map(function(s, i){
+    var puesto = s.d.every(function(dom){
+      return reglas.some(function(r){ return r.match === dom; });
+    });
+    return '<button class="btn ghost sm'+(puesto?" ab-ya":"")+'" onclick="abAnadirServicio('+i+')"'+
+      (puesto?" disabled":"")+'>'+(puesto?"&#10003; ":"+ ")+esc(s.n)+'</button>';
+  }).join('');
+
+  return '<div class="ctl ctl-wide">'+
+    '<p class="sub" style="margin:0 0 10px">Los scripts de estos dominios no se ejecutan hasta '+
+      'que el visitante acepta su categoria. La cookie no llega a crearse.</p>'+
+    '<div class="ab-list">'+ (filas || '<span class="ck-desc">Sin reglas: no se bloquea nada.</span>') +'</div>'+
+    '<div class="row mt"><button class="btn ghost sm" onclick="abAnadir()">Anadir dominio</button></div>'+
+    '<p class="sub" style="margin:14px 0 6px">Servicios habituales</p>'+
+    '<div class="ab-sug">'+sugeridos+'</div>'+
+    '<p class="hint" style="margin-top:12px">Recuerda copiar de nuevo el codigo de la pestana '+
+      '<b>Instalar</b>: el pre-bloqueador vive en el HTML del sitio y hay que actualizarlo alli.</p>'+
+  '</div>';
+}
+
+// Categorias que el visitante puede denegar. Bloquear bajo una categoria
+// bloqueada no tendria sentido: nunca se deniega, luego nunca se liberaria...
+// al reves, se liberaria siempre.
+function catsDelSitio(){
+  var o = objActual();
+  return ((o && o.categories) || []).filter(function(c){ return !c.locked; })
+                                    .map(function(c){ return c.id; });
+}
+
+function objActual(){
+  try { return JSON.parse(el("cfg").value); } catch(e){ return null; }
+}
+
+function abLista(){
+  var o = objActual(); if(!o) return null;
+  if(!Array.isArray(o.autoBlock)) o.autoBlock = [];
+  return o;
+}
+
+function abGuardar(o){
+  el("cfg").value = JSON.stringify(o, null, 2);
+  validarCfg();
+  renderVisual();
+}
+
+function abSet(i, campo, valor){
+  var o = abLista(); if(!o || !o.autoBlock[i]) return;
+  o.autoBlock[i][campo] = valor;
+  // Aqui no repintamos: reescribir la fila mientras se teclea perderia el foco.
+  el("cfg").value = JSON.stringify(o, null, 2);
+  validarCfg();
+}
+
+function abAnadir(){
+  var o = abLista(); if(!o) return;
+  var cats = catsDelSitio();
+  o.autoBlock.push({match:"", category: cats[0] || ""});
+  abGuardar(o);
+}
+
+function abQuitar(i){
+  var o = abLista(); if(!o) return;
+  o.autoBlock.splice(i,1);
+  abGuardar(o);
+}
+
+function abAnadirServicio(i){
+  var s = CATALOGO_BLOQUEO[i], o = abLista(); if(!s || !o) return;
+  var cats = catsDelSitio();
+  // Si el sitio no tiene la categoria que sugiere el catalogo, usamos la
+  // primera disponible antes que dejar una referencia rota.
+  var cat = cats.indexOf(s.cat) !== -1 ? s.cat : (cats[0] || "");
+  s.d.forEach(function(dom){
+    if(!o.autoBlock.some(function(r){ return r.match === dom; }))
+      o.autoBlock.push({match:dom, category:cat});
+  });
+  abGuardar(o);
+}
+
 function control(obj, it){
   var v = getPath(obj, it.p);
   var id = "c_"+it.p.replace(/\./g,"_");
@@ -1099,6 +1243,8 @@ function control(obj, it){
     // Numeros como numeros: guardarlos como texto rompe las comparaciones del bundle.
     body = '<input type="text" id="'+id+'" value="'+esc(v==null?"":v)+'" placeholder="'+esc(it.ph||"")+'" '+
       'oninput="onCtl(\''+it.p+'\', this.value===\'\' ? \'\' : Number(this.value))" />';
+  } else if(it.k==="bloqueo"){
+    return bloqueoUI(Array.isArray(v) ? v : []);
   } else if(it.k==="area"){
     body = '<textarea id="'+id+'" rows="3" placeholder="'+esc(it.ph||"por defecto")+'" '+
       'oninput="onCtl(\''+it.p+'\',this.value)">'+esc(v==null?"":v)+'</textarea>';
