@@ -157,10 +157,7 @@ let _userConfig = null;
     // hereda del tema de colores.
     buttons: {
       radius: "8px",
-      padding: "12px 22px",
-      // Sin padding por boton: el de "padding" manda salvo que se rellene aqui.
-      // Antes venian con valor de serie y ganaban siempre, asi que cambiar el
-      // padding general no movia ni aceptar ni guardar.
+      padding: "",
       accept:    { background: "", color: "", border: "0",  weight: 600, padding: "" },
       reject:    { background: "transparent", color: "", border: "1px solid rgba(255,255,255,.32)", weight: 500, padding: "" },
       customize: { background: "transparent", color: "", border: "0", weight: 500, padding: "" },
@@ -725,7 +722,13 @@ let _userConfig = null;
     // enlaces de texto, no botones, y el subrayado solo al pasar el raton no
     // los hace reconocibles como pulsables.
     if (b.underline) out += "text-decoration:underline;text-underline-offset:3px;";
-    out += "padding:" + (b.padding || B.padding || "11px 18px") + ";";
+    // Orden: lo puesto a mano en ESTE boton, luego el padding general y, por
+    // ultimo, el de serie del boton. Antes el de serie vivia en los ajustes por
+    // defecto, asi que ganaba al general y rellenar "padding" no movia ni
+    // aceptar ni guardar. Sacandolo aqui, el general manda pero un valor
+    // propio del boton lo sigue pisando.
+    var deSerie = { accept: "12px 22px", save: "12px 22px", customize: "11px 14px" };
+    out += "padding:" + (b.padding || B.padding || deSerie[key] || "11px 18px") + ";";
     return out;
   }
   // Interruptor del panel. Todo opcional: sin config, el de siempre.
@@ -863,7 +866,7 @@ let _userConfig = null;
         ".cb-foot-right{width:100%;justify-content:space-between}"
       : "") +
     ".cb-outline:hover{border-color:" + K.heading + "}" +
-    ".cb-text{background:transparent;border:0;color:" + K.heading + ";padding:" + (BT.padding || "11px 18px") + "}" +
+    ".cb-text{background:transparent;border:0;color:" + K.heading + ";padding:" + ((BT.text && BT.text.padding) || BT.padding || "11px 14px") + "}" +
     ".cb-text:hover{text-decoration:underline;text-underline-offset:3px}" +
     ".cb-save{" + btn(C, "save", K.accent, K.textBright) + "border-radius:" + (BT.radius || "8px") + "}" +
     ".cb-save:hover{background:" + K.accentHover + "}" +
