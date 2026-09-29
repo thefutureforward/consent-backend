@@ -464,6 +464,9 @@ var DICT = {
   "Enlace de reapertura": "Reopen link",
   "Interruptores": "Switches",
   "Forma": "Shape",
+  "Lado del control": "Control side",
+  "Boton de cerrar": "Close button",
+  "Pildora siempre activas": "Always-on pill",
   "Bloqueado: fondo": "Locked: background",
   "Bloqueado: borde": "Locked: border",
   "Interruptor": "Switch",
@@ -1182,7 +1185,10 @@ var UI_GROUPS = [
     {p:"panel.rowPadding",  k:"text",  l:"Padding filas", ph:"20px 28px"},
     {p:"panel.footPadding", k:"text",  l:"Padding pie", ph:"20px 28px 24px"},
     {p:"panel.overlay",     k:"text",  l:"Fondo del velo", ph:"rgba(22,35,59,.28)"},
-    {p:"panel.background",  k:"color", l:"Fondo del panel"}
+    {p:"panel.background",  k:"color", l:"Fondo del panel"},
+    {p:"panel.controlSide", k:"select", l:"Lado del control", opts:[["right","Derecha"],["left","Izquierda"]]},
+    {p:"panel.showClose",   k:"bool",  l:"Boton de cerrar", def:false},
+    {p:"showAlwaysPill",    k:"bool",  l:"Pildora siempre activas", def:true}
   ]},
   { t:"Tipografia", items:[
     {p:"webfont", k:"bool", l:"Cargar tipografias de Google", def:false},

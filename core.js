@@ -43,6 +43,8 @@ let _userConfig = null;
     },
     // Etiqueta breve sobre el titulo del banner y del panel. false la oculta.
     showEyebrow: true,
+    // Pildora "siempre activas" junto a la categoria bloqueada.
+    showAlwaysPill: true,
     // CSS a medida, para lo que no llega a haber ajuste. Se inyecta dentro del
     // shadow DOM, asi que no puede afectar al resto del sitio del cliente.
     customCss: "",
@@ -837,6 +839,9 @@ let _userConfig = null;
     ".cb-intro{margin:0;" + typo(C, "panelIntro") + "color:" + K.body + "}" +
     ".cb-rows{display:flex;flex-direction:column}" +
     ".cb-row{display:flex;gap:" + (PN.rowGap || "20px") + ";align-items:flex-start;padding:" + (PN.rowPadding || "20px 28px") + ";border-bottom:1px solid " + K.border + "}" +
+    (PN.controlSide === "left" ? ".cb-row{flex-direction:row-reverse;justify-content:flex-end}" : "") +
+    ".cb-close{position:absolute;top:" + (PN.closeTop || "24px") + ";right:" + (PN.closeRight || "24px") + ";background:none;border:0;padding:8px;cursor:pointer;color:" + K.heading + ";display:flex;line-height:0}" +
+    ".cb-panel{position:relative}" +
     ".cb-row .t{flex:1 1 auto;display:flex;flex-direction:column;gap:5px;min-width:0}" +
     ".cb-row .t strong{" + typo(C, "catName") + "color:" + K.heading + "}" +
     ".cb-row .t span{" + typo(C, "catDesc") + "color:" + K.body + "}" +
@@ -1062,7 +1067,7 @@ let _userConfig = null;
     overlay.onclick = function (e) { if (e.target === overlay) hidePanel(); };
     var rows = C.categories.map(function (cat) {
       var checked = cat.locked ? true : !!state.chosen[cat.id];
-      var pill = cat.locked ? " <span class='cb-pill'>" + L.always + "</span>" : "";
+      var pill = (cat.locked && C.showAlwaysPill !== false) ? " <span class='cb-pill'>" + L.always + "</span>" : "";
       var rol = ((C.switchStyle || {}).shape === "checkbox") ? "checkbox" : "switch";
       var control = cat.locked
         ? "<button class='cb-sw' role='" + rol + "' aria-checked='true' aria-disabled='true' disabled><span class='cb-knob'></span></button>"
@@ -1074,6 +1079,7 @@ let _userConfig = null;
     }).join("");
     overlay.innerHTML =
       "<div class='cb-panel' role='dialog' aria-modal='true' aria-label='" + L.panelTitle + "'>" +
+        ((C.panel || {}).showClose ? "<button class='cb-close' data-a='close' aria-label='Close'><svg width='16' height='16' viewBox='0 0 16 16' stroke='currentColor' stroke-width='1.3'><line x1='1' y1='1' x2='15' y2='15'/><line x1='15' y1='1' x2='1' y2='15'/></svg></button>" : "") +
         "<div class='cb-head'>" +
           (C.showEyebrow === false ? "" : "<p class='cb-eyebrow2'>" + L.panelEyebrow + "</p>") +
           "<h2>" + L.panelTitle + "</h2>" +
@@ -1104,6 +1110,8 @@ let _userConfig = null;
       });
       persist(C, "custom", chosen);
     };
+    var btnClose = overlay.querySelector("[data-a='close']");
+    if (btnClose) btnClose.onclick = function () { hidePanel(); };
     overlay.querySelector("[data-a='reject']").onclick = function () { rejectAll(C); };
     overlay.querySelector("[data-a='accept']").onclick = function () { acceptAll(C); };
     return overlay;
