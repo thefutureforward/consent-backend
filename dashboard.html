@@ -210,7 +210,9 @@
              background:var(--paper);display:flex;flex-direction:column;gap:12px;align-items:flex-start}
   .trig-txt{font-size:14px;color:#1c2531}
   .trig-prev button{font:inherit}
-  .ab-row{display:flex;gap:8px;align-items:center;margin-bottom:7px}
+  .cat-card{border:1px solid var(--linea,#e5e3dd);border-radius:8px;padding:10px;margin-bottom:10px}
+.cat-lock{display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap}
+.ab-row{display:flex;gap:8px;align-items:center;margin-bottom:7px}
   .ab-row input[type=text]{flex:1 1 auto;padding:7px 9px;font-size:12.5px;
     border:1px solid var(--line);border-radius:7px;font-family:ui-monospace,monospace}
   .ab-row select{flex:0 0 150px;padding:7px 9px;font-size:12.5px;
@@ -463,6 +465,9 @@ var DICT = {
   "URL de la politica": "Policy URL",
   "Enlace de reapertura": "Reopen link",
   "Interruptores": "Switches",
+  "Categorias": "Categories",
+  "Anadir categoria": "Add category",
+  "bloqueada": "locked",
   "Forma": "Shape",
   "Lado del control": "Control side",
   "Boton de cerrar": "Close button",
@@ -1093,6 +1098,9 @@ function setCfgMode(m){
    edita (kind) y que texto lleva. Anadir una opcion nueva es anadir una
    fila aqui; no hay que tocar el render. */
 var UI_GROUPS = [
+  { t:"Categorias", open:true, items:[
+    {p:"categories", k:"cats", l:""}
+  ]},
   { t:"Idioma", open:true, items:[
     {p:"autoDetectLanguage", k:"bool",   l:"Detectar el idioma del navegador", def:true},
     {p:"defaultLanguage",    k:"select", l:"Idioma de respaldo", opts:[["es","Espanol"],["en","Ingles"]]}
@@ -1377,6 +1385,111 @@ var CATALOGO_BLOQUEO = [
 
 /* Editor de cookiePatterns. Es la red que recoge lo que el bloqueo no pudo
    evitar: cookies ya escritas que hay que borrar si su categoria se deniega. */
+/* Editor de categorias. El id enlaza con autoBlock y cookiePatterns, asi que
+   se avisa antes de cambiarlo y nunca se toca solo. */
+function catsUI(lista){
+  // Cuantas reglas de bloqueo y de borrado apuntan a cada categoria. Sirve para
+  // avisar antes de renombrar o quitar.
+  var o0 = objActual() || {}, usos = {};
+  [].concat(o0.autoBlock||[], o0.cookiePatterns||[]).forEach(function(r){
+    if(r && r.category) usos[r.category] = (usos[r.category]||0) + 1;
+  });
+  var filas = lista.map(function(c, i){
+    var lab = c.label || {}, des = c.desc || {};
+    if(typeof lab === "string") lab = {es:lab, en:lab};
+    if(typeof des === "string") des = {es:des, en:des};
+    var nUsos = usos[c.id] || 0;
+    return '<div class="cat-card">'+
+      '<div class="ab-row">'+
+        '<input type="text" value="'+esc(c.id||"")+'" placeholder="id" '+
+          'onchange="catSetId('+i+',this.value)" style="max-width:150px" />'+
+        '<label class="cat-lock"><input type="checkbox"'+(c.locked?" checked":"")+
+          ' onchange="catSet('+i+',\'locked\',this.checked)" /> bloqueada</label>'+
+        (nUsos ? '<span class="pat-ok">'+nUsos+' regla(s)</span>' : '')+
+        '<button class="btn ghost sm" onclick="catQuitar('+i+')"'+
+          (c.locked?' disabled title="La bloqueada no se puede quitar"':'')+'>&times;</button>'+
+      '</div>'+
+      '<div class="ab-row">'+
+        '<input type="text" value="'+esc(lab.es||"")+'" placeholder="Nombre (es)" '+
+          'oninput="catSetTxt('+i+',\'label\',\'es\',this.value)" />'+
+        '<input type="text" value="'+esc(lab.en||"")+'" placeholder="Name (en)" '+
+          'oninput="catSetTxt('+i+',\'label\',\'en\',this.value)" />'+
+      '</div>'+
+      '<div class="ab-row">'+
+        '<input type="text" value="'+esc(des.es||"")+'" placeholder="Descripcion (es)" '+
+          'oninput="catSetTxt('+i+',\'desc\',\'es\',this.value)" />'+
+        '<input type="text" value="'+esc(des.en||"")+'" placeholder="Description (en)" '+
+          'oninput="catSetTxt('+i+',\'desc\',\'en\',this.value)" />'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  var sinBloq = !lista.some(function(c){ return c.locked; });
+  return '<div class="ctl ctl-wide">'+
+    '<p class="sub" style="margin:0 0 10px">Cada categoria es una fila del panel. '+
+      'El <code>id</code> es el que usan el bloqueo de scripts y las cookies que se borran: '+
+      'si lo cambias, actualiza tambien esas dos listas.</p>'+
+    (filas || '<span class="ck-desc">Sin categorias.</span>')+
+    '<div class="row mt"><button class="btn ghost sm" onclick="catAnadir()">Anadir categoria</button></div>'+
+    (sinBloq ? '<p class="hint">Ninguna categoria esta bloqueada. Conviene que las esenciales lo esten.</p>' : '')+
+  '</div>';
+}
+
+function catLista(){
+  var o = objActual(); if(!o) return null;
+  if(!Array.isArray(o.categories)) o.categories = [];
+  return o;
+}
+function catGuardar(o){
+  el("cfg").value = JSON.stringify(o, null, 2);
+  validarCfg(); renderVisual();
+}
+function catSet(i, campo, valor){
+  var o = catLista(); if(!o || !o.categories[i]) return;
+  o.categories[i][campo] = valor;
+  catGuardar(o);
+}
+function catSetTxt(i, campo, idioma, valor){
+  var o = catLista(); if(!o || !o.categories[i]) return;
+  var c = o.categories[i];
+  if(typeof c[campo] === "string") c[campo] = {es:c[campo], en:c[campo]};
+  if(!c[campo] || typeof c[campo] !== "object") c[campo] = {};
+  c[campo][idioma] = valor;
+  el("cfg").value = JSON.stringify(o, null, 2);
+  validarCfg();
+}
+function catSetId(i, valor){
+  var o = catLista(); if(!o || !o.categories[i]) return;
+  var viejo = o.categories[i].id;
+  if(viejo === valor) return;
+  var usos = 0;
+  (o.autoBlock||[]).forEach(function(r){ if(r && r.category===viejo) usos++; });
+  (o.cookiePatterns||[]).forEach(function(r){ if(r && r.category===viejo) usos++; });
+  if(usos && !confirm("El id \""+viejo+"\" lo usan "+usos+" regla(s). Se actualizaran tambien. Continuar?")){
+    renderVisual(); return;
+  }
+  (o.autoBlock||[]).forEach(function(r){ if(r && r.category===viejo) r.category = valor; });
+  (o.cookiePatterns||[]).forEach(function(r){ if(r && r.category===viejo) r.category = valor; });
+  o.categories[i].id = valor;
+  catGuardar(o);
+}
+function catAnadir(){
+  var o = catLista(); if(!o) return;
+  o.categories.push({id:"", label:{es:"",en:""}, desc:{es:"",en:""}});
+  catGuardar(o);
+}
+function catQuitar(i){
+  var o = catLista(); if(!o || !o.categories[i]) return;
+  var c = o.categories[i];
+  if(c.locked){ alert("La categoria bloqueada no se puede quitar."); return; }
+  var usos = 0;
+  (o.autoBlock||[]).forEach(function(r){ if(r && r.category===c.id) usos++; });
+  (o.cookiePatterns||[]).forEach(function(r){ if(r && r.category===c.id) usos++; });
+  var aviso = usos ? "Quedaran "+usos+" regla(s) apuntando a \""+c.id+"\". " : "";
+  if(!confirm(aviso+"Quitar la categoria?")) return;
+  o.categories.splice(i,1);
+  catGuardar(o);
+}
+
 function patronesUI(lista){
   var cats = catsDelSitio();
   var det = window._ckDetectadas;          // undefined mientras cargan
@@ -1704,6 +1817,8 @@ function control(obj, it){
         '<code>.cb-sw</code> interruptor, <code>.cb-accept</code> <code>.cb-ghost</code> '+
         '<code>.cb-save</code> botones, <code>.cb-chip</code> pill.</p>'+
     '</div>';
+  } else if(it.k==="cats"){
+    return catsUI(Array.isArray(v) ? v : []);
   } else if(it.k==="patrones"){
     return patronesUI(Array.isArray(v) ? v : []);
   } else if(it.k==="bloqueo"){
