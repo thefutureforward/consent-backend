@@ -153,6 +153,9 @@ COOKIE_CATALOGO = [
     ("NID",         "marketing", "Google: preferencias y anuncios personalizados."),
     ("1P_JAR",      "marketing", "Google: estadisticas de uso de sus servicios."),
     ("SEARCH_SAMESITE", "esencial", "Google: control tecnico de envio de cookies."),
+    # --- LeadLander / Trackalyzer ---
+    ("trackalyzer",  "analitica", "LeadLander: identifica visitantes y sigue su recorrido."),
+    ("llvisit",      "analitica", "LeadLander: control de la visita actual."),
     # --- HubSpot ---
     ("hubspotutk",  "marketing", "HubSpot: identifica al visitante entre sesiones."),
     ("__hstc",      "marketing", "HubSpot: seguimiento principal del visitante."),

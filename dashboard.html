@@ -202,6 +202,10 @@
   .ck-desc{font-size:11.5px;color:var(--muted);white-space:normal;max-width:330px;line-height:1.45}
   .ck-sel{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12.5px;
           background:#fff;min-width:140px}
+  .trig-prev{border:1px dashed var(--line);border-radius:9px;padding:16px;
+             background:var(--paper);display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+  .trig-txt{font-size:14px;color:#1c2531}
+  .trig-prev button{font:inherit}
   .ab-row{display:flex;gap:8px;align-items:center;margin-bottom:7px}
   .ab-row input[type=text]{flex:1 1 auto;padding:7px 9px;font-size:12.5px;
     border:1px solid var(--line);border-radius:7px;font-family:ui-monospace,monospace}
@@ -450,6 +454,51 @@ var DICT = {
   "Etiqueta pequena": "Small label",
   "Texto del banner": "Banner text",
   "Enlace a la politica": "Policy link",
+  "URL de la politica": "Policy URL",
+  "Enlace de reapertura": "Reopen link",
+  "Aspecto": "Look",
+  "Texto": "Text",
+  "Boton": "Button",
+  "Texto en espanol": "Spanish text",
+  "Texto en ingles": "English text",
+  "Ancla de la URL": "URL anchor",
+  "Selector propio del tema": "Theme's own selector",
+  "Mostrar el pill si no hay enlace": "Show the pill if there is no link",
+  "Color del texto": "Text colour",
+  "Fondo (solo boton)": "Background (button only)",
+  "Borde (solo boton)": "Border (button only)",
+  "Radio (solo boton)": "Radius (button only)",
+  "Padding (solo boton)": "Padding (button only)",
+  "Tamano": "Size",
+  "Peso": "Weight",
+  "Tipografia": "Typeface",
+  "hereda la del sitio": "inherits the site's",
+  "Subrayado (solo texto)": "Underline (text only)",
+  "Enlace para reabrir el panel": "Link to reopen the panel",
+  "Pegalo donde el cliente quiera: el footer, el aviso legal o la pagina de politica. Abre el panel de preferencias sin recargar la pagina.":
+    "Paste it wherever the client wants: the footer, the legal notice or the policy page. It opens the preferences panel without reloading.",
+  "Asi se vera": "This is how it will look",
+  "Para el footer o el aviso legal": "For the footer or the legal notice",
+  "Enlace con URL, para la politica o un correo": "URL link, for the policy or an email",
+  "Tambien vale la direccion a secas:": "The bare address works too:",
+  "Consulta nuestra": "See our",
+  "cuando quieras.": "any time.",
+  "Preferencias de cookies": "Cookie preferences",
+  "El pill flotante sigue activo. Si el cliente prefiere solo este enlace, desactivalo en Apariencia, grupo":
+    "The floating pill is still on. If the client prefers only this link, turn it off in Appearance, group",
+  "El pill flotante esta desactivado, asi que este enlace es la unica forma de reabrir el panel. Comprueba que quede visible en todas las paginas.":
+    "The floating pill is off, so this link is the only way to reopen the panel. Check that it shows on every page.",
+  "Copiado.": "Copied.",
+  "Sin URL de politica": "No policy URL",
+  ": el banner no mostrara el enlace. El RGPD pide que el visitante pueda leer que se hace con sus datos antes de decidir.":
+    ": the banner will not show the link. GDPR requires visitors to be able to read what is done with their data before deciding.",
+  "Sin URL de politica en": "No policy URL in",
+  ": en ese idioma no se vera el enlace.": ": the link will not show in that language.",
+  "no se aceptara: solo se admite http, https o una ruta del propio sitio.":
+    "will not be accepted: only http, https or a path within the site is allowed.",
+  "La URL": "The URL",
+  "Abrir la politica en otra pestana": "Open the policy in a new tab",
+  "sin enlace": "no link",
   "Boton personalizar": "Customize button",
   "Boton rechazar": "Reject button",
   "Boton aceptar": "Accept button",
@@ -623,6 +672,9 @@ var DICT = {
   /* --- descripciones del catalogo de cookies --- */
   "PHP: identificador de sesion del servidor.": "PHP: server session id.",
   "Cloudflare: distingue humanos de bots.": "Cloudflare: tells humans from bots.",
+  "LeadLander: identifica visitantes y sigue su recorrido.":
+    "LeadLander: identifies visitors and tracks their journey.",
+  "LeadLander: control de la visita actual.": "LeadLander: current visit control.",
   "Google Analytics: identifica al visitante (2 anos).":
     "Google Analytics: identifies the visitor (2 years).",
   "Google Analytics: limita la frecuencia de peticiones.":
@@ -916,7 +968,25 @@ var UI_GROUPS = [
   { t:"Bloqueo de scripts", open:true, items:[
     {p:"autoBlock", k:"bloqueo", l:""}
   ]},
+  { t:"Enlace de reapertura", items:[
+    {p:"trigger.mode", k:"select", l:"Aspecto", opts:[["link","Texto"],["button","Boton"]]},
+    {p:"trigger.text.es", k:"text", l:"Texto en espanol", ph:"Preferencias de cookies"},
+    {p:"trigger.text.en", k:"text", l:"Texto en ingles",  ph:"Cookie preferences"},
+    {p:"trigger.hash",    k:"text", l:"Ancla de la URL",  ph:"cookies"},
+    {p:"trigger.selector",k:"text", l:"Selector propio del tema", ph:".footer-cookies"},
+    {p:"trigger.safety",  k:"bool", l:"Mostrar el pill si no hay enlace", def:true},
+    {p:"trigger.style.color",      k:"color", l:"Color del texto"},
+    {p:"trigger.style.background", k:"color", l:"Fondo (solo boton)"},
+    {p:"trigger.style.border",     k:"text",  l:"Borde (solo boton)", ph:"1px solid #d8dee6"},
+    {p:"trigger.style.radius",     k:"text",  l:"Radio (solo boton)", ph:"6px"},
+    {p:"trigger.style.padding",    k:"text",  l:"Padding (solo boton)", ph:"8px 14px"},
+    {p:"trigger.style.fontSize",   k:"text",  l:"Tamano", ph:"14px"},
+    {p:"trigger.style.fontWeight", k:"text",  l:"Peso", ph:"500"},
+    {p:"trigger.style.fontFamily", k:"text",  l:"Tipografia", ph:"hereda la del sitio"},
+    {p:"trigger.style.underline",  k:"bool",  l:"Subrayado (solo texto)", def:true}
+  ]},
   { t:"Comportamiento", items:[
+    {p:"policyNewTab", k:"bool", l:"Abrir la politica en otra pestana", def:true},
     {p:"reloadAfter", k:"select", l:"Recargar tras decidir", opts:[
       ["never","Nunca"],
       ["reduce","Al retirar permiso (recomendado)"],
@@ -925,6 +995,7 @@ var UI_GROUPS = [
     ]}
   ]},
   { t:"Textos en espanol", items:[
+    {p:"policyUrl.es", k:"text", l:"URL de la politica", ph:"https://ejemplo.com/politica-de-cookies"},
     {p:"texts.es.eyebrow", k:"text", l:"Etiqueta pequena", ph:"por defecto"},
     {p:"texts.es.body", k:"area", l:"Texto del banner", ph:"por defecto"},
     {p:"texts.es.policy", k:"text", l:"Enlace a la politica", ph:"por defecto"},
@@ -940,6 +1011,7 @@ var UI_GROUPS = [
     {p:"texts.es.chip", k:"text", l:"Texto del pill", ph:"por defecto"}
   ]},
   { t:"Textos en ingles", items:[
+    {p:"policyUrl.en", k:"text", l:"URL de la politica", ph:"https://ejemplo.com/politica-de-cookies"},
     {p:"texts.en.eyebrow", k:"text", l:"Etiqueta pequena", ph:"por defecto"},
     {p:"texts.en.body", k:"area", l:"Texto del banner", ph:"por defecto"},
     {p:"texts.en.policy", k:"text", l:"Enlace a la politica", ph:"por defecto"},
@@ -1135,6 +1207,8 @@ var CATALOGO_BLOQUEO = [
    d:["youtube.com","ytimg.com"]},
   {n:"Google Ads",         cat:"marketing", ck:["_gcl","_gac","IDE","test_cookie"],
    d:["googleadservices.com","googlesyndication.com","doubleclick.net"]},
+  {n:"LeadLander",         cat:"analitica", ck:["trackalyzer","llvisit"],
+   d:["tracking.leadlander.com","leadlander.com"]},
   {n:"Intercom",           cat:"funcional", ck:["intercom-"], d:["widget.intercom.io"]}
 ];
 
@@ -1476,6 +1550,7 @@ function validarCfg(){
       t:"<b>webfont activo</b>: el banner pide tipografias a Google, generando una conexion a un tercero."});
     avisosApariencia(obj, res);
   avisosIdioma(obj, res);
+  avisosPolitica(obj, res);
   }
   el("ed-wrap").classList.toggle("bad", fatal);
   var b = el("btn-save"); if(b) b.disabled = fatal;
@@ -1519,6 +1594,29 @@ function px(v){
 // Si una categoria no esta traducida, el banner cae al idioma que tenga y esa
 // fila aparece en espanol dentro de un panel en ingles. No rompe nada, pero
 // queda raro y conviene decirlo.
+function avisosPolitica(o, res){
+  var u = o.policyUrl;
+  var vacio = !u || (typeof u === "object" && !u.es && !u.en);
+  if(vacio){
+    res.push({s:"warn", t:"<b>Sin URL de politica</b>: el banner no mostrara el enlace. "+
+      "El RGPD pide que el visitante pueda leer que se hace con sus datos antes de decidir."});
+    return;
+  }
+  if(typeof u === "object"){
+    ["es","en"].forEach(function(lg){
+      if(!u[lg]) res.push({s:"warn", t:"Sin URL de politica en <b>"+(lg==="es"?"espanol":"ingles")+
+        "</b>: en ese idioma no se vera el enlace."});
+    });
+  }
+  // Un esquema raro no se pinta, asi que mejor decirlo aqui que dejar al
+  // cliente preguntandose por que no sale el enlace.
+  var vals = (typeof u === "object") ? [u.es, u.en] : [u];
+  vals.forEach(function(v){
+    if(v && !/^(https?:\/\/|\/|#)/i.test(String(v).trim()) && /^[a-z][a-z0-9+.-]*:/i.test(String(v).trim()))
+      res.push({s:"warn", t:"La URL <b>"+esc(v)+"</b> no se aceptara: solo se admite http, https o una ruta del propio sitio."});
+  });
+}
+
 function avisosIdioma(o, res){
   if(o.autoDetectLanguage === false) return;   // sin deteccion, solo se usa uno
   var idiomas = ["es", "en"];
@@ -1608,6 +1706,82 @@ function buildSnippet(d){
   return s;
 }
 
+/* ---------------- Codigo del enlace de reapertura ----------------
+   Los estilos van en linea a proposito: el cliente pega el bloque en su tema
+   y funciona sin tocar su CSS, que es lo unico que no controlamos.          */
+function estiloTrigger(T){
+  var st = (T && T.style) || {}, css = [];
+  function add(k, v){ if(v) css.push(k + ":" + v); }
+  if(T.mode === "button"){
+    add("display","inline-block");
+    add("background", st.background || "transparent");
+    // Con fondo propio, el borde sobra: "currentColor" dibujaria un marco del
+    // color del texto. Sin fondo si hace falta, o el boton no se veria.
+    add("border", st.border || (st.background ? "0" : "1px solid currentColor"));
+    add("border-radius", st.radius || "6px");
+    add("padding", st.padding || "8px 14px");
+    css.push("cursor:pointer");
+  } else {
+    css.push("background:none"); css.push("border:0"); css.push("padding:0");
+    css.push("cursor:pointer");
+    css.push("text-decoration:" + (st.underline === false ? "none" : "underline"));
+  }
+  add("color", st.color || "inherit");
+  add("font-size", st.fontSize || "14px");
+  add("font-weight", st.fontWeight || "500");
+  add("font-family", st.fontFamily || "inherit");
+  return css.join(";");
+}
+
+function textoTrigger(T, lg){
+  var t = (T && T.text) || {};
+  return t[lg] || t.es || t.en || (lg === "en" ? "Cookie preferences" : "Preferencias de cookies");
+}
+
+function pintarTrigger(cfg){
+  var host = el("trig-box"); if(!host) return;
+  var T = (cfg && cfg.trigger) || {};
+  var lg = (LANG === "en") ? "en" : "es";
+  var txt = textoTrigger(T, lg), estilo = estiloTrigger(T), hash = T.hash || "cookies";
+
+  // <button> y no <a>: los temas interceptan los clics en enlaces para su
+  // propia navegacion, y un boton no navega a ninguna parte.
+  var etiqueta = '<button type="button" data-consent-open style="' + estilo + '">' + txt + '</button>';
+  var enlace   = '<a href="#' + hash + '">' + txt + '</a>';
+  var oculto   = cfg && cfg.chip && cfg.chip.enabled === false;
+
+  host.innerHTML =
+    '<p class="sub" style="margin:0 0 8px">Asi se vera</p>'+
+    '<div class="trig-prev">'+
+      '<div>' + etiqueta + '</div>'+
+      '<div class="trig-txt">Consulta nuestra ' + enlace + ' cuando quieras.</div>'+
+    '</div>'+
+
+    '<p class="sub" style="margin:18px 0 6px"><b>1.</b> Para el footer o el aviso legal</p>'+
+    '<div class="snippet" id="trig-code">' + esc(etiqueta) + '</div>'+
+    '<div class="row mt"><button class="btn ghost sm" onclick="copiarDe(\'trig-code\',\'trig-msg\')">Copiar codigo</button>'+
+      '<span id="trig-msg" class="msg"></span></div>'+
+
+    '<p class="sub" style="margin:18px 0 6px"><b>2.</b> Enlace con URL, para la politica o un correo</p>'+
+    '<div class="snippet" id="trig-url">' + esc(enlace) + '</div>'+
+    '<div class="row mt"><button class="btn ghost sm" onclick="copiarDe(\'trig-url\',\'trig-msg2\')">Copiar codigo</button>'+
+      '<span id="trig-msg2" class="msg"></span></div>'+
+    '<p class="hint">Tambien vale la direccion a secas: <code>' + esc(dominioDelSitio()) +
+      '/#' + esc(hash) + '</code></p>'+
+
+    (oculto
+      ? '<p class="hint" style="margin-top:14px">El pill flotante esta desactivado, asi que '+
+        'este enlace es la unica forma de reabrir el panel. Comprueba que quede visible en todas las paginas.</p>'
+      : '<p class="hint" style="margin-top:14px">El pill flotante sigue activo. Si el cliente '+
+        'prefiere solo este enlace, desactivalo en Apariencia, grupo <b>Pill de reapertura</b>.</p>');
+}
+
+function dominioDelSitio(){
+  var st = sites.filter(function(x){ return x.site_id === current; })[0];
+  var d = (st && st.domain ? String(st.domain).split(",")[0].trim() : "") || "tusitio.com";
+  return d.indexOf("http") === 0 ? d : "https://" + d;
+}
+
 function viewInstalar(d){
   var snippet = buildSnippet(d);
   var rules = (d.config && d.config.autoBlock) || [];
@@ -1637,23 +1811,32 @@ function viewInstalar(d){
           '<span id="dmsg" class="msg"></span></div>'+
         '</div>'+
         '<div class="card">'+
+          '<h2>Enlace para reabrir el panel</h2>'+
+          '<p class="sub">Pegalo donde el cliente quiera: el footer, el aviso legal o la '+
+            'pagina de politica. Abre el panel de preferencias sin recargar la pagina.</p>'+
+          '<div id="trig-box"></div>'+
+        '</div>'+
+        '<div class="card">'+
           '<h2>Comprobar</h2>'+
           '<p class="sub">Abre el sitio de ejemplo para verificar que el banner responde con esta configuracion.</p>'+
           '<a class="btn ghost sm" target="_blank" href="'+API+'/sitio-demo.html?site_id='+encodeURIComponent(d.site_id)+'">Abrir sitio demo</a>'+
         '</div>'+
       '</div>'+
     '</div>';
+  pintarTrigger(d.config || {});
 }
-function copiarSnippet(){
-  var t = el("snip").textContent;
+function copiarSnippet(){ copiarDe("snip","cmsg"); }
+
+function copiarDe(idOrigen, idMsg){
+  var t = el(idOrigen).textContent;
   if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(t).then(function(){ msg("cmsg","Copiado.",false); },
-                                         function(){ msg("cmsg","No se pudo copiar.",true); });
+    navigator.clipboard.writeText(t).then(function(){ msg(idMsg,"Copiado.",false); },
+                                         function(){ msg(idMsg,"No se pudo copiar.",true); });
   } else {
     var ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta);
     ta.select();
-    try{ document.execCommand("copy"); msg("cmsg","Copiado.",false); }
-    catch(e){ msg("cmsg","No se pudo copiar.",true); }
+    try{ document.execCommand("copy"); msg(idMsg,"Copiado.",false); }
+    catch(e){ msg(idMsg,"No se pudo copiar.",true); }
     document.body.removeChild(ta);
   }
 }

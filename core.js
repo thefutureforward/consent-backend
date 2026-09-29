@@ -16,6 +16,26 @@ let _userConfig = null;
     gtmId: "",                     // vacio = modo sin GTM (gtag directo)
     endpoint: "",                  // vacio = sin auditoria backend
     consentVersion: "2025-01",     // al cambiar, se vuelve a preguntar
+    // URL de la politica de privacidad o de cookies. Admite una cadena, o un
+    // objeto por idioma cuando cada version tiene su pagina:
+    //   policyUrl: "https://ejemplo.com/cookies"
+    //   policyUrl: { es: "/es/cookies", en: "/en/cookies" }
+    // Disparador para reabrir el panel desde el propio sitio (footer, politica).
+    // El cliente pega un enlace o un boton con data-consent-open y listo.
+    trigger: {
+      hash: "cookies",          // #cookies abre el panel; "" lo desactiva
+      selector: "",             // selector extra del tema, si ya tiene su enlace
+      safety: true,             // si el pill esta oculto y no hay disparador, mostrarlo
+      text: { es: "Preferencias de cookies", en: "Cookie preferences" },
+      mode: "link",             // link | button, solo afecta al codigo que genera el panel
+      style: {
+        color: "", background: "", border: "", radius: "6px",
+        padding: "8px 14px", fontSize: "14px", fontWeight: "500",
+        fontFamily: "", underline: true
+      }
+    },
+    policyUrl: "",
+    policyNewTab: true,
     defaultLanguage: "es",
     // Recargar tras una decision. Rechazar es el caso que de verdad lo pide:
     // un script ya ejecutado no se puede "desejecutar", solo dejar de cargar
@@ -620,6 +640,7 @@ let _userConfig = null;
     log("save", "Guardado en cookie " + cookieName(C) + " (choice=" + choice + ")");
     // 2. Ocultar UI y actualizar estado.
     hideBanner(); hidePanel(); showChip(C); state.chosen = chosen;
+    checkSafety(C);   // tambien tras decidir en esta misma carga, no solo al volver
     // 3. Consent Mode v2: update.
     gtag("consent", "update", signals);
     log("update", JSON.stringify(signals));
@@ -882,6 +903,35 @@ let _userConfig = null;
     return "";
   }
 
+  // La URL la escribe el cliente en el dashboard y acaba dentro de un atributo
+  // HTML, asi que hay que escaparla. Ademas solo dejamos pasar esquemas
+  // seguros: un "javascript:..." aqui seria ejecucion de codigo en el sitio
+  // de todos sus visitantes.
+  function urlSegura(u) {
+    u = String(u || "").trim();
+    if (!u) return "";
+    if (/^(https?:)?\/\//i.test(u)) return u;   // absoluta o protocolo relativo
+    if (u.charAt(0) === "/" || u.charAt(0) === "#") return u;   // dentro del sitio
+    if (/^[a-z][a-z0-9+.-]*:/i.test(u)) return "";              // cualquier otro esquema
+    return u;                                                   // relativa simple
+  }
+
+  function escAttr(v) {
+    return String(v).replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // Sin URL configurada no pintamos un enlace muerto: un <a href="#"> que no
+  // lleva a ninguna parte es peor que no tener enlace, porque el visitante
+  // cree que puede leer la politica y no puede.
+  function policyLink(C, L) {
+    var u = urlSegura(lang(C.policyUrl, C));
+    if (!u) return "";
+    var extra = (C.policyNewTab === false) ? "" :
+                " target='_blank' rel='noopener noreferrer'";
+    return "<a href='" + escAttr(u) + "'" + extra + ">" + L.policy + "</a>";
+  }
+
   function t() {
     var C = merged();
     var base = COPY[state.lang] || COPY.es;
@@ -902,7 +952,7 @@ let _userConfig = null;
       "<div class='cb-inner'>" +
         "<div class='cb-copy'>" +
           "<p class='cb-eyebrow'>" + L.eyebrow + "</p>" +
-          "<p class='cb-body'>" + L.body + " <a href='#'>" + L.policy + "</a></p>" +
+          "<p class='cb-body'>" + L.body + " " + policyLink(C, L) + "</p>" +
         "</div>" +
         "<div class='cb-actions'>" +
           "<button class='cb-btn cb-ghost' data-a='manage'>" + L.manage + "</button>" +
@@ -1037,6 +1087,78 @@ let _userConfig = null;
     });
   }
 
+  // ---- Disparadores de reapertura ------------------------------------------
+  // Delegacion en el documento: funciona con elementos que aparezcan despues
+  // (footers cargados por AJAX, menus del tema) sin volver a enganchar nada.
+  var _triggersOn = false;
+  function installTriggers(C) {
+    if (_triggersOn) return;
+    _triggersOn = true;
+    var T = C.trigger || {};
+
+    document.addEventListener("click", function (ev) {
+      var n = ev.target;
+      while (n && n !== document) {
+        if (n.nodeType === 1) {
+          var esNuestro = n.hasAttribute && n.hasAttribute("data-consent-open");
+          if (!esNuestro && T.selector) {
+            try { esNuestro = n.matches && n.matches(T.selector); } catch (e) {}
+          }
+          if (esNuestro) {
+            // preventDefault evita el salto de scroll del href="#" y, sobre
+            // todo, que el router del tema intente navegar a esa ancla.
+            ev.preventDefault();
+            ev.stopPropagation();
+            openPanel(merged());
+            return;
+          }
+        }
+        n = n.parentNode;
+      }
+    }, true);   // fase de captura: llegamos antes que el router del tema
+
+    if (T.hash) {
+      var mira = function () {
+        if (location.hash.replace(/^#/, "").toLowerCase() === String(T.hash).toLowerCase()) {
+          openPanel(merged());
+          // Limpiamos el hash para que recargar no reabra el panel una y otra vez.
+          try { history.replaceState(null, "", location.pathname + location.search); }
+          catch (e) {}
+        }
+      };
+      window.addEventListener("hashchange", mira);
+      mira();   // tambien si se llega con el ancla ya puesta
+    }
+  }
+
+  // Red de seguridad: retirar el consentimiento tiene que ser tan facil como
+  // darlo. Si el pill esta oculto y en la pagina no hay ningun disparador, el
+  // visitante se quedaria encerrado con su decision, asi que mostramos el pill
+  // igualmente. Se comprueba tarde porque muchos footers se pintan despues.
+  function checkSafety(C) {
+    var T = C.trigger || {};
+    if (T.safety === false) return;
+    if (!C.chip || C.chip.enabled !== false) return;   // el pill ya se ve
+    setTimeout(function () {
+      var hay = document.querySelector("[data-consent-open]");
+      // Un enlace al ancla tambien es un disparador valido: sin esto,
+      // un footer con <a href="#cookies"> haria aparecer el pill de todos modos.
+      if (!hay && T.hash) {
+        try { hay = document.querySelector("a[href$='#" + T.hash + "']"); } catch (e) {}
+      }
+      if (!hay && T.selector) {
+        try { hay = document.querySelector(T.selector); } catch (e) {}
+      }
+      if (!hay) {
+        log("safety", "Pill oculto y sin ningun disparador en la pagina: se muestra " +
+                      "el pill para no dejar al visitante sin forma de cambiar de opinion.");
+        var C2 = merged();
+        C2.chip = Object.assign({}, C2.chip || {}, { enabled: true });
+        showChip(C2);
+      }
+    }, 1500);
+  }
+
   function init() {
     var C = merged();
     if (C.siteId && C.apiBase && !_remoteLoaded) {
@@ -1047,6 +1169,7 @@ let _userConfig = null;
   }
 
   function proceed(C) {
+    installTriggers(C);
     state.lang = detectaIdioma(C);
     log("init", "Idioma del banner: " + state.lang +
         " (navegador: " + ((navigator.languages || [navigator.language || "?"])[0]) + ").");
@@ -1060,6 +1183,7 @@ let _userConfig = null;
         startDeletionWatch(C, state.chosen);   // los terceros reescriben tras cargar
       }
       showChip(C);
+      checkSafety(C);
       activateScripts(C, state.chosen);
       refreshAutoBlock(C, state.chosen);
     } else {
