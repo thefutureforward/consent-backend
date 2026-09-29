@@ -157,11 +157,14 @@ let _userConfig = null;
     // hereda del tema de colores.
     buttons: {
       radius: "8px",
-      padding: "11px 18px",
-      accept:    { background: "", color: "", border: "0",  weight: 600, padding: "12px 22px" },
+      padding: "12px 22px",
+      // Sin padding por boton: el de "padding" manda salvo que se rellene aqui.
+      // Antes venian con valor de serie y ganaban siempre, asi que cambiar el
+      // padding general no movia ni aceptar ni guardar.
+      accept:    { background: "", color: "", border: "0",  weight: 600, padding: "" },
       reject:    { background: "transparent", color: "", border: "1px solid rgba(255,255,255,.32)", weight: 500, padding: "" },
-      customize: { background: "transparent", color: "", border: "0", weight: 500, padding: "11px 14px" },
-      save:      { background: "", color: "", border: "0",  weight: 600, padding: "12px 22px" }
+      customize: { background: "transparent", color: "", border: "0", weight: 500, padding: "" },
+      save:      { background: "", color: "", border: "0",  weight: 600, padding: "" }
     },
 
     // El pill que reabre el panel una vez cerrado.
@@ -860,7 +863,7 @@ let _userConfig = null;
         ".cb-foot-right{width:100%;justify-content:space-between}"
       : "") +
     ".cb-outline:hover{border-color:" + K.heading + "}" +
-    ".cb-text{background:transparent;border:0;color:" + K.heading + ";padding:11px 14px}" +
+    ".cb-text{background:transparent;border:0;color:" + K.heading + ";padding:" + (BT.padding || "11px 18px") + "}" +
     ".cb-text:hover{text-decoration:underline;text-underline-offset:3px}" +
     ".cb-save{" + btn(C, "save", K.accent, K.textBright) + "border-radius:" + (BT.radius || "8px") + "}" +
     ".cb-save:hover{background:" + K.accentHover + "}" +
