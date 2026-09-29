@@ -463,6 +463,13 @@ var DICT = {
   "URL de la politica": "Policy URL",
   "Enlace de reapertura": "Reopen link",
   "Interruptores": "Switches",
+  "Forma": "Shape",
+  "Bloqueado: fondo": "Locked: background",
+  "Bloqueado: borde": "Locked: border",
+  "Interruptor": "Switch",
+  "Casilla": "Checkbox",
+  "Lado (solo casilla)": "Side (checkbox only)",
+  "Mostrar etiqueta superior": "Show eyebrow label",
   "CSS a medida": "Custom CSS",
   "Para lo que no tiene ajuste. Se aplica solo dentro del banner: no puede afectar al resto del sitio. Va despues de todo, asi que gana sin necesidad de":
     "For whatever has no setting. It applies only inside the banner: it cannot affect the rest of the site. It comes last, so it wins without needing",
@@ -1179,6 +1186,7 @@ var UI_GROUPS = [
   ]},
   { t:"Tipografia", items:[
     {p:"webfont", k:"bool", l:"Cargar tipografias de Google", def:false},
+    {p:"showEyebrow", k:"bool", l:"Mostrar etiqueta superior", def:true},
     {p:"fonts.heading", k:"text", l:"Familia titulos"},
     {p:"fonts.body",    k:"text", l:"Familia texto"},
     {p:"fonts.mono",    k:"text", l:"Familia mono"},
@@ -1208,6 +1216,8 @@ var UI_GROUPS = [
     {p:"buttons.save.color",        k:"color", l:"Guardar: texto"}
   ]},
   { t:"Interruptores", items:[
+    {p:"switchStyle.shape", k:"select", l:"Forma", opts:[["switch","Interruptor"],["checkbox","Casilla"]]},
+    {p:"switchStyle.size",  k:"text",  l:"Lado (solo casilla)", ph:"20px"},
     {p:"switchStyle.width",  k:"text",  l:"Ancho", ph:"46px"},
     {p:"switchStyle.height", k:"text",  l:"Alto", ph:"26px"},
     {p:"switchStyle.radius", k:"text",  l:"Radio", ph:"100px (pildora), 4px (rectangular)"},
@@ -1217,7 +1227,9 @@ var UI_GROUPS = [
     {p:"switchStyle.off",    k:"color", l:"Fondo apagado"},
     {p:"switchStyle.border", k:"text",  l:"Borde", ph:"1px solid #d8dee6"},
     {p:"switchStyle.knob",   k:"color", l:"Mando apagado"},
-    {p:"switchStyle.knobOn", k:"color", l:"Mando encendido"}
+    {p:"switchStyle.knobOn", k:"color", l:"Mando encendido"},
+    {p:"switchStyle.locked", k:"color", l:"Bloqueado: fondo"},
+    {p:"switchStyle.lockedBorder", k:"text", l:"Bloqueado: borde", ph:"1px solid ..."}
   ]},
   { t:"Pill de reapertura", items:[
     {p:"chip.enabled",   k:"bool",   l:"Mostrar el pill", def:true},

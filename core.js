@@ -36,9 +36,13 @@ let _userConfig = null;
     },
     // Interruptores del panel. Vacio = los de siempre.
     switchStyle: {
+      // shape: "switch" (interruptor deslizante) o "checkbox" (casilla con tic).
+      shape: "switch",
       width: "", height: "", radius: "", knobRadius: "", inset: "",
       on: "", off: "", border: "", onBorder: "", knob: "", knobOn: ""
     },
+    // Etiqueta breve sobre el titulo del banner y del panel. false la oculta.
+    showEyebrow: true,
     // CSS a medida, para lo que no llega a haber ajuste. Se inyecta dentro del
     // shadow DOM, asi que no puede afectar al resto del sitio del cliente.
     customCss: "",
@@ -730,6 +734,25 @@ let _userConfig = null;
     // el tamano: sin esto, cambiar el ancho descoloca el mando al encenderlo.
     var kw = "calc(" + h + " - " + hueco + " * 2 - 2px)";
     var izq = "calc(" + w + " - " + kw + " - " + hueco + " - 2px)";
+    // Casilla: cuadrada, sin mando deslizante. El tic se pinta con el borde
+    // de un pseudoelemento girado, asi no hace falta SVG dentro del boton.
+    if (S.shape === "checkbox") {
+      var lado = S.size || S.width || "20px";
+      var rc = (S.radius !== undefined && S.radius !== "") ? S.radius : "3px";
+      return ".cb-sw{position:relative;width:" + lado + ";height:" + lado +
+        ";border-radius:" + rc + ";background:" + (S.off || K.switchOff) +
+        ";border:" + (S.border || ("1px solid " + K.borderStrong)) +
+        ";cursor:pointer;flex:none;padding:0;transition:background .16s,border-color .16s}" +
+        ".cb-sw[aria-checked='true']{background:" + (S.on || K.accent) +
+          ";border-color:" + (S.onBorder || S.on || K.accent) + "}" +
+        ".cb-sw[disabled]{background:" + (S.locked || K.accentSoft) +
+          ";border-color:" + (S.lockedBorder || K.accentPale) + ";opacity:.9;cursor:default}" +
+        ".cb-sw:focus-visible{outline:2px solid " + K.accent + ";outline-offset:2px}" +
+        ".cb-knob{position:absolute;left:0;right:0;top:0;bottom:0;margin:auto;width:28%;height:55%;" +
+          "border:solid " + (S.knobOn || K.textBright) + ";border-width:0 2px 2px 0;" +
+          "transform:translateY(-8%) rotate(45deg);opacity:0;transition:opacity .12s}" +
+        ".cb-sw[aria-checked='true'] .cb-knob,.cb-sw[disabled] .cb-knob{opacity:1}";
+    }
     return ".cb-sw{position:relative;width:" + w + ";height:" + h + ";border-radius:" + r +
       ";background:" + (S.off || K.switchOff) + ";border:" + (S.border || ("1px solid " + K.borderStrong)) +
       ";cursor:pointer;flex:none;padding:0;transition:background .16s cubic-bezier(.2,.6,.2,1),border-color .16s}" +
@@ -1014,7 +1037,7 @@ let _userConfig = null;
     el.innerHTML =
       "<div class='cb-inner'>" +
         "<div class='cb-copy'>" +
-          "<p class='cb-eyebrow'>" + L.eyebrow + "</p>" +
+          (C.showEyebrow === false ? "" : "<p class='cb-eyebrow'>" + L.eyebrow + "</p>") +
           "<p class='cb-body'>" + L.body + " " + policyLink(C, L) + "</p>" +
         "</div>" +
         "<div class='cb-actions'>" +
@@ -1040,9 +1063,10 @@ let _userConfig = null;
     var rows = C.categories.map(function (cat) {
       var checked = cat.locked ? true : !!state.chosen[cat.id];
       var pill = cat.locked ? " <span class='cb-pill'>" + L.always + "</span>" : "";
+      var rol = ((C.switchStyle || {}).shape === "checkbox") ? "checkbox" : "switch";
       var control = cat.locked
-        ? "<button class='cb-sw' role='switch' aria-checked='true' aria-disabled='true' disabled><span class='cb-knob'></span></button>"
-        : "<button class='cb-sw' role='switch' aria-checked='" + checked + "' data-cat='" + cat.id + "'><span class='cb-knob'></span></button>";
+        ? "<button class='cb-sw' role='" + rol + "' aria-checked='true' aria-disabled='true' disabled><span class='cb-knob'></span></button>"
+        : "<button class='cb-sw' role='" + rol + "' aria-checked='" + checked + "' data-cat='" + cat.id + "'><span class='cb-knob'></span></button>";
       return "<div class='cb-row'>" +
         "<div class='t'><strong>" + lang(cat.label, C) + pill + "</strong><span>" + lang(cat.desc, C) + "</span></div>" +
         control +
@@ -1051,7 +1075,7 @@ let _userConfig = null;
     overlay.innerHTML =
       "<div class='cb-panel' role='dialog' aria-modal='true' aria-label='" + L.panelTitle + "'>" +
         "<div class='cb-head'>" +
-          "<p class='cb-eyebrow2'>" + L.panelEyebrow + "</p>" +
+          (C.showEyebrow === false ? "" : "<p class='cb-eyebrow2'>" + L.panelEyebrow + "</p>") +
           "<h2>" + L.panelTitle + "</h2>" +
           "<p class='cb-intro'>" + L.panelIntro + "</p>" +
         "</div>" +
