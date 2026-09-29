@@ -202,6 +202,10 @@
   .ck-desc{font-size:11.5px;color:var(--muted);white-space:normal;max-width:330px;line-height:1.45}
   .ck-sel{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12.5px;
           background:#fff;min-width:140px}
+  .css-box{width:100%;padding:10px 12px;font-size:12.5px;line-height:1.55;
+           font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+           border:1px solid var(--line);border-radius:8px;resize:vertical;
+           background:#12233a;color:#dbe6f2}
   .trig-prev{border:1px dashed var(--line);border-radius:9px;padding:16px;
              background:var(--paper);display:flex;flex-direction:column;gap:12px;align-items:flex-start}
   .trig-txt{font-size:14px;color:#1c2531}
@@ -461,6 +465,23 @@ var DICT = {
   "URL de la politica": "Policy URL",
   "Enlace de reapertura": "Reopen link",
   "Interruptores": "Switches",
+  "CSS a medida": "Custom CSS",
+  "Para lo que no tiene ajuste. Se aplica solo dentro del banner: no puede afectar al resto del sitio. Va despues de todo, asi que gana sin necesidad de":
+    "For whatever has no setting. It applies only inside the banner: it cannot affect the rest of the site. It comes last, so it wins without needing",
+  "Selectores utiles:": "Useful selectors:",
+  "banner": "banner",
+  "panel": "panel",
+  "fila de categoria": "category row",
+  "interruptor": "switch",
+  "botones": "buttons",
+  "pill.": "pill.",
+  "El": "The",
+  "usa": "uses",
+  ": se ignora, porque traeria una hoja de otro dominio sin consentimiento.":
+    ": it is ignored, because it would pull a stylesheet from another domain without consent.",
+  "recurso(s) de otro dominio. Esa peticion sale antes de que el visitante acepte. Mejor incrustarlos como data URI.":
+    "resource(s) from another domain. That request goes out before the visitor accepts. Better to inline them as data URIs.",
+  "carga": "loads",
   "Pie del panel": "Panel footer",
   "En una fila": "In one row",
   "Apilado": "Stacked",
@@ -1079,6 +1100,9 @@ var UI_GROUPS = [
     {p:"trigger.style.fontFamily", k:"text",  l:"Tipografia", ph:"hereda la del sitio"},
     {p:"trigger.style.underline",  k:"bool",  l:"Subrayado (solo texto)", def:true}
   ]},
+  { t:"CSS a medida", items:[
+    {p:"customCss", k:"css", l:""}
+  ]},
   { t:"Comportamiento", items:[
     {p:"reloadAfter", k:"select", l:"Recargar tras decidir", opts:[
       ["never","Nunca"],
@@ -1634,6 +1658,19 @@ function control(obj, it){
     // Numeros como numeros: guardarlos como texto rompe las comparaciones del bundle.
     body = '<input type="text" id="'+id+'" value="'+esc(v==null?"":v)+'" placeholder="'+esc(it.ph||"")+'" '+
       'oninput="onCtl(\''+it.p+'\', this.value===\'\' ? \'\' : Number(this.value))" />';
+  } else if(it.k==="css"){
+    return '<div class="ctl ctl-wide">'+
+      '<p class="sub" style="margin:0 0 8px">Para lo que no tiene ajuste. Se aplica solo '+
+        'dentro del banner: no puede afectar al resto del sitio. Va despues de todo, '+
+        'asi que gana sin necesidad de <code>!important</code>.</p>'+
+      '<textarea id="'+id+'" class="css-box" spellcheck="false" rows="10" '+
+        'placeholder=".cb-accept{ letter-spacing:.04em }" '+
+        'oninput="onCtl(\''+it.p+'\',this.value)">'+esc(v==null?"":v)+'</textarea>'+
+      '<p class="hint">Selectores utiles: <code>.cb-inner</code> banner, '+
+        '<code>.cb-panel</code> panel, <code>.cb-row</code> fila de categoria, '+
+        '<code>.cb-sw</code> interruptor, <code>.cb-accept</code> <code>.cb-ghost</code> '+
+        '<code>.cb-save</code> botones, <code>.cb-chip</code> pill.</p>'+
+    '</div>';
   } else if(it.k==="patrones"){
     return patronesUI(Array.isArray(v) ? v : []);
   } else if(it.k==="bloqueo"){
@@ -1806,6 +1843,7 @@ function validarCfg(){
     avisosApariencia(obj, res);
   avisosIdioma(obj, res);
   avisosPolitica(obj, res);
+  avisosCss(obj, res);
   }
   el("ed-wrap").classList.toggle("bad", fatal);
   var b = el("btn-save"); if(b) b.disabled = fatal;
@@ -1849,6 +1887,20 @@ function px(v){
 // Si una categoria no esta traducida, el banner cae al idioma que tenga y esa
 // fila aparece en espanol dentro de un panel en ingles. No rompe nada, pero
 // queda raro y conviene decirlo.
+/* Un url() a otro dominio dentro del CSS es una conexion a un tercero antes
+   de que el visitante decida: el mismo problema que el webfont de Google. */
+function avisosCss(o, res){
+  var t = o.customCss;
+  if(!t || typeof t !== "string") return;
+  if(/@import/i.test(t))
+    res.push({s:"warn", t:"El <b>CSS a medida</b> usa <code>@import</code>: se ignora, porque "+
+      "traeria una hoja de otro dominio sin consentimiento."});
+  var fuera = (t.match(/url\(\s*['"]?https?:\/\/[^)]*\)/gi) || []).length;
+  if(fuera)
+    res.push({s:"warn", t:"El <b>CSS a medida</b> carga "+fuera+" recurso(s) de otro dominio. "+
+      "Esa peticion sale antes de que el visitante acepte. Mejor incrustarlos como data URI."});
+}
+
 function avisosPolitica(o, res){
   var u = o.policyUrl;
   var vacio = !u || (typeof u === "object" && !u.es && !u.en);

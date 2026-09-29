@@ -39,6 +39,9 @@ let _userConfig = null;
       width: "", height: "", radius: "", knobRadius: "", inset: "",
       on: "", off: "", border: "", onBorder: "", knob: "", knobOn: ""
     },
+    // CSS a medida, para lo que no llega a haber ajuste. Se inyecta dentro del
+    // shadow DOM, asi que no puede afectar al resto del sitio del cliente.
+    customCss: "",
     policyUrl: "",
     policyNewTab: true,
     defaultLanguage: "es",
@@ -753,6 +756,27 @@ let _userConfig = null;
   // Estilos "Expediente": mismos tokens que styles/tokens.css del frontend
   // (ink navy, paper calido, verdigris teal, trio IBM Plex). Todas las medidas
   // salen de la config, con los valores de DEFAULTS como red de seguridad.
+  // El CSS lo escribe el cliente en el dashboard. Va al final, para que gane
+  // sobre lo generado sin necesidad de !important.
+  //
+  // Se quitan dos cosas. @import trae una hoja de otro dominio, que es una
+  // conexion a un tercero antes de que el visitante decida, justo lo que este
+  // banner existe para evitar. Y javascript: dentro de un url() llega a
+  // ejecutarse en navegadores viejos.
+  function cssAMedida(C) {
+    var t = C.customCss;
+    if (!t || typeof t !== "string") return "";
+    var limpio = t
+      .replace(/@import[^;]*;?/gi, "")
+      .replace(/url\(\s*['"]?\s*javascript:[^)]*\)/gi, "none");
+    // </style> dentro del texto cerraria la etiqueta antes de tiempo. No puede
+    // pasar al usar textContent, pero lo quitamos por si algun dia se inyecta
+    // de otra forma.
+    limpio = limpio.replace(/<\/style/gi, "");
+    if (limpio !== t) log("css", "Se ignoraron partes del CSS a medida (@import o javascript:).");
+    return "\n/* CSS a medida */\n" + limpio;
+  }
+
   function css(C) {
     var K = C.colors, F = C.fonts;
     var BN = C.banner || {}, PN = C.panel || {}, BT = C.buttons || {}, CH = C.chip || {};
@@ -843,7 +867,7 @@ let _userConfig = null;
     host.id = "consent-banner-host";
     var shadow = host.attachShadow ? host.attachShadow({ mode: "open" }) : host;
     var style = document.createElement("style");
-    style.textContent = css(C);
+    style.textContent = css(C) + cssAMedida(C);
     shadow.appendChild(style);
     document.body.appendChild(host);
     root = shadow; // a partir de aqui todo se monta dentro del shadow root
