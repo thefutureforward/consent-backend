@@ -897,26 +897,55 @@ class H(BaseHTTPRequestHandler):
             c.close(); return self._send(404, {"error": "sitio sin config"})
         cfg = json.loads(fila["json"])
         ids_validos = set(x.get("id") for x in (cfg.get("categories") or []) if isinstance(x, dict))
-        existentes = []
+
+        # Normalizamos la lista a objetos para poder completarla. El formato
+        # antiguo era una cadena suelta ("_ga"), sin categoria, y esos patrones
+        # solo se borraban si se denegaba la analitica.
+        patrones = []
         for p in (cfg.get("cookiePatterns") or []):
-            existentes.append(p.get("match") if isinstance(p, dict) else p)
-        anadidas = []
+            if isinstance(p, dict):
+                patrones.append(dict(p))
+            else:
+                patrones.append({"match": str(p)})
+
+        anadidas, completadas, cubiertas = [], [], []
         for r in c.execute("SELECT name,category FROM cookies_found WHERE site_id=? AND status='asignada'",
                            (site_id,)):
             nombre, categoria = r["name"], r["category"]
             # Sin categoria, marcada como esencial, o categoria que ya no existe: no se toca.
             if not categoria or categoria == "esencial" or categoria not in ids_validos:
                 continue
-            if nombre in existentes:
+
+            exacto = next((p for p in patrones if p.get("match") == nombre), None)
+            if exacto is not None:
+                # Existe pero le falta la categoria: la clasificacion la completa.
+                # Si ya tiene una puesta a mano, se respeta.
+                if not exacto.get("category"):
+                    exacto["category"] = categoria
+                    completadas.append(nombre)
                 continue
-            cfg.setdefault("cookiePatterns", []).append({"match": nombre, "category": categoria})
-            existentes.append(nombre)
+
+            # Un patron mas corto que ya cubre este nombre ("__hs" cubre "__hstc").
+            # Anadir el nombre completo no aportaria nada y alargaria la lista.
+            prefijo = next((p for p in patrones
+                            if p.get("match") and nombre.startswith(p["match"])), None)
+            if prefijo is not None:
+                if not prefijo.get("category"):
+                    prefijo["category"] = categoria
+                    completadas.append(prefijo["match"])
+                cubiertas.append(nombre)
+                continue
+
+            patrones.append({"match": nombre, "category": categoria})
             anadidas.append(nombre)
+
+        cfg["cookiePatterns"] = patrones
         ver = fila["version"] + 1
         c.execute("UPDATE site_config SET version=?, json=?, updated_at=? WHERE site_id=?",
                   (ver, json.dumps(cfg), now(), site_id))
         c.commit(); c.close()
-        self._send(200, {"ok": True, "version": ver, "anadidas": anadidas})
+        self._send(200, {"ok": True, "version": ver, "anadidas": anadidas,
+                         "completadas": completadas, "cubiertas": cubiertas})
 
     def log_message(self, *a):
         pass

@@ -456,6 +456,12 @@ var DICT = {
   "Enlace a la politica": "Policy link",
   "URL de la politica": "Policy URL",
   "Enlace de reapertura": "Reopen link",
+  "Enlace": "Link",
+  "Politica de privacidad": "Privacy policy",
+  "URL en espanol": "Spanish URL",
+  "URL en ingles": "English URL",
+  "Abrir en otra pestana": "Open in a new tab",
+  "Cargar tipografias de Google": "Load Google fonts",
   "definidas.": "defined.",
   "No hay": "There are no",
   ": el banner pide tipografias a Google, generando una conexion a un tercero.":
@@ -555,6 +561,19 @@ var DICT = {
   "sitio(s) en esta cuenta.": "site(s) in this account.",
   "Color principal": "Main colour",
   "Bloqueo de scripts": "Script blocking",
+  "Cookies que se borran": "Cookies that get deleted",
+  "Estas cookies se borran cuando el visitante deniega su categoria. Se comparan por el principio del nombre, asi que":
+    "These cookies are deleted when the visitor denies their category. They match by the start of the name, so",
+  "alcanza tambien a": "also reaches",
+  "Sin patrones.": "No patterns.",
+  "Anadir patron": "Add pattern",
+  "Clasificar cookies detectadas": "Classify detected cookies",
+  "patron(es) sin categoria: solo se borran si se deniega la analitica. Ponles la suya o clasificalas en Cookies detectadas.":
+    "pattern(s) with no category: they are only deleted if analytics is denied. Give them one or classify them in Detected cookies.",
+  "patron(es) nuevos": "new pattern(s)",
+  "patron(es) antiguos completados con su categoria": "old pattern(s) completed with their category",
+  "ya cubiertas por un patron mas corto": "already covered by a shorter pattern",
+  "Guardado. Sin cambios en los patrones.": "Saved. No changes to the patterns.",
   "Los scripts de estos dominios no se ejecutan hasta que el visitante acepta su categoria. La cookie no llega a crearse.":
     "Scripts from these domains do not run until the visitor accepts their category. The cookie is never created.",
   "Sin reglas: no se bloquea nada.": "No rules: nothing is blocked.",
@@ -1001,6 +1020,14 @@ var UI_GROUPS = [
   { t:"Bloqueo de scripts", open:true, items:[
     {p:"autoBlock", k:"bloqueo", l:""}
   ]},
+  { t:"Cookies que se borran", items:[
+    {p:"cookiePatterns", k:"patrones", l:""}
+  ]},
+  { t:"Politica de privacidad", open:true, items:[
+    {p:"policyUrl.es", k:"text", l:"URL en espanol", ph:"https://ejemplo.com/politica-de-cookies"},
+    {p:"policyUrl.en", k:"text", l:"URL en ingles",  ph:"https://example.com/cookie-policy"},
+    {p:"policyNewTab", k:"bool", l:"Abrir en otra pestana", def:true}
+  ]},
   { t:"Enlace de reapertura", items:[
     {p:"trigger.mode", k:"select", l:"Aspecto", opts:[["link","Texto"],["button","Boton"]]},
     {p:"trigger.text.es", k:"text", l:"Texto en espanol", ph:"Preferencias de cookies"},
@@ -1019,7 +1046,6 @@ var UI_GROUPS = [
     {p:"trigger.style.underline",  k:"bool",  l:"Subrayado (solo texto)", def:true}
   ]},
   { t:"Comportamiento", items:[
-    {p:"policyNewTab", k:"bool", l:"Abrir la politica en otra pestana", def:true},
     {p:"reloadAfter", k:"select", l:"Recargar tras decidir", opts:[
       ["never","Nunca"],
       ["reduce","Al retirar permiso (recomendado)"],
@@ -1028,7 +1054,6 @@ var UI_GROUPS = [
     ]}
   ]},
   { t:"Textos en espanol", items:[
-    {p:"policyUrl.es", k:"text", l:"URL de la politica", ph:"https://ejemplo.com/politica-de-cookies"},
     {p:"texts.es.eyebrow", k:"text", l:"Etiqueta pequena", ph:"por defecto"},
     {p:"texts.es.body", k:"area", l:"Texto del banner", ph:"por defecto"},
     {p:"texts.es.policy", k:"text", l:"Enlace a la politica", ph:"por defecto"},
@@ -1044,7 +1069,6 @@ var UI_GROUPS = [
     {p:"texts.es.chip", k:"text", l:"Texto del pill", ph:"por defecto"}
   ]},
   { t:"Textos en ingles", items:[
-    {p:"policyUrl.en", k:"text", l:"URL de la politica", ph:"https://ejemplo.com/politica-de-cookies"},
     {p:"texts.en.eyebrow", k:"text", l:"Etiqueta pequena", ph:"por defecto"},
     {p:"texts.en.body", k:"area", l:"Texto del banner", ph:"por defecto"},
     {p:"texts.en.policy", k:"text", l:"Enlace a la politica", ph:"por defecto"},
@@ -1081,6 +1105,7 @@ var UI_GROUPS = [
     {p:"panel.background",  k:"color", l:"Fondo del panel"}
   ]},
   { t:"Tipografia", items:[
+    {p:"webfont", k:"bool", l:"Cargar tipografias de Google", def:false},
     {p:"fonts.heading", k:"text", l:"Familia titulos"},
     {p:"fonts.body",    k:"text", l:"Familia texto"},
     {p:"fonts.mono",    k:"text", l:"Familia mono"},
@@ -1202,6 +1227,7 @@ function renderVisual(){
             '<button id="pv-banner" onclick="setPreview(\'banner\')">Banner</button>'+
             '<button id="pv-panel"  onclick="setPreview(\'panel\')">Panel</button>'+
             '<button id="pv-chip"   onclick="setPreview(\'chip\')">Pill</button>'+
+            '<button id="pv-enlace" onclick="setPreview(\'enlace\')">Enlace</button>'+
           '</div>'+
           '<div class="modes prev-modes" style="margin-left:8px">'+
             '<button id="pl-es" onclick="setPrevLang(\'es\')">ES</button>'+
@@ -1244,6 +1270,79 @@ var CATALOGO_BLOQUEO = [
    d:["tracking.leadlander.com","leadlander.com"]},
   {n:"Intercom",           cat:"funcional", ck:["intercom-"], d:["widget.intercom.io"]}
 ];
+
+/* Editor de cookiePatterns. Es la red que recoge lo que el bloqueo no pudo
+   evitar: cookies ya escritas que hay que borrar si su categoria se deniega. */
+function patronesUI(lista){
+  var cats = catsDelSitio();
+  var filas = lista.map(function(r, i){
+    // El formato antiguo era una cadena suelta, sin categoria. Se muestra
+    // igual, marcada, para poder arreglarla aqui mismo.
+    var esTexto = (typeof r === "string");
+    var match = esTexto ? r : (r.match || "");
+    var cat = esTexto ? "" : (r.category || "");
+    var opts = cats.map(function(c){
+      return '<option value="'+esc(c)+'"'+(cat===c?" selected":"")+'>'+esc(c)+'</option>';
+    }).join('');
+    var mala = cats.length && cat && cats.indexOf(cat) === -1;
+    return '<div class="ab-row'+((!cat||mala)?" ab-mala":"")+'">'+
+      '<input type="text" value="'+esc(match)+'" placeholder="_ga" '+
+        'oninput="cpSet('+i+',\'match\',this.value)" />'+
+      '<select onchange="cpSet('+i+',\'category\',this.value)">'+
+        '<option value="">sin categoria</option>'+opts+
+        (mala ? '<option value="'+esc(cat)+'" selected>'+esc(cat)+' (no existe)</option>' : '')+
+      '</select>'+
+      '<button class="btn ghost sm" onclick="cpQuitar('+i+')">&times;</button>'+
+    '</div>';
+  }).join('');
+
+  var sinCat = lista.filter(function(r){
+    return (typeof r === "string") || !r.category;
+  }).length;
+
+  return '<div class="ctl ctl-wide">'+
+    '<p class="sub" style="margin:0 0 10px">Estas cookies se borran cuando el visitante '+
+      'deniega su categoria. Se comparan por el principio del nombre, asi que '+
+      '<code>_ga</code> alcanza tambien a <code>_ga_ABC123</code>.</p>'+
+    '<div class="ab-list">'+ (filas || '<span class="ck-desc">Sin patrones.</span>') +'</div>'+
+    '<div class="row mt"><button class="btn ghost sm" onclick="cpAnadir()">Anadir patron</button>'+
+      (sinCat ? ' <button class="btn ghost sm" onclick="openTab(\'cookies\')">Clasificar cookies detectadas</button>' : '')+
+    '</div>'+
+    (sinCat ? '<p class="hint">'+sinCat+' patron(es) sin categoria: solo se borran si se '+
+      'deniega la analitica. Ponles la suya o clasificalas en Cookies detectadas.</p>' : '')+
+  '</div>';
+}
+
+function cpLista(){
+  var o = objActual(); if(!o) return null;
+  if(!Array.isArray(o.cookiePatterns)) o.cookiePatterns = [];
+  // Al tocar cualquier fila migramos toda la lista al formato nuevo: mezclar
+  // cadenas y objetos complica cada lectura posterior.
+  o.cookiePatterns = o.cookiePatterns.map(function(r){
+    return (typeof r === "string") ? {match:r} : r;
+  });
+  return o;
+}
+
+function cpSet(i, campo, valor){
+  var o = cpLista(); if(!o || !o.cookiePatterns[i]) return;
+  if(campo === "category" && !valor) delete o.cookiePatterns[i].category;
+  else o.cookiePatterns[i][campo] = valor;
+  el("cfg").value = JSON.stringify(o, null, 2);
+  validarCfg();
+}
+
+function cpAnadir(){
+  var o = cpLista(); if(!o) return;
+  o.cookiePatterns.push({match:"", category: catsDelSitio()[0] || ""});
+  abGuardar(o);
+}
+
+function cpQuitar(i){
+  var o = cpLista(); if(!o) return;
+  o.cookiePatterns.splice(i,1);
+  abGuardar(o);
+}
 
 function bloqueoUI(reglas){
   var cats = catsDelSitio();
@@ -1432,6 +1531,8 @@ function control(obj, it){
     // Numeros como numeros: guardarlos como texto rompe las comparaciones del bundle.
     body = '<input type="text" id="'+id+'" value="'+esc(v==null?"":v)+'" placeholder="'+esc(it.ph||"")+'" '+
       'oninput="onCtl(\''+it.p+'\', this.value===\'\' ? \'\' : Number(this.value))" />';
+  } else if(it.k==="patrones"){
+    return patronesUI(Array.isArray(v) ? v : []);
   } else if(it.k==="bloqueo"){
     return bloqueoUI(Array.isArray(v) ? v : []);
   } else if(it.k==="area"){
@@ -1465,7 +1566,7 @@ var prevEstado = "banner";   // banner | panel | chip
 
 function setPreview(modo){
   prevEstado = modo;
-  ["banner","panel","chip"].forEach(function(m){
+  ["banner","panel","chip","enlace"].forEach(function(m){
     var b = el("pv-"+m); if(b) b.className = (m===modo ? "on" : "");
   });
   refrescarPreview();
@@ -1482,6 +1583,20 @@ function marcarLang(){
   ["es","en"].forEach(function(l){
     var b = el("pl-"+l); if(b) b.className = (l===prevLang ? "on" : "");
   });
+}
+
+/* Pie de ejemplo con las dos formas del disparador. Se inyecta en la propia
+   previa para verlas sobre la pagina, no en una caja aparte.               */
+function bloqueEnlace(cfg){
+  if(prevEstado !== "enlace") return "";
+  var T = cfg.trigger || {};
+  var lg = prevLang === "en" ? "en" : "es";
+  var txt = textoTrigger(T, lg), estilo = estiloTrigger(T), hash = T.hash || "cookies";
+  return '<div style="margin-top:28px;border-top:1px solid #e6e2da;padding-top:18px">'+
+    '<button type="button" data-consent-open style="'+estilo+'">'+txt+'</button>'+
+    '<p style="margin:14px 0 0">'+ frase("Consulta nuestra") +
+      ' <a href="#'+hash+'">'+txt+'</a> '+ frase("cuando quieras.") +'</p>'+
+  '</div>';
 }
 
 function refrescarPreview(){
@@ -1503,6 +1618,10 @@ function refrescarPreview(){
   var guion = "";
   if(prevEstado === "panel"){
     guion = "esperar(function(sr){ var b=sr.querySelector(\"[data-a='manage']\"); if(b){b.click();return true;} });";
+  } else if(prevEstado === "enlace"){
+    // Aceptamos primero: el enlace de reapertura solo tiene sentido cuando el
+    // visitante ya decidio. Asi la previa reproduce el momento real.
+    guion = "esperar(function(sr){ var b=sr.querySelector(\"[data-a='accept']\"); if(b){b.click();return true;} });";
   } else if(prevEstado === "chip"){
     // Aceptar cierra el banner y saca el pill, que es como se ve en el sitio.
     guion = "esperar(function(sr){ var b=sr.querySelector(\"[data-a='accept']\"); if(b){b.click();return true;} });";
@@ -1517,7 +1636,7 @@ function refrescarPreview(){
     '<!doctype html><html><head><meta charset="utf-8">'+
     '<style>body{margin:0;font-family:-apple-system,sans-serif;background:#fbfaf7;'+
     'padding:22px;color:#8a8a8a;font-size:13px}</style></head><body>'+
-    '<p>'+frase("Contenido de ejemplo del sitio.")+'</p>'+ aviso +
+    '<p>'+frase("Contenido de ejemplo del sitio.")+'</p>'+ aviso + bloqueEnlace(cfg) +
     '<script>window.__consentConfig='+JSON.stringify(cfg)+';<\/script>'+
     '<script src="'+API+'/consent-banner.js"><\/script>'+
     '<script>'+
@@ -2142,8 +2261,15 @@ function guardarCookies(){
     j("POST","/dash/site/cookies/apply",{site_id:current}).then(function(r2){
       if(r2.ok){
         var n = (r2.d.anadidas||[]).length;
-        msg("ck-msg", "Guardado. "+(n ? n+" patron(es) anadidos a la configuracion (version "+r2.d.version+")."
-                                      : "Sin patrones nuevos que anadir."), false);
+        var comp = (r2.d.completadas||[]).length;
+        var cub = (r2.d.cubiertas||[]).length;
+        var partes = [];
+        if(n)    partes.push(n+" patron(es) nuevos");
+        if(comp) partes.push(comp+" patron(es) antiguos completados con su categoria");
+        if(cub)  partes.push(cub+" ya cubiertas por un patron mas corto");
+        msg("ck-msg", partes.length
+              ? "Guardado: "+partes.join(", ")+" (version "+r2.d.version+")."
+              : "Guardado. Sin cambios en los patrones.", false);
         loadCookies();
       } else msg("ck-msg", r2.d.error||"Guardado, pero no se pudo aplicar.", true);
     });
