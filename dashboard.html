@@ -385,8 +385,6 @@ var DICT = {
   "Idioma de respaldo": "Fallback language",
   "Espanol": "Spanish",
   "Ingles": "English",
-  "espanol": "Spanish",
-  "ingles": "English",
   "Textos en espanol": "Spanish texts",
   "Textos en ingles": "English texts",
   "Banner": "Banner",
@@ -469,19 +467,16 @@ var DICT = {
   "Para lo que no tiene ajuste. Se aplica solo dentro del banner: no puede afectar al resto del sitio. Va despues de todo, asi que gana sin necesidad de":
     "For whatever has no setting. It applies only inside the banner: it cannot affect the rest of the site. It comes last, so it wins without needing",
   "Selectores utiles:": "Useful selectors:",
-  "banner": "banner",
-  "panel": "panel",
-  "fila de categoria": "category row",
-  "interruptor": "switch",
-  "botones": "buttons",
-  "pill.": "pill.",
-  "El": "The",
-  "usa": "uses",
+  "banner, ": "banner, ",
+  " panel, ": " panel, ",
+  " fila de categoria, ": " category row, ",
+  " interruptor, ": " switch, ",
+  " botones, ": " buttons, ",
+  " pill.": " pill.",
   ": se ignora, porque traeria una hoja de otro dominio sin consentimiento.":
     ": it is ignored, because it would pull a stylesheet from another domain without consent.",
   "recurso(s) de otro dominio. Esa peticion sale antes de que el visitante acepte. Mejor incrustarlos como data URI.":
     "resource(s) from another domain. That request goes out before the visitor accepts. Better to inline them as data URIs.",
-  "carga": "loads",
   "Pie del panel": "Panel footer",
   "En una fila": "In one row",
   "Apilado": "Stacked",
@@ -552,6 +547,12 @@ var DICT = {
     "Paste it wherever the client wants: the footer, the legal notice or the policy page. It opens the preferences panel without reloading.",
   "Asi se vera": "This is how it will look",
   "Para el footer o el aviso legal": "For the footer or the legal notice",
+  "Adaptar a tu plantilla": "Adapt it to your template",
+  "Pega aqui un enlace que ya tengas en el footer del sitio, por ejemplo el de la politica, y te lo devuelvo convertido en disparador con sus mismas clases.":
+    "Paste a link you already have in the site footer, the policy one for instance, and you get it back turned into a trigger with the same classes.",
+  "No se pudo leer ese HTML.": "That HTML could not be read.",
+  "No encuentro ningun enlace ahi dentro. Pega el bloque completo, incluido su &lt;a&gt;.":
+    "I cannot find a link in there. Paste the whole block, including its &lt;a&gt;.",
   "Enlace con URL, para la politica o un correo": "URL link, for the policy or an email",
   "Tambien vale la direccion a secas:": "The bare address works too:",
   "Consulta nuestra": "See our",
@@ -594,6 +595,8 @@ var DICT = {
   "px. Los interruptores y sus textos no caben bien.": "px. The switches and their labels do not fit.",
   "Pill desactivado": "Pill disabled",
   "La deteccion esta apagada.": "Detection is off.",
+  "Sin traducir al <b>espanol</b>": "Not translated into <b>Spanish</b>",
+  "Sin traducir al <b>ingles</b>": "Not translated into <b>English</b>",
   "Sin traducir al": "Not translated into",
   "Esa fila del panel saldra en el otro idioma.": "That panel row will show in the other language.",
   "texto del banner": "banner text",
@@ -810,9 +813,12 @@ function frase(t){
   if(LANG === "es" || !t) return t;
   var limpio = t.trim();
   if(DICT[limpio]) return t.replace(limpio, DICT[limpio]);   // conserva espacios
+  // Solo frases largas. Una clave de dos letras aplicada por subcadena entra
+  // dentro de las palabras: "El" convertia documentElement en documentThement.
   var out = t;
   for(var i = 0; i < DICT_KEYS.length; i++){
     var k = DICT_KEYS[i];
+    if(k.length < 12) continue;
     if(out.indexOf(k) !== -1) out = out.split(k).join(DICT[k]);
   }
   return out;
@@ -836,8 +842,17 @@ function frase(t){
 
 function tr(h){
   if(LANG === "es" || typeof h !== "string") return h;
+
+  // El codigo para copiar y pegar NUNCA se traduce. Un reemplazo dentro de
+  // "document.documentElement" o de un nombre de clase deja al cliente con un
+  // snippet roto, y eso no se ve hasta que falla en su sitio.
+  var guardados = [];
+  h = h.replace(/<(div class="snippet"|code|textarea)([\s\S]*?)<\/(div|code|textarea)>/g,
+    function(m){ guardados.push(m); return "\u0000" + (guardados.length - 1) + "\u0000"; });
+
   h = h.replace(/>([^<>]+)</g, function(m, txt){ return ">" + frase(txt) + "<"; });
   h = h.replace(/placeholder="([^"]*)"/g, function(m, t){ return 'placeholder="' + frase(t) + '"'; });
+  h = h.replace(/\u0000(\d+)\u0000/g, function(m, i){ return guardados[Number(i)]; });
   return h;
 }
 
@@ -2069,7 +2084,16 @@ function pintarTrigger(cfg){
     '<div class="row mt"><button class="btn ghost sm" onclick="copiarDe(\'trig-code\',\'trig-msg\')">Copiar codigo</button>'+
       '<span id="trig-msg" class="msg"></span></div>'+
 
-    '<p class="sub" style="margin:18px 0 6px"><b>2.</b> Enlace con URL, para la politica o un correo</p>'+
+    '<p class="sub" style="margin:18px 0 6px"><b>2.</b> Adaptar a tu plantilla</p>'+
+    '<p class="ck-desc" style="display:block;margin:0 0 8px">Pega aqui un enlace que ya tengas '+
+      'en el footer del sitio, por ejemplo el de la politica, y te lo devuelvo convertido '+
+      'en disparador con sus mismas clases.</p>'+
+    '<textarea id="trig-src" class="css-box" rows="4" spellcheck="false" '+
+      'placeholder="&lt;li class=&quot;...&quot;&gt;&lt;a href=&quot;/privacy&quot;&gt;Privacy Policy&lt;/a&gt;&lt;/li&gt;" '+
+      'oninput="convertirTrigger()"></textarea>'+
+    '<div id="trig-conv"></div>'+
+
+    '<p class="sub" style="margin:18px 0 6px"><b>3.</b> Enlace con URL, para la politica o un correo</p>'+
     '<div class="snippet" id="trig-url">' + esc(enlace) + '</div>'+
     '<div class="row mt"><button class="btn ghost sm" onclick="copiarDe(\'trig-url\',\'trig-msg2\')">Copiar codigo</button>'+
       '<span id="trig-msg2" class="msg"></span></div>'+
@@ -2081,6 +2105,67 @@ function pintarTrigger(cfg){
         'este enlace es la unica forma de reabrir el panel. Comprueba que quede visible en todas las paginas.</p>'
       : '<p class="hint" style="margin-top:14px">El pill flotante sigue activo. Si el cliente '+
         'prefiere solo este enlace, desactivalo en Apariencia, grupo <b>Pill de reapertura</b>.</p>');
+}
+
+/* Convierte un enlace del propio sitio en disparador, conservando etiquetas,
+   clases e hijos. Casi ningun cliente quiere nuestro boton con estilos en
+   linea: quieren el suyo, que ya encaja con su footer.
+
+   Se usa DOMParser, que construye el arbol sin ejecutar nada, y el resultado
+   se muestra escapado como texto. Nunca se inyecta en esta pagina.          */
+function convertirTrigger(){
+  var caja = el("trig-conv"), src = el("trig-src");
+  if(!caja || !src) return;
+  var bruto = src.value.trim();
+  if(!bruto){ caja.innerHTML = ""; return; }
+
+  var obj; try { obj = JSON.parse(el("cfg") ? el("cfg").value : "{}"); } catch(e){ obj = {}; }
+  var T = (obj && obj.trigger) || {};
+  var txt = textoTrigger(T, LANG === "en" ? "en" : "es");
+
+  var doc;
+  try { doc = new DOMParser().parseFromString("<div id='r'>"+bruto+"</div>", "text/html"); }
+  catch(e){ caja.innerHTML = '<p class="hint">No se pudo leer ese HTML.</p>'; return; }
+  var raiz = doc.getElementById("r");
+  var a = raiz.querySelector("a") || raiz.querySelector("button");
+  if(!a){
+    caja.innerHTML = '<p class="hint">No encuentro ningun enlace ahi dentro. '+
+      'Pega el bloque completo, incluido su &lt;a&gt;.</p>';
+    return;
+  }
+
+  // Un <button> en vez de <a>: muchos temas interceptan los clics en enlaces
+  // para su propia navegacion y se quedarian con el evento.
+  var b = doc.createElement("button");
+  b.setAttribute("type", "button");
+  b.setAttribute("data-consent-open", "");
+  if(a.getAttribute("class")) b.setAttribute("class", a.getAttribute("class"));
+  // El navegador da a los botones su propio fondo, borde y tipo: los anulamos
+  // para que herede lo mismo que heredaba el enlace.
+  var previo = a.getAttribute("style");
+  b.setAttribute("style", "background:none;border:0;padding:0;cursor:pointer;font:inherit;"+
+    "color:inherit;text-align:left" + (previo ? ";"+previo : ""));
+
+  // Nos quedamos con los hijos del enlace (los span de adorno del tema) y solo
+  // cambiamos el texto visible por el nuestro.
+  while(a.firstChild) b.appendChild(a.firstChild);
+  var conTexto = null;
+  (function buscar(n){
+    for(var i=0;i<n.childNodes.length;i++){
+      var c = n.childNodes[i];
+      if(c.nodeType === 3 && c.nodeValue.trim()){ conTexto = c; return; }
+      if(c.nodeType === 1) buscar(c);
+      if(conTexto) return;
+    }
+  })(b);
+  if(conTexto) conTexto.nodeValue = txt; else b.appendChild(doc.createTextNode(txt));
+
+  a.parentNode.replaceChild(b, a);
+
+  caja.innerHTML =
+    '<div class="snippet" id="trig-conv-code">'+ esc(raiz.innerHTML.trim()) +'</div>'+
+    '<div class="row mt"><button class="btn ghost sm" onclick="copiarDe(\'trig-conv-code\',\'trig-msg3\')">Copiar codigo</button>'+
+      '<span id="trig-msg3" class="msg"></span></div>';
 }
 
 function dominioDelSitio(){
