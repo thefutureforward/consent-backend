@@ -34,6 +34,11 @@ let _userConfig = null;
         fontFamily: "", underline: true
       }
     },
+    // Interruptores del panel. Vacio = los de siempre.
+    switchStyle: {
+      width: "", height: "", radius: "", knobRadius: "", inset: "",
+      on: "", off: "", border: "", onBorder: "", knob: "", knobOn: ""
+    },
     policyUrl: "",
     policyNewTab: true,
     defaultLanguage: "es",
@@ -113,6 +118,7 @@ let _userConfig = null;
 
     // Medidas del panel de preferencias.
     panel: {
+      footLayout: "row",     // row | stacked
       maxWidth: "560px",
       maxHeight: "92vh",
       radius: "12px",
@@ -701,9 +707,41 @@ let _userConfig = null;
     out += "color:" + (b.color || fallbackFg) + ";";
     if (b.border !== undefined && b.border !== "") out += "border:" + b.border + ";";
     if (b.weight)  out += "font-weight:" + b.weight + ";";
+    if (b.size)    out += "font-size:" + b.size + ";";
+    if (b.radius)  out += "border-radius:" + b.radius + ";";
+    // Subrayado permanente: hay disenos donde "Personalizar" o "Aceptar" son
+    // enlaces de texto, no botones, y el subrayado solo al pasar el raton no
+    // los hace reconocibles como pulsables.
+    if (b.underline) out += "text-decoration:underline;text-underline-offset:3px;";
     out += "padding:" + (b.padding || B.padding || "11px 18px") + ";";
     return out;
   }
+  // Interruptor del panel. Todo opcional: sin config, el de siempre.
+  function swCss(C, K, pnBg) {
+    var S = C.switchStyle || {};
+    var w = S.width || "46px", h = S.height || "26px";
+    var r = (S.radius !== undefined && S.radius !== "") ? S.radius : "100px";
+    var kr = (S.knobRadius !== undefined && S.knobRadius !== "") ? S.knobRadius : "50%";
+    var hueco = S.inset || "3px";
+    // El recorrido del mando se calcula para que quede simetrico sea cual sea
+    // el tamano: sin esto, cambiar el ancho descoloca el mando al encenderlo.
+    var kw = "calc(" + h + " - " + hueco + " * 2 - 2px)";
+    var izq = "calc(" + w + " - " + kw + " - " + hueco + " - 2px)";
+    return ".cb-sw{position:relative;width:" + w + ";height:" + h + ";border-radius:" + r +
+      ";background:" + (S.off || K.switchOff) + ";border:" + (S.border || ("1px solid " + K.borderStrong)) +
+      ";cursor:pointer;flex:none;padding:0;transition:background .16s cubic-bezier(.2,.6,.2,1),border-color .16s}" +
+      ".cb-sw[aria-checked='true']{background:" + (S.on || K.accent) +
+        ";border-color:" + (S.onBorder || S.on || K.accent) + "}" +
+      ".cb-sw[disabled]{background:" + (S.locked || K.accentSoft) +
+        ";border-color:" + (S.lockedBorder || K.accentPale) + ";opacity:.9;cursor:default}" +
+      ".cb-sw:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}" +
+      ".cb-knob{position:absolute;top:" + hueco + ";left:" + hueco + ";width:" + kw + ";height:" + kw +
+        ";border-radius:" + kr + ";background:" + (S.knob || pnBg) +
+        ";box-shadow:0 1px 3px rgba(22,35,59,.25);transition:left .18s cubic-bezier(.2,.6,.2,1)}" +
+      ".cb-sw[aria-checked='true'] .cb-knob{left:" + izq + ";background:" + (S.knobOn || K.textBright) + "}" +
+      ".cb-sw[disabled] .cb-knob{left:" + izq + ";background:" + (S.knobOn || K.accent) + ";box-shadow:none}";
+  }
+
   function chipAnchor(C) {
     var P = C.chip || {}, pos = P.position || "bottom-left";
     var x = P.offsetX || "16px", y = P.offsetY || "16px", out = "";
@@ -756,18 +794,19 @@ let _userConfig = null;
     ".cb-row .t strong{" + typo(C, "catName") + "color:" + K.heading + "}" +
     ".cb-row .t span{" + typo(C, "catDesc") + "color:" + K.body + "}" +
     ".cb-row .t .cb-pill{display:inline-block;margin-left:10px;font-family:" + F.mono + ";font-size:9px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:" + K.pillFg + ";background:" + K.pillBg + ";padding:4px 9px;border-radius:100px;vertical-align:middle}" +
-    ".cb-sw{position:relative;width:46px;height:26px;border-radius:100px;background:" + K.switchOff + ";border:1px solid " + K.borderStrong + ";cursor:pointer;flex:none;padding:0;transition:background .16s cubic-bezier(.2,.6,.2,1),border-color .16s}" +
-    ".cb-sw[aria-checked='true']{background:" + K.accent + ";border-color:" + K.accent + "}" +
-    ".cb-sw[disabled]{background:" + K.accentSoft + ";border-color:" + K.accentPale + ";opacity:.9;cursor:default}" +
-    ".cb-sw:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}" +
-    ".cb-knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:" + pnBg + ";box-shadow:0 1px 3px rgba(22,35,59,.25);transition:left .18s cubic-bezier(.2,.6,.2,1)}" +
-    ".cb-sw[aria-checked='true'] .cb-knob{left:23px;background:" + K.textBright + "}" +
-    ".cb-sw[disabled] .cb-knob{left:23px;background:" + K.accent + ";box-shadow:none}" +
+    swCss(C, K, pnBg) +
     ".cb-foot{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:" + K.cream + ";padding:" + (PN.footPadding || "20px 28px 24px") + ";border-radius:0 0 " + (PN.radius || "12px") + " " + (PN.radius || "12px") + "}" +
     ".cb-btn2{border-radius:" + (BT.radius || "8px") + ";" + typo(C, "button") + "cursor:pointer;transition:background .14s,border-color .14s}" +
     ".cb-btn2:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}" +
     ".cb-outline{background:transparent;border:1px solid " + K.borderStrong + ";color:" + K.heading + "}" +
     ".cb-foot-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}" +
+    // Pie apilado: "rechazar" a todo el ancho arriba y los otros dos debajo.
+    // Va despues de la regla base a proposito: si fuera antes, no ganaria.
+    (PN.footLayout === "stacked"
+      ? ".cb-foot{flex-direction:column;align-items:stretch}" +
+        ".cb-foot .cb-outline{width:100%;order:-1}" +
+        ".cb-foot-right{width:100%;justify-content:space-between}"
+      : "") +
     ".cb-outline:hover{border-color:" + K.heading + "}" +
     ".cb-text{background:transparent;border:0;color:" + K.heading + ";padding:11px 14px}" +
     ".cb-text:hover{text-decoration:underline;text-underline-offset:3px}" +
