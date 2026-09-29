@@ -212,6 +212,10 @@
   .ab-row select{flex:0 0 150px;padding:7px 9px;font-size:12.5px;
     border:1px solid var(--line);border-radius:7px}
   .ab-row.ab-mala select{border-color:var(--warn);background:#fffdf7}
+  .pat-ok{font-size:10.5px;color:#1e6b36;background:#eef7f1;border-radius:20px;
+          padding:3px 9px;white-space:nowrap}
+  .pat-no{font-size:10.5px;color:var(--muted);background:#f2f1ee;border-radius:20px;
+          padding:3px 9px;white-space:nowrap}
   .ab-sug{display:flex;flex-wrap:wrap;gap:7px}
   .ab-otros{margin-top:10px}
   .ab-otros summary{font-size:12px;color:var(--muted);cursor:pointer}
@@ -567,6 +571,14 @@ var DICT = {
   "alcanza tambien a": "also reaches",
   "Sin patrones.": "No patterns.",
   "Anadir patron": "Add pattern",
+  "detectada": "detected",
+  "no detectada aqui": "not detected here",
+  "clasificada(s)": "classified one(s)",
+  "no detectada(s)": "not detected",
+  "Traer": "Bring in",
+  "Quitar": "Remove",
+  "patron(es) no se han visto nunca en este sitio. Suelen venir de la plantilla de otro cliente. Sirven de red por si aparecen, pero puedes quitarlos.":
+    "pattern(s) have never been seen on this site. They usually come from another client's template. They work as a safety net, but you can remove them.",
   "Clasificar cookies detectadas": "Classify detected cookies",
   "patron(es) sin categoria: solo se borran si se deniega la analitica. Ponles la suya o clasificalas en Cookies detectadas.":
     "pattern(s) with no category: they are only deleted if analytics is denied. Give them one or classify them in Detected cookies.",
@@ -1275,9 +1287,18 @@ var CATALOGO_BLOQUEO = [
    evitar: cookies ya escritas que hay que borrar si su categoria se deniega. */
 function patronesUI(lista){
   var cats = catsDelSitio();
+  var det = window._ckDetectadas;          // undefined mientras cargan
+  var nombres = (det || []).map(function(x){ return x.name; });
+
+  // Un patron esta "en uso" si alguna cookie detectada aqui empieza por el.
+  // Los que no, suelen venir heredados de la plantilla de otro cliente.
+  function usado(match){
+    if(!match) return false;
+    return nombres.some(function(n){ return n.indexOf(match) === 0; });
+  }
+
+  var huerfanos = 0;
   var filas = lista.map(function(r, i){
-    // El formato antiguo era una cadena suelta, sin categoria. Se muestra
-    // igual, marcada, para poder arreglarla aqui mismo.
     var esTexto = (typeof r === "string");
     var match = esTexto ? r : (r.match || "");
     var cat = esTexto ? "" : (r.category || "");
@@ -1285,9 +1306,15 @@ function patronesUI(lista){
       return '<option value="'+esc(c)+'"'+(cat===c?" selected":"")+'>'+esc(c)+'</option>';
     }).join('');
     var mala = cats.length && cat && cats.indexOf(cat) === -1;
+    var vivo = usado(match);
+    if(det && !vivo) huerfanos++;
+    var marca = !det ? ""
+      : (vivo ? '<span class="pat-ok">detectada</span>'
+              : '<span class="pat-no">no detectada aqui</span>');
     return '<div class="ab-row'+((!cat||mala)?" ab-mala":"")+'">'+
       '<input type="text" value="'+esc(match)+'" placeholder="_ga" '+
         'oninput="cpSet('+i+',\'match\',this.value)" />'+
+      marca+
       '<select onchange="cpSet('+i+',\'category\',this.value)">'+
         '<option value="">sin categoria</option>'+opts+
         (mala ? '<option value="'+esc(cat)+'" selected>'+esc(cat)+' (no existe)</option>' : '')+
@@ -1300,17 +1327,58 @@ function patronesUI(lista){
     return (typeof r === "string") || !r.category;
   }).length;
 
+  // Clasificadas como NO esenciales que todavia no tienen patron que las cubra.
+  var faltan = (det || []).filter(function(x){
+    if(!x.category || x.category === "esencial") return false;
+    return !lista.some(function(r){
+      var m = (typeof r === "string") ? r : r.match;
+      return m && x.name.indexOf(m) === 0;
+    });
+  });
+
   return '<div class="ctl ctl-wide">'+
     '<p class="sub" style="margin:0 0 10px">Estas cookies se borran cuando el visitante '+
       'deniega su categoria. Se comparan por el principio del nombre, asi que '+
       '<code>_ga</code> alcanza tambien a <code>_ga_ABC123</code>.</p>'+
     '<div class="ab-list">'+ (filas || '<span class="ck-desc">Sin patrones.</span>') +'</div>'+
-    '<div class="row mt"><button class="btn ghost sm" onclick="cpAnadir()">Anadir patron</button>'+
-      (sinCat ? ' <button class="btn ghost sm" onclick="openTab(\'cookies\')">Clasificar cookies detectadas</button>' : '')+
+    '<div class="row mt">'+
+      '<button class="btn ghost sm" onclick="cpAnadir()">Anadir patron</button>'+
+      (faltan.length ? ' <button class="btn ghost sm" onclick="cpTraer()">Traer '+faltan.length+
+        ' clasificada(s)</button>' : '')+
+      (huerfanos ? ' <button class="btn ghost sm" onclick="cpLimpiar()">Quitar '+huerfanos+
+        ' no detectada(s)</button>' : '')+
     '</div>'+
     (sinCat ? '<p class="hint">'+sinCat+' patron(es) sin categoria: solo se borran si se '+
       'deniega la analitica. Ponles la suya o clasificalas en Cookies detectadas.</p>' : '')+
+    (huerfanos ? '<p class="hint">'+huerfanos+' patron(es) no se han visto nunca en este sitio. '+
+      'Suelen venir de la plantilla de otro cliente. Sirven de red por si aparecen, '+
+      'pero puedes quitarlos.</p>' : '')+
   '</div>';
+}
+
+/* Trae a la lista las cookies ya clasificadas como no esenciales que aun no
+   tienen patron. Es lo mismo que hace el volcado al guardar la clasificacion,
+   pero aqui y sin salir de la pantalla. */
+function cpTraer(){
+  var o = cpLista(); if(!o) return;
+  (window._ckDetectadas || []).forEach(function(x){
+    if(!x.category || x.category === "esencial") return;
+    var cubierta = o.cookiePatterns.some(function(r){
+      return r.match && x.name.indexOf(r.match) === 0;
+    });
+    if(!cubierta) o.cookiePatterns.push({match:x.name, category:x.category});
+  });
+  abGuardar(o);
+}
+
+/* Quita los patrones que nunca se han visto aqui. */
+function cpLimpiar(){
+  var o = cpLista(); if(!o) return;
+  var nombres = (window._ckDetectadas || []).map(function(x){ return x.name; });
+  o.cookiePatterns = o.cookiePatterns.filter(function(r){
+    return r.match && nombres.some(function(n){ return n.indexOf(r.match) === 0; });
+  });
+  abGuardar(o);
 }
 
 function cpLista(){
