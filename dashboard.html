@@ -456,6 +456,26 @@ var DICT = {
   "Enlace a la politica": "Policy link",
   "URL de la politica": "Policy URL",
   "Enlace de reapertura": "Reopen link",
+  "definidas.": "defined.",
+  "No hay": "There are no",
+  ": el banner pide tipografias a Google, generando una conexion a un tercero.":
+    ": the banner asks Google for fonts, creating a third party connection.",
+  "px. Por debajo de 12px es dificil de leer en movil.":
+    "px. Below 12px it is hard to read on a phone.",
+  "px: demasiado pequeno para un texto legal.": "px: too small for legal text.",
+  "El pill esta en modo imagen pero": "The pill is in image mode but",
+  "chip.image esta vacio": "chip.image is empty",
+  ": se mostrara solo el texto.": ": only the text will show.",
+  "Pill con solo imagen y": "Image-only pill and",
+  "sin texto alternativo": "no alt text",
+  ": un lector de pantalla no sabra que es.": ": a screen reader will not know what it is.",
+  "La deteccion esta apagada.": "Detection is off.",
+  "Lo de abajo es lo que se detecto antes de apagarla.":
+    "What is below is what was detected before turning it off.",
+  "en la configuracion para que el sitio empiece a reportar que cookies aparecen.":
+    "in the settings so the site starts reporting which cookies appear.",
+  "Incluye el pre-bloqueador con": "Includes the pre-blocker with",
+  "Eyebrow y enlaces": "Eyebrow and links",
   "Aspecto": "Look",
   "Texto": "Text",
   "Boton": "Button",
@@ -517,8 +537,8 @@ var DICT = {
   "WCAG pide 4.5:1 para texto normal.": "WCAG asks for 4.5:1 for body text.",
   "Ancho del banner": "Banner width",
   "Ancho del panel": "Panel width",
-  "por debajo de 280px el contenido se desborda.": "below 280px the content overflows.",
-  "los interruptores y sus textos no caben bien.": "the switches and their labels do not fit.",
+  "px. Por debajo de 280px el contenido se desborda.": "px. Below 280px the content overflows.",
+  "px. Los interruptores y sus textos no caben bien.": "px. The switches and their labels do not fit.",
   "Pill desactivado": "Pill disabled",
   "La deteccion esta apagada.": "Detection is off.",
   "Sin traducir al": "Not translated into",
@@ -1651,10 +1671,10 @@ function avisosApariencia(o, res){
     else if(r < 4.5) res.push({s:"warn", t:"Contraste justo en el <b>"+par[2]+"</b> ("+r.toFixed(1)+":1). WCAG pide 4.5:1 para texto normal."});
   });
   var bw = px(B.maxWidth), pw = px(P.maxWidth);
-  if(bw !== null && bw < 280) res.push({s:"warn", t:"<b>Ancho del banner</b> de "+bw+"px: por debajo de 280px el contenido se desborda."});
-  if(pw !== null && pw < 300) res.push({s:"warn", t:"<b>Ancho del panel</b> de "+pw+"px: los interruptores y sus textos no caben bien."});
+  if(bw !== null && bw < 280) res.push({s:"warn", t:"<b>Ancho del banner</b>: "+bw+"px. Por debajo de 280px el contenido se desborda."});
+  if(pw !== null && pw < 300) res.push({s:"warn", t:"<b>Ancho del panel</b>: "+pw+"px. Los interruptores y sus textos no caben bien."});
   var ts = px(T.bannerText && T.bannerText.size), cs = px(T.catDesc && T.catDesc.size);
-  if(ts !== null && ts < 12) res.push({s:"warn", t:"<b>Texto del banner</b> a "+ts+"px: por debajo de 12px es dificil de leer en movil."});
+  if(ts !== null && ts < 12) res.push({s:"warn", t:"<b>Texto del banner</b>: "+ts+"px. Por debajo de 12px es dificil de leer en movil."});
   if(cs !== null && cs < 11) res.push({s:"warn", t:"<b>Descripcion de categorias</b> a "+cs+"px: demasiado pequeno para un texto legal."});
   if(H.enabled === false) res.push({s:"warn", t:"<b>Pill desactivado</b>: sin el, el visitante no puede reabrir el panel para cambiar de opinion."});
   if((H.mode === "image" || H.mode === "both") && !H.image)
