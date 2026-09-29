@@ -153,6 +153,23 @@ COOKIE_CATALOGO = [
     ("NID",         "marketing", "Google: preferencias y anuncios personalizados."),
     ("1P_JAR",      "marketing", "Google: estadisticas de uso de sus servicios."),
     ("SEARCH_SAMESITE", "esencial", "Google: control tecnico de envio de cookies."),
+    # --- Registros de consentimiento (propios o de otro CMP) ---
+    # Un registro de consentimiento esta exento: no se puede pedir permiso para
+    # guardar el permiso. Pero si viene de OTRO banner instalado a la vez, hay
+    # dos sistemas decidiendo y conviene retirar el viejo.
+    ("accepted_tracking",   "esencial", "Registro de consentimiento del propio sitio."),
+    ("accepted_cookies",    "esencial", "Registro de consentimiento del propio sitio."),
+    ("cookie_consent",      "esencial", "Registro de consentimiento del propio sitio."),
+    ("cookieconsent_status","esencial", "Cookie Consent (Osano): otro banner instalado."),
+    ("CookieConsent",       "esencial", "Cookiebot: otro banner instalado."),
+    ("cookielawinfo",       "esencial", "CookieYes / GDPR Cookie Consent: otro banner instalado."),
+    ("OptanonConsent",      "esencial", "OneTrust: otro banner instalado."),
+    ("OptanonAlertBoxClosed","esencial","OneTrust: otro banner instalado."),
+    ("euconsent-v2",        "esencial", "TCF de IAB: registro de consentimiento publicitario."),
+    ("_iub_cs",             "esencial", "Iubenda: otro banner instalado."),
+    ("borlabs-cookie",      "esencial", "Borlabs (WordPress): otro banner instalado."),
+    ("moove_gdpr_popup",    "esencial", "GDPR Cookie Compliance (WordPress): otro banner instalado."),
+    ("complianz",           "esencial", "Complianz (WordPress): otro banner instalado."),
     # --- LeadLander / Trackalyzer ---
     ("trackalyzer",  "analitica", "LeadLander: identifica visitantes y sigue su recorrido."),
     ("llvisit",      "analitica", "LeadLander: control de la visita actual."),
