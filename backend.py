@@ -45,7 +45,7 @@ SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "1" if os.environ.get("RAILWAY
 DEFAULT_CONFIG = {
     "namespace": "fwc_consent",
     "consentVersion": "2025-01",
-    "defaultLanguage": "es",
+    "defaultLanguage": "en",
     "activeDeletion": True,
     "manageScripts": False,
     # Paleta "Expediente" (misma que styles/tokens.css del frontend).
