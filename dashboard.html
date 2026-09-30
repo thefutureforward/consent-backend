@@ -500,6 +500,11 @@ var DICT = {
   "Ninguna categoria esta bloqueada. Conviene que las esenciales lo esten.": "No category is locked. Essential cookies should be.",
   "La bloqueada no se puede quitar": "The locked one cannot be removed",
   "regla(s)": "rule(s)",
+  "patron(es) sin categoria": "pattern(s) with no category",
+  ": formato antiguo, se borran solo si la analitica queda denegada.": ": old format, they are only deleted if analytics is denied.",
+  "El CSS a medida usa @import": "Custom CSS uses @import",
+  "El CSS a medida carga recursos de otro dominio": "Custom CSS loads resources from another domain",
+  ". Esa peticion sale antes de que el visitante acepte. Mejor incrustarlos como data URI.": ". That request goes out before the visitor accepts. Better to embed them as data URIs.",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -2085,12 +2090,15 @@ function avisosCss(o, res){
   var t = o.customCss;
   if(!t || typeof t !== "string") return;
   if(/@import/i.test(t))
-    res.push({s:"warn", t:"El <b>CSS a medida</b> usa <code>@import</code>: se ignora, porque "+
+    // El verbo va dentro del <b> a proposito: tr() aparta lo que hay en <code>,
+    // y eso partia la frase dejando "usa" suelto, demasiado corto para que el
+    // traductor lo sustituya sin riesgo de meterse dentro de otras palabras.
+    res.push({s:"warn", t:"<b>El CSS a medida usa @import</b>: se ignora, porque "+
       "traeria una hoja de otro dominio sin consentimiento."});
   var fuera = (t.match(/url\(\s*['"]?https?:\/\/[^)]*\)/gi) || []).length;
   if(fuera)
-    res.push({s:"warn", t:"El <b>CSS a medida</b> carga "+fuera+" recurso(s) de otro dominio. "+
-      "Esa peticion sale antes de que el visitante acepte. Mejor incrustarlos como data URI."});
+    res.push({s:"warn", t:"<b>El CSS a medida carga recursos de otro dominio</b>: "+fuera+
+      ". Esa peticion sale antes de que el visitante acepte. Mejor incrustarlos como data URI."});
 }
 
 function avisosPolitica(o, res){
