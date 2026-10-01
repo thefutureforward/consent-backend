@@ -751,6 +751,9 @@ var DICT = {
   "Usar esta": "Use this",
   "Probar en mi sitio": "Test on my site",
   "El que ven los visitantes": "The one visitors see",
+  "Que abre": "What it opens",
+  "El panel de ajustes": "The settings panel",
+  "El aviso completo": "The full banner",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -1396,6 +1399,8 @@ var UI_GROUPS = [
     {p:"policyNewTab", k:"bool", l:"Abrir en otra pestana", def:true}
   ]},
   { t:"Enlace de reapertura", items:[
+    {p:"trigger.opens", k:"select", l:"Que abre",
+     opts:[["panel","El panel de ajustes"],["banner","El aviso completo"]]},
     {p:"trigger.mode", k:"select", l:"Aspecto", opts:[["link","Texto"],["button","Boton"]]},
     {p:"trigger.text.es", k:"text", l:"Texto en espanol", ph:"Preferencias de cookies"},
     {p:"trigger.text.en", k:"text", l:"Texto en ingles",  ph:"Cookie preferences"},

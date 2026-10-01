@@ -23,6 +23,9 @@ let _userConfig = null;
     // Disparador para reabrir el panel desde el propio sitio (footer, politica).
     // El cliente pega un enlace o un boton con data-consent-open y listo.
     trigger: {
+      // Que abre el enlace o boton del sitio: "panel" (los ajustes) o
+      // "banner" (el aviso completo, con aceptar y rechazar).
+      opens: "panel",
       hash: "cookies",          // #cookies abre el panel; "" lo desactiva
       selector: "",             // selector extra del tema, si ya tiene su enlace
       safety: true,             // si el pill esta oculto y no hay disparador, mostrarlo
@@ -1310,6 +1313,20 @@ let _userConfig = null;
   function showBanner(C) { ensureRoot(C); if (!bannerEl) { bannerEl = buildBanner(C); root.appendChild(bannerEl); } bannerEl.style.display = ""; }
   function hideBanner() { if (bannerEl) bannerEl.style.display = "none"; }
   function openPanel(C) { ensureRoot(C); panelEl = buildPanel(C); root.appendChild(panelEl); }
+
+  /* Lo que abre el disparador del sitio. Por defecto el panel, que es lo que
+     hacia antes; con trigger.opens = "banner" reabre el aviso entero, util si
+     se quiere dar la opcion de aceptar o rechazar de golpe sin pasar por los
+     ajustes. */
+  function abrirDesdeTrigger(C) {
+    if (((C.trigger || {}).opens) === "banner") {
+      hidePanel();
+      if (chipEl) chipEl.removeAttribute("data-on");   // el pill se apaga asi
+      showBanner(C);
+    } else {
+      openPanel(C);
+    }
+  }
   function hidePanel() { if (panelEl && panelEl.parentNode) panelEl.parentNode.removeChild(panelEl); panelEl = null; }
   function showChip(C) {
     if (C.chip && C.chip.enabled === false) return;   // el sitio no quiere pill
@@ -1370,7 +1387,7 @@ let _userConfig = null;
             // todo, que el router del tema intente navegar a esa ancla.
             ev.preventDefault();
             ev.stopPropagation();
-            openPanel(merged());
+            abrirDesdeTrigger(merged());
             return;
           }
         }
@@ -1381,7 +1398,7 @@ let _userConfig = null;
     if (T.hash) {
       var mira = function () {
         if (location.hash.replace(/^#/, "").toLowerCase() === String(T.hash).toLowerCase()) {
-          openPanel(merged());
+          abrirDesdeTrigger(merged());
           // Limpiamos el hash para que recargar no reabra el panel una y otra vez.
           try { history.replaceState(null, "", location.pathname + location.search); }
           catch (e) {}
