@@ -4,23 +4,152 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Consent Banner. Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap">
 <style>
   :root{
     --ink:#14243D; --accent:#2E7D74; --accent-dark:#26665f;
     --cream:#f3eee1; --line:#e6e4dc; --line-soft:#f0eee8; --muted:#6b7280;
     --paper:#F7F6F2; --white:#fff; --danger:#c0392b; --ok:#2e7d32; --warn:#b45309;
     --radius:12px; --shadow:0 1px 2px rgba(20,36,61,.04), 0 4px 16px rgba(20,36,61,.05);
+    /* tokens tomados del prototipo de Apariencia v2 */
+    --accent-bg:#EEF5F3;   /* fondo del paso o grupo activo */
+    --accent-pale:#8FD3C2; /* subrayado de la pestana activa en la barra */
+    --canvas:#EDEBE4;      /* lienzo de la vista previa */
+    --foot:#FCFBF8;        /* pie de tarjeta */
+    --ok-bg:#E6F4EA; --ok-fg:#1E6B36; --bad-bg:#FDECEB; --bad-fg:#A5342A;
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  body{margin:0;font-family:"Public Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
        background:var(--paper);color:#1c2531;font-size:14px;line-height:1.5}
   button,input,textarea,select{font-family:inherit;font-size:inherit}
   code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;
        background:var(--line-soft);padding:1px 5px;border-radius:4px}
 
+
+  /* ---------- Apariencia: asistente (portado del prototipo v2) ---------- */
+  .wz{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
+      display:flex;flex-direction:column;min-width:0}
+  .wz-head{padding:22px 24px 18px;border-bottom:1px solid var(--line-soft);
+           display:flex;flex-direction:column;gap:12px}
+  .wz-h1{margin:0;font-size:20px;font-weight:700;letter-spacing:-.01em}
+  .wz-num{font-size:12px;color:var(--muted)}
+  .row.between{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .wz-bar{height:4px;background:var(--line-soft);border-radius:2px;overflow:hidden}
+  .wz-bar > i{display:block;height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
+  .wz-steps{display:flex;gap:6px}
+  .wz-step{flex:1;display:flex;align-items:center;gap:8px;padding:8px 10px;border:0;
+           border-radius:8px;cursor:pointer;text-align:left;font-size:12.5px;font-weight:600;
+           background:transparent;color:var(--muted)}
+  .wz-step.on{background:var(--accent-bg);color:var(--ink)}
+  .wz-step i{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;
+             justify-content:center;font-size:10.5px;flex:0 0 auto;background:var(--line);
+             color:var(--muted);font-style:normal}
+  .wz-step.on i,.wz-step.done i{background:var(--accent);color:#fff}
+  .wz-body{padding:22px 24px;display:flex;flex-direction:column;gap:22px}
+  .wz-foot{padding:16px 24px;border-top:1px solid var(--line-soft);display:flex;
+           justify-content:space-between;align-items:center;gap:12px;background:var(--foot);
+           border-radius:0 0 var(--radius) var(--radius)}
+  .wz-intro h2{margin:0 0 6px;font-size:16px;font-weight:700}
+  .wz-intro p{margin:0;font-size:13.5px;line-height:1.55;color:var(--muted)}
+  .wz-sunken{display:flex;flex-direction:column;gap:10px;padding:14px;
+             background:var(--paper);border-radius:10px}
+  .wz-field{display:flex;flex-direction:column;gap:8px}
+  .wz-lab{font-size:13px;font-weight:600}
+  .wz-sub{font-weight:400;color:var(--muted)}
+  .wz-help{font-size:12px;color:var(--muted);line-height:1.5}
+  .wz-in{padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;
+         background:var(--white);color:var(--ink);outline:none}
+  .wz-in:focus{border-color:var(--accent)}
+  .wz-in.mono{font-family:ui-monospace,Menlo,monospace;text-transform:uppercase}
+  .wz .row{display:flex;gap:8px;align-items:center}
+  .wz-color{width:40px;height:40px;border-radius:8px;border:1px solid var(--line);
+            overflow:hidden;cursor:pointer;flex:0 0 auto;position:relative}
+  .wz-color input{position:absolute;inset:-8px;width:60px;height:60px;opacity:0;cursor:pointer}
+  .wz-cr{font-size:12px;padding:5px 9px;border-radius:999px;font-weight:600}
+  .wz-cr.ok{background:var(--ok-bg);color:var(--ok-fg)}
+  .wz-cr.bad{background:var(--bad-bg);color:var(--bad-fg)}
+  .wz-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .wz-pick{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:8px;
+           cursor:pointer;display:flex;flex-direction:column;gap:8px;text-align:left}
+  .wz-pick.row{flex-direction:row;align-items:center;gap:10px;padding:10px}
+  .wz-pick.on{border:2px solid var(--accent);padding:7px}
+  .wz-pick.row.on{padding:9px}
+  .wz-sw{height:34px;border-radius:5px;display:flex;align-items:center;padding:0 8px;gap:4px;
+         border:1px solid rgba(20,36,61,.08)}
+  .wz-sw i{flex:1;height:3px;border-radius:2px}
+  .wz-sw b{width:16px;height:8px;border-radius:2px;display:block}
+  .wz-corner{width:22px;height:22px;border-top:2px solid var(--ink);border-left:2px solid var(--ink);
+             flex:0 0 auto}
+  .wz-pick-l{font-size:12.5px;font-weight:600;color:var(--ink)}
+  .wz-grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .wz-todavia{font-style:normal;font-size:11px;font-weight:500;color:var(--muted)}
+  .wz-sub2{display:flex;flex-direction:column;gap:8px;margin-top:6px;padding-top:12px;
+           border-top:1px solid var(--line-soft)}
+  .wz-langs{align-self:flex-start}
+  .wz-count{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .wz-count.bad{color:var(--bad-fg);font-weight:600}
+  .wz textarea.wz-in{resize:vertical;line-height:1.5}
+  .wz-grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .wz-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .wz-pick .wz-help{font-weight:400}
+  .wz-todavia{font-style:normal;font-size:10.5px;font-weight:600;color:var(--warn);
+              border:1px solid currentColor;border-radius:4px;padding:0 4px;margin-left:6px}
+  .wz-sub2{display:flex;flex-direction:column;gap:8px;margin-top:6px;padding-top:12px;
+           border-top:1px solid var(--line-soft)}
+  .wz-count{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .wz-count.bad{color:var(--danger);font-weight:600}
+  .wz-langs{align-self:flex-start}
+  .wz textarea.wz-in{resize:vertical;line-height:1.5}
+  .wz-full{padding:16px 24px;border-top:1px solid var(--line-soft);display:flex;
+           align-items:center;justify-content:space-between;gap:12px}
+  .wz-full-t{display:block;font-size:13px;font-weight:600;color:var(--ink)}
+  .wz-link{background:none;border:0;color:var(--accent);font-size:12.5px;font-weight:600;cursor:pointer;padding:0}
+  .wz-ovbar{align-items:center}
+  .wz .ctl .wz-revert{display:none;flex:0 0 auto;width:28px;height:28px;border-radius:50%;
+       border:1px solid var(--line);background:var(--white);color:var(--accent);
+       font-size:14px;line-height:1;cursor:pointer}
+  .wz .ctl .wz-revert:hover{border-color:var(--accent)}
+  .wz .ctl.wz-ov:not(.ctl-full):not(.ctl-wide){grid-template-columns:1fr 210px 28px}
+  .wz .ctl.wz-ov .wz-revert{display:block}
+  .wz .ctl.wz-ov input,.wz .ctl.wz-ov select{border-color:var(--ink);border-width:1.5px}
+  /* filas del modo desarrollador: etiqueta y ruta a la izquierda, control a la derecha */
+  .ctl-p{display:none}
+  .wz .ctl:not(.ctl-full):not(.ctl-wide){display:grid;grid-template-columns:1fr 210px;align-items:center;gap:12px}
+  .wz .ctl-full > .ctl-t{margin-bottom:8px}
+  .wz .ctl-full > .ctl-t > label{font-size:13px}
+  .wz .ctl-t{display:flex;flex-direction:column;gap:2px}
+  .wz .ctl-p{display:block;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted)}
+  .wz .ctl > label{font-size:13px;font-weight:600}
+  .wz .ctl input,.wz .ctl select{width:100%}
+  .wz-sub3{font-size:12.5px;color:var(--muted)}
+  .wz-explica{margin:0 0 4px;font-size:13px;line-height:1.55;color:var(--muted)}
+  .grp-n{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .wz .group > summary{display:flex;align-items:center;gap:8px}
+  /* Cabeceras de grupo en el modo desarrollador: sin fondo ni caja, como el
+     prototipo. Solo el nombre y el recuento. */
+  .wz .group{border:0;border-radius:0;background:none;margin:0}
+  .wz .group + .group{border-top:1px solid var(--line-soft)}
+  .wz .group > summary{background:none !important;padding:16px 0 10px;font-size:14px;
+                       font-weight:700;color:var(--ink)}
+  .wz .group[open] > summary{background:none !important}
+  .wz .group > .body,.wz .group > div{padding:0 0 14px}
+  .wz .grp-n{font-size:12px;font-weight:400}
+  /* Los editores con interfaz propia conservan su caja, pero sin el verde. */
+  .wz .ctl-wide,.wz .ctl-full{background:none}
+  .btn.sm{padding:6px 10px;font-size:12px}
+  .wz-pub{font-size:12.5px;color:var(--accent);font-weight:600;margin-right:4px}
+  .wz-foot .row{gap:12px;align-items:center}
+  .prev-nota{margin-left:auto;font-size:12px;color:var(--muted)}
+  .prev-pie{margin:12px 0 0;font-size:12px;line-height:1.5;color:var(--muted)}
+  .preview .lienzo iframe{transition:max-width .2s}
+  .btn.dark{background:var(--ink);color:#F7F6F2;border-color:var(--ink)}
+
   /* ---------- barra superior ---------- */
-  .topbar{background:var(--ink);color:#fff;padding:0 20px;display:flex;align-items:center;
-          gap:18px;height:56px;position:sticky;top:0;z-index:20}
+  .topbar{background:var(--ink);color:#fff;padding:8px 24px;display:flex;align-items:center;
+          gap:6px 18px;min-height:56px;position:sticky;top:0;z-index:20;flex-wrap:wrap}
+  .ver-pill{padding:3px 8px;border:1px solid rgba(255,255,255,.18);border-radius:999px;
+            font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.85}
   .brand{font-weight:700;letter-spacing:.01em;font-size:15px;white-space:nowrap}
   .brand span{opacity:.5;font-weight:400;margin-left:6px}
   .topbar .spacer{flex:1}
@@ -61,15 +190,17 @@
   .mini-del:hover{border-color:var(--danger);color:var(--danger)}
 
   /* ---------- layout ---------- */
-  .shell{max-width:1240px;margin:0 auto;padding:22px 20px 60px}
-  .tabbar{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px;
+  .shell{max-width:none;margin:0;padding:0}
+  .plano{padding:0}
+  .tabbar{display:flex;gap:2px;margin-left:8px;
           overflow-x:auto;scrollbar-width:none}
   .tabbar::-webkit-scrollbar{display:none}
-  .tabbar button{border:0;background:transparent;padding:11px 16px;font-size:14px;cursor:pointer;
+  .tabbar button{border:0;background:transparent;padding:6px 12px;font-size:13px;cursor:pointer;
+                 color:rgba(247,246,242,.65);border-bottom:2px solid transparent;
                  color:var(--muted);font-weight:500;border-bottom:2px solid transparent;
                  margin-bottom:-1px;white-space:nowrap;transition:color .15s,border-color .15s}
-  .tabbar button:hover{color:var(--ink)}
-  .tabbar button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+  .tabbar button:hover{color:#fff}
+  .tabbar button.on{color:#F7F6F2;border-bottom-color:var(--accent-pale);font-weight:600}
 
   .card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
         padding:20px;box-shadow:var(--shadow)}
@@ -90,8 +221,8 @@
   #cfg{width:100%;border:0;background:transparent;padding:14px;resize:vertical;
        font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;
        line-height:1.65;min-height:520px;white-space:pre;tab-size:2;outline:none;display:block}
-  .editor-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
-  .checks{margin-top:12px;display:flex;flex-direction:column;gap:7px}
+  .editor-foot{margin:0 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .checks{margin:0 24px;margin-top:12px;display:flex;flex-direction:column;gap:7px}
   .check{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;line-height:1.5}
   .check .ic{flex:none;width:16px;height:16px;border-radius:50%;font-size:10px;line-height:16px;
              text-align:center;color:#fff;font-weight:700;margin-top:2px}
@@ -118,6 +249,7 @@
   input[type=text],input[type=password]{width:100%;border:1px solid var(--line);border-radius:9px;
        padding:10px 12px;font-size:13.5px;background:#fff;transition:border-color .15s}
   input[type=text]:focus,input[type=password]:focus{outline:none;border-color:var(--accent)}
+  .shell > .plano > .hint{margin:0 24px 40px}
   .hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.55}
   .hint.ok{color:var(--ok)} .hint.err{color:var(--danger)}
 
@@ -156,14 +288,16 @@
   .cat.on{background:#e6f4ea;color:#1e6b36}
 
   /* ---------- panel visual de apariencia ---------- */
-  .modes{display:flex;gap:4px;background:var(--paper);border:1px solid var(--line);
-         border-radius:9px;padding:3px}
-  .modes button{border:0;background:transparent;padding:6px 14px;border-radius:7px;
-                font-size:12.5px;cursor:pointer;color:var(--muted);font-weight:500}
-  .modes button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(20,36,61,.08)}
-  .vis{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  .modes{display:flex;gap:2px;background:var(--white);border:1px solid var(--line);
+         border-radius:8px;padding:3px}
+  .modes button{border:0;background:transparent;padding:6px 14px;border-radius:6px;
+                font-size:12.5px;cursor:pointer;color:var(--muted);font-weight:600}
+  .modes button.on{background:var(--ink);color:#F7F6F2;font-weight:600}
+  .vis{display:grid;grid-template-columns:minmax(340px,520px) minmax(0,1fr);gap:24px;
+       align-items:start;padding:24px}
   @media (max-width:1050px){ .vis{grid-template-columns:1fr} }
   .group{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden}
+  .group[open] > summary{background:var(--accent-bg)}
   .group > summary{padding:11px 14px;cursor:pointer;font-weight:600;font-size:13px;
                    background:var(--paper);list-style:none;display:flex;
                    align-items:center;justify-content:space-between}
@@ -184,12 +318,18 @@
                          border-radius:7px;background:#fff;cursor:pointer;flex:none}
   .ctl .colorbox input[type=text]{flex:1;font-family:ui-monospace,Menlo,monospace}
   .ctl .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#1c2531}
-  .preview{position:sticky;top:76px;border:1px solid var(--line);border-radius:10px;
-           overflow:hidden;background:#fff}
-  .preview .bar{padding:9px 13px;background:var(--paper);border-bottom:1px solid var(--line);
-                font-size:12px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  /* La columna no es una tarjeta: es barra + tarjeta + nota, como el
+     prototipo. Asi la nota queda sobre el fondo, fuera de lo blanco. */
+  .preview{position:sticky;top:80px;display:flex;flex-direction:column;gap:12px;
+           background:none;border:0}
+  .preview .bar{padding:0;background:none;border:0;
+                font-size:12px;color:var(--muted);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .prev-modes button{padding:5px 12px;font-size:12px}
-  .preview iframe{width:100%;height:520px;border:0;display:block;background:#fbfaf7}
+  .preview .lienzo{padding:16px;background:var(--white);border:1px solid var(--line);
+                   border-radius:var(--radius)}
+  .preview .lienzo iframe{background:var(--canvas)}
+  .preview iframe{width:100%;height:560px;border:0;display:block;background:#fbfaf7;
+                  border:1px solid var(--line);border-radius:8px}
   /* ---------- cookies detectadas ---------- */
   .ck-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
            flex-wrap:wrap;margin-bottom:14px}
@@ -285,13 +425,14 @@
   <div class="topbar" id="topbar">
     <div class="brand">Consent Banner<span>Dashboard</span></div>
     <div class="site-picker" id="picker"></div>
+    <div class="tabbar" id="tabbar"></div>
     <div class="spacer"></div>
+    <span class="ver-pill" id="ver-pill"></span>
     <span class="who" id="who"></span>
     <div class="modes lang-sw" id="lang-sw"></div>
     <button class="icon-btn" onclick="logout()">Salir</button>
   </div>
   <div class="shell">
-    <div class="tabbar" id="tabbar"></div>
     <div id="tabbody"></div>
   </div>
 </div>
@@ -505,6 +646,94 @@ var DICT = {
   "El CSS a medida usa @import": "Custom CSS uses @import",
   "El CSS a medida carga recursos de otro dominio": "Custom CSS loads resources from another domain",
   ". Esa peticion sale antes de que el visitante acepte. Mejor incrustarlos como data URI.": ". That request goes out before the visitor accepts. Better to embed them as data URIs.",
+  "Apariencia": "Appearance",
+  "Paso": "Step",
+  "Atras": "Back",
+  "Continuar": "Continue",
+  "Publicar": "Publish",
+  "Empieza por tu marca": "Start with your brand",
+  "Cuatro decisiones y derivamos el resto: hover, bordes, anillo de foco y velo. Cualquier detalle se puede afinar despues.": "Four decisions and we derive the rest: hovers, borders, focus rings, overlay. You can fine-tune any detail later.",
+  "Detectar desde tu sitio": "Detect from your site",
+  "Detectar": "Detect",
+  "Leeria la portada y algunas paginas enlazadas para sacar tipografia, color, fondo y radios. Todavia no esta disponible.": "It would read the home page and a few linked pages for font, color, background and radius. Not available yet.",
+  "Tipografia": "Typeface",
+  "Las de Google las descarga el widget y crean una conexion con un tercero, que el visitante vera en tu politica de privacidad.": "Google fonts are loaded by the widget and create a third-party connection, which visitors see in your privacy policy.",
+  "Color de accion": "Action color",
+  "boton aceptar y enlaces": "Accept button and links",
+  "Por debajo de 4.5:1 el texto del boton cuesta de leer.": "Below 4.5:1 the button text is hard to read.",
+  "Fondo del banner": "Banner background",
+  "Claro": "Light",
+  "Oscuro": "Dark",
+  "Color de marca": "Brand color",
+  "Esquinas": "Corners",
+  "Rectas": "Square",
+  "Suaves": "Soft",
+  "Redondeadas": "Rounded",
+  "Donde y como aparece": "Where and how it appears",
+  "Las opciones siguen al componente elegido en la vista previa: banner, panel o pestana.": "Options follow the component selected in the preview: banner, panel or tab.",
+  "Posicion del banner": "Banner position",
+  "Barra inferior": "Bottom bar",
+  "Tarjeta": "Card",
+  "Centrado": "Centered",
+  "Jerarquia de los botones": "Button hierarchy",
+  "Mismo peso": "Equal weight",
+  "Igual tamano y borde; solo cambia el relleno.": "Same size and border; only the fill differs.",
+  "Aceptar destacado": "Accept emphasized",
+  "Rechazar con un borde mas suave.": "Reject with a lighter border.",
+  "La CPRA pide que rechazar no cueste mas que aceptar.": "CPRA requires rejecting to be as easy as accepting.",
+  "Colocacion del panel": "Panel placement",
+  "Lateral": "Side sheet",
+  "Inferior": "Bottom sheet",
+  "Control de reapertura": "Reopen control",
+  "Pestana en la esquina": "Corner tab",
+  "Enlace en el pie": "Footer link",
+  "Siempre presente. La CCPA/CPRA exige una via facil para cambiar de opinion en cualquier momento.": "Always present. CCPA/CPRA requires an easy way to opt out at any time.",
+  "Esquina": "Corner",
+  "Abajo izq.": "Bottom left",
+  "Abajo der.": "Bottom right",
+  "Arriba izq.": "Top left",
+  "Arriba der.": "Top right",
+  "Contenido": "Content",
+  "Icono y texto": "Icon + text",
+  "Solo icono": "Icon only",
+  "Solo texto": "Text only",
+  "pendiente": "not wired",
+  "Textos": "Copy",
+  "Los textos por defecto estan revisados legalmente. Cambia solo lo que quieras adaptar a tu tono.": "Defaults are legally vetted. Change only what you want to adapt to your tone.",
+  "Texto del banner": "Banner text",
+  "Boton aceptar": "Accept button",
+  "Boton rechazar": "Reject button",
+  "Boton personalizar": "Customize button",
+  "Titulo del panel": "Panel title",
+  "Introduccion del panel": "Panel intro",
+  "Texto de la pestana": "Tab text",
+  "Espanol": "Spanish",
+  "Paso 1 de 3": "Step 1 of 3",
+  "Paso 2 de 3": "Step 2 of 3",
+  "Paso 3 de 3": "Step 3 of 3",
+  "usa el texto por defecto": "uses the default text",
+  "Editor de desarrollador": "Developer editor",
+  "Volver al modo guiado": "Back to guided mode",
+  "Propiedades": "Properties",
+  "Devolver todo a lo derivado": "Reset all overrides",
+  "volver a lo derivado": "reset to derived",
+  "La configuracion completa. Los cambios se validan al escribir.": "The full configuration. Changes are validated as you type.",
+  "Necesitas control total?": "Need full control?",
+  "Categorias, bloqueo de scripts, textos y cada propiedad suelta, mas el JSON.": "Categories, script blocking, copy and every single property, plus the JSON.",
+  "Publicar en el sitio": "Publish to site",
+  "Escritorio": "Desktop",
+  "Movil": "Mobile",
+  "Vista en vivo · pagina neutra": "Live preview · neutral page",
+  "Los cambios no se aplican hasta guardar.": "Changes do not apply until you save.",
+  "propiedades": "properties",
+  "sobrescritas": "overridden",
+  "Modo guiado": "Guided setup",
+  "Cada valor sale del modo guiado. Escribe para sobrescribirlo;": "Every value is derived from the guided setup. Type to override;",
+  "lo devuelve al valor derivado.": "returns it to the derived value.",
+  "Devolver todo": "Reset all",
+  "Publicado como v":"Published as v",
+  "Devolver todo a lo derivado": "Reset all overrides",
+  "Pasa el raton por un ajuste para ver que cambia; pulsa un grupo para mostrarlo en la vista previa. Una vez publicado, el sitio recoge la nueva version al recargar; no hace falta tocar el codigo instalado.": "Hover a setting to see what it changes; click a group to show it in the preview. Once published, the site picks up the new version on reload; no need to touch the installed code.",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -619,8 +848,8 @@ var DICT = {
     "The floating pill is off, so this link is the only way to reopen the panel. Check that it shows on every page.",
   "Copiado.": "Copied.",
   "Sin URL de politica": "No policy URL",
-  ": el banner no mostrara el enlace. El RGPD pide que el visitante pueda leer que se hace con sus datos antes de decidir.":
-    ": the banner will not show the link. GDPR requires visitors to be able to read what is done with their data before deciding.",
+  ": el banner no mostrara el enlace. La CCPA/CPRA exige avisar en el momento de la recogida y enlazar la politica de privacidad.":
+    ": the banner will not show the link. CCPA/CPRA requires a notice at collection linking to your privacy policy.",
   "Sin URL de politica en": "No policy URL in",
   ": en ese idioma no se vera el enlace.": ": the link will not show in that language.",
   "no se aceptara: solo se admite http, https o una ruta del propio sitio.":
@@ -1094,28 +1323,20 @@ var cfgMode = "visual";   // visual | json
 
 function viewConfig(d){
   el("tabbody").innerHTML =
-    '<div class="card">'+
-      '<div class="editor-head">'+
-        '<div class="left"><h2 style="margin:0">Configuracion del sitio</h2>'+
-          '<span class="ver-chip">version '+esc(String(d.version))+'</span></div>'+
-        '<div class="row">'+
-          '<div class="modes">'+
-            '<button id="m-visual" onclick="setCfgMode(\'visual\')">Apariencia</button>'+
-            '<button id="m-json" onclick="setCfgMode(\'json\')">JSON</button>'+
-          '</div>'+
-          '<button class="btn ghost sm" onclick="formatCfg()">Formatear</button>'+
-          '<button class="btn sm" id="btn-save" onclick="saveCfg()">Guardar nueva version</button>'+
-        '</div>'+
-      '</div>'+
+    '<div class="plano">'+
+      // Apariencia / JSON quedan ocultos: el modo desarrollador los sustituye.
+      '<div class="hide"><button id="m-visual" onclick="setCfgMode(\'visual\')"></button>'+
+      '<button id="m-json" onclick="setCfgMode(\'json\')"></button></div>'+
       '<div id="pane-visual"></div>'+
       '<div id="pane-json">'+
         '<div class="editor-wrap" id="ed-wrap"><textarea id="cfg" spellcheck="false"></textarea></div>'+
       '</div>'+
       '<div class="editor-foot"><span id="smsg" class="msg"></span></div>'+
       '<div class="checks" id="checks"></div>'+
-      '<p class="hint">Al guardar, el bundle de este sitio recibe la configuracion al recargar. '+
-      'No hace falta tocar el codigo instalado.</p>'+
+
     '</div>';
+  var _vp = el("ver-pill"); if(_vp) _vp.textContent = "v" + String(d.version);
+  if(!WIZ_PUBLICADA) WIZ_PUBLICADA = d.version;
   el("cfg").value = JSON.stringify(d.config, null, 2);
   el("cfg").addEventListener("input", function(){ validarCfg(); });
   setCfgMode(cfgMode);
@@ -1365,6 +1586,527 @@ function borrarPath(o, path){
   }
 }
 
+
+/* ===================== APARIENCIA: ASISTENTE =====================
+   Portado del prototipo "Consent Admin - Appearance v2". Alli corre sobre
+   una plantilla propia (sc-if / sc-for); aqui se reescribe en el mismo
+   estilo del resto del dashboard: funciones que devuelven HTML.
+
+   La idea del prototipo: el cliente toma cuatro decisiones de marca y de
+   ahi se derivan el resto de propiedades (hover, bordes, anillo de foco,
+   velo). Lo derivado se escribe en la config igual que si se hubiera
+   puesto a mano, asi que el bundle no necesita saber nada de esto.        */
+
+var WIZ = { paso: 1, modo: "guided", devTab: "props" };
+var WIZ_NPROPS = 0;   // lo cuenta el render
+
+/* ---- color: luminancia, contraste y mezcla ---------------------------
+   Mismas formulas que el prototipo (WCAG 2.x). Sirven para elegir texto
+   legible sobre un fondo y para derivar el hover sin pedirlo.            */
+function wHex(h){
+  h = String(h||"").replace("#","");
+  if(h.length === 3) h = h.split("").map(function(c){ return c+c; }).join("");
+  var n = parseInt(h,16) || 0;
+  return [n>>16 & 255, n>>8 & 255, n & 255];
+}
+function wToHex(r){
+  return "#" + r.map(function(v){
+    return Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2,"0");
+  }).join("").toUpperCase();
+}
+function wLum(h){
+  var c = wHex(h).map(function(v){
+    v /= 255; return v <= .03928 ? v/12.92 : Math.pow((v+.055)/1.055, 2.4);
+  });
+  return .2126*c[0] + .7152*c[1] + .0722*c[2];
+}
+function wContraste(a,b){
+  var l1 = wLum(a), l2 = wLum(b);
+  return (Math.max(l1,l2) + .05) / (Math.min(l1,l2) + .05);
+}
+function wMezcla(a,b,t){
+  var A = wHex(a), B = wHex(b);
+  return wToHex(A.map(function(v,i){ return v + (B[i]-v)*t; }));
+}
+/* Texto legible sobre un fondo: el que mas contraste da. */
+function wSobre(bg){
+  return wContraste(bg,"#FFFFFF") >= wContraste(bg,"#14243D") ? "#FFFFFF" : "#14243D";
+}
+
+/* ---- tipografias que ofrece el asistente ---- */
+var WIZ_FUENTES = [
+  ["plex",   "Instrument Sans · Google Fonts", "'Instrument Sans', sans-serif", true],
+  ["work",   "Work Sans · Google Fonts",       "'Work Sans', sans-serif",       true],
+  ["dm",     "DM Sans · Google Fonts",         "'DM Sans', sans-serif",         true],
+  ["serif",  "Source Serif 4 · Google Fonts",  "'Source Serif 4', Georgia, serif", true],
+  ["system", "System font · no download",      "system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif", false]
+];
+
+/* ---- lectura y escritura de la config ---- */
+function wCfg(){ try{ return JSON.parse(el("cfg").value); }catch(e){ return null; } }
+function wGuardar(o){
+  el("cfg").value = JSON.stringify(o, null, 2);
+  validarCfg(); renderVisual(); refrescarPreview();
+}
+function wMarca(o){
+  // Las cuatro decisiones se guardan aparte, en "brand". Si se dedujeran de
+  // colors.accent, sobrescribir ese campo cambiaria la propia decision y
+  // entonces nada podria marcarse como puesto a mano.
+  if(o.brand && o.brand.fuente) return o.brand;
+  var c = o.colors || {}, f = o.fonts || {}, bn = o.banner || {};
+  var fam = f.body || "";
+  var id = "plex";
+  for(var i=0;i<WIZ_FUENTES.length;i++){ if(WIZ_FUENTES[i][2] === fam) id = WIZ_FUENTES[i][0]; }
+  var radio = String((o.buttons && o.buttons.radius) || "");
+  return {
+    fuente: id,
+    color: c.accent || "#2F7E6C",
+    fondo: bn.background ? (String(bn.background).toUpperCase() === "#FFFFFF" ? "light" : "brand") : "dark",
+    esquinas: radio === "0" || radio === "0px" ? "rectas" : (parseInt(radio,10) >= 16 ? "redondeadas" : "suaves")
+  };
+}
+
+/* ---- derivacion: de cuatro decisiones a las propiedades ----
+   Solo se escriben claves que el bundle ya entiende. */
+/* Calcula que valores saldrian de las cuatro decisiones de Brand, sin
+   escribirlos. Sirve para dos cosas: aplicarlos, y saber en el modo
+   desarrollador que campos el cliente ha puesto a mano. */
+function wDerivar(m){
+  var fuente = WIZ_FUENTES.filter(function(f){ return f[0] === m.fuente; })[0] || WIZ_FUENTES[0];
+  var color  = /^#[0-9a-fA-F]{6}$/.test(m.color) ? m.color.toUpperCase() : "#2F7E6C";
+  var rad    = { rectas:[0,0,0,0], suaves:[6,6,10,4], redondeadas:[999,16,20,999] }[m.esquinas];
+  var oscuro = m.fondo === "dark", marca = m.fondo === "brand";
+  var bnBg   = oscuro ? "#16233B" : marca ? color : "#FFFFFF";
+  var bnFg   = marca ? wSobre(color) : oscuro ? "#F5F0E6" : "#14243D";
+  var acepBg = marca ? bnFg : color;
+  var acepFg = marca ? color : wSobre(color);
+  var acentoClaro = wContraste(color,"#FFFFFF") >= 4.5 ? color : wMezcla(color,"#14243D",.4);
+  var d = {};
+  d["fonts.body"] = fuente[2];
+  d["fonts.heading"] = fuente[2];
+  d["webfont"] = !!fuente[3];
+  d["colors.accent"] = acentoClaro;
+  d["colors.accentHover"] = wMezcla(acepBg,"#000000",.15);
+  d["colors.ink"] = bnBg;
+  d["colors.text"] = bnFg;
+  d["colors.accentPale"] = bnFg;
+  d["banner.background"] = bnBg;
+  d["banner.color"] = bnFg;
+  d["banner.radius"] = (m.esquinas === "rectas" ? "0" : rad[1] + "px");
+  d["buttons.radius"] = rad[0] + "px";
+  d["buttons.accept.background"] = acepBg;
+  d["buttons.accept.color"] = acepFg;
+  d["buttons.save.background"] = acentoClaro;
+  d["buttons.save.color"] = wSobre(acentoClaro);
+  d["panel.radius"] = rad[2] + "px";
+  d["switchStyle.radius"] = rad[3] + "px";
+  d["switchStyle.on"] = acentoClaro;
+  return d;
+}
+
+function wAplicarMarca(cambio){
+  var o = wCfg(); if(!o) return;
+  var m = wMarca(o); for(var k in cambio) m[k] = cambio[k];
+  o.brand = m;                       // la decision, aparte de sus consecuencias
+  var d = wDerivar(m);
+  for(var ruta in d) setPath(o, ruta, d[ruta]);
+  wGuardar(o);
+}
+
+/* ---- pintado ---- */
+
+/* Pie compartido por el modo guiado y el de desarrollador: a la izquierda la
+   accion secundaria, en medio el estado y a la derecha publicar, que es
+   guardar de verdad. */
+function wPie(izq){
+  var pub = WIZ_PUBLICADA ? '<span class="wz-pub">&#10003; Publicado como v'+WIZ_PUBLICADA+'</span>' : '';
+  return '<div class="wz-foot">'+ (izq || '<span></span>') +
+    '<div class="row">'+ pub +
+      '<button class="btn" onclick="saveCfg()">Publicar en el sitio</button>'+
+    '</div></div>';
+}
+var WIZ_PUBLICADA = 0;
+
+function wizardHTML(o){
+  var m = WIZ.paso === 1 ? wMarca(o) : null;
+  var pasos = [[1,"Brand"],[2,"Layout"],[3,"Copy"]].map(function(p){
+    var act = p[0] === WIZ.paso, hecho = p[0] < WIZ.paso;
+    return '<button class="wz-step'+(act?' on':'')+(hecho?' done':'')+'" onclick="wIrA('+p[0]+')">'+
+      '<i>'+(hecho?'&#10003;':p[0])+'</i>'+p[1]+'</button>';
+  }).join("");
+
+  return '<div class="wz">'+
+    '<div class="wz-head">'+
+      '<div class="row between"><h1 class="wz-h1">Apariencia</h1>'+
+        '<span class="wz-num">Paso '+WIZ.paso+' de 3</span></div>'+
+      '<div class="wz-bar"><i style="width:'+(WIZ.paso*33.4)+'%"></i></div>'+
+      '<div class="wz-steps">'+pasos+'</div>'+
+    '</div>'+
+    '<div class="wz-body">'+ (WIZ.paso === 1 ? wPaso1(o,m) : WIZ.paso === 2 ? wLayout(o) : wCopy(o)) +'</div>'+
+    '<div class="wz-full">'+
+      '<div><span class="wz-full-t">Necesitas control total?</span>'+
+        '<span class="wz-help">Categorias, bloqueo de scripts, textos y cada propiedad suelta, mas el JSON.</span></div>'+
+      '<button class="btn ghost sm" onclick="wModo(\'dev\')">&lt;/&gt; Editor de desarrollador</button>'+
+    '</div>'+
+    (WIZ.paso < 3
+      ? '<div class="wz-foot">'+
+          '<button class="btn ghost" onclick="wIrA('+(WIZ.paso-1)+')"'+
+            (WIZ.paso===1?' style="visibility:hidden"':'')+'>Atras</button>'+
+          '<button class="btn" onclick="wIrA('+(WIZ.paso+1)+')">Continuar</button>'+
+        '</div>'
+      : wPie('<button class="btn ghost" onclick="wIrA(2)">Atras</button>'))+
+  '</div>';
+}
+
+function wPaso1(o,m){
+  var color = m.color.toUpperCase();
+  var cr = wContraste(color, wSobre(color));
+  var nivel = cr >= 7 ? "AAA" : cr >= 4.5 ? "AA" : "Bajo";
+  var bajo = cr < 4.5;
+  var fuentes = WIZ_FUENTES.map(function(f){
+    return '<option value="'+f[0]+'"'+(m.fuente===f[0]?' selected':'')+'>'+esc(f[1])+'</option>';
+  }).join("");
+  var fondos = [["light","Claro","#FFFFFF","#14243D"],["dark","Oscuro","#16233B","#F5F0E6"],
+                ["brand","Color de marca",color,wSobre(color)]].map(function(s){
+    return '<button class="wz-pick'+(m.fondo===s[0]?' on':'')+'" onclick="wAplicarMarca({fondo:\''+s[0]+'\'})">'+
+      '<span class="wz-sw" style="background:'+s[2]+'"><i style="background:'+s[3]+';opacity:.6"></i>'+
+      '<b style="background:'+(s[0]==='brand'?s[3]:color)+'"></b></span>'+
+      '<span class="wz-pick-l">'+s[1]+'</span></button>';
+  }).join("");
+  var esquinas = [["rectas","Rectas",0],["suaves","Suaves",5],["redondeadas","Redondeadas",12]].map(function(r){
+    return '<button class="wz-pick row'+(m.esquinas===r[0]?' on':'')+'" onclick="wAplicarMarca({esquinas:\''+r[0]+'\'})">'+
+      '<span class="wz-corner" style="border-top-left-radius:'+r[2]+'px"></span>'+
+      '<span class="wz-pick-l">'+r[1]+'</span></button>';
+  }).join("");
+
+  return '<div class="wz-intro"><h2>Empieza por tu marca</h2>'+
+      '<p>Cuatro decisiones y derivamos el resto: hover, bordes, anillo de foco y velo. '+
+      'Cualquier detalle se puede afinar despues.</p></div>'+
+
+    '<div class="wz-sunken">'+
+      '<label class="wz-lab">Detectar desde tu sitio</label>'+
+      '<div class="row"><input class="wz-in" id="wz-url" placeholder="tusitio.com" disabled>'+
+      '<button class="btn dark" disabled>Detectar</button></div>'+
+      '<span class="wz-help">Leeria la portada y algunas paginas enlazadas para sacar tipografia, '+
+      'color, fondo y radios. Todavia no esta disponible.</span>'+
+    '</div>'+
+
+    '<div class="wz-field"><label class="wz-lab">Tipografia</label>'+
+      '<select class="wz-in" onchange="wAplicarMarca({fuente:this.value})">'+fuentes+'</select>'+
+      '<span class="wz-help">Las de Google las descarga el widget y crean una conexion con un '+
+      'tercero, que el visitante vera en tu politica de privacidad.</span></div>'+
+
+    '<div class="wz-field"><label class="wz-lab">Color de accion '+
+      '<span class="wz-sub">· boton aceptar y enlaces</span></label>'+
+      '<div class="row">'+
+        '<label class="wz-color" style="background:'+color+'">'+
+          '<input type="color" value="'+color+'" onchange="wAplicarMarca({color:this.value})"></label>'+
+        '<input class="wz-in mono" style="width:120px" value="'+color+'" '+
+          'onchange="wAplicarMarca({color:this.value})">'+
+        '<span class="wz-cr '+(bajo?'bad':'ok')+'">'+cr.toFixed(1)+':1 · '+nivel+'</span>'+
+      '</div>'+
+      (bajo ? '<span class="wz-help">Por debajo de 4.5:1 el texto del boton cuesta de leer.</span>' : '')+
+    '</div>'+
+
+    '<div class="wz-field"><label class="wz-lab">Fondo del banner</label>'+
+      '<div class="wz-grid3">'+fondos+'</div></div>'+
+
+    '<div class="wz-field"><label class="wz-lab">Esquinas</label>'+
+      '<div class="wz-grid3">'+esquinas+'</div></div>';
+}
+
+function wIrA(n){
+  if(n < 1 || n > 3) return;
+  WIZ.paso = n; renderVisual();
+}
+
+
+/* ---- Paso 2: donde y como aparece -------------------------------------
+   Las opciones se guardan en la config aunque el bundle todavia no lea
+   todas: asi el asistente refleja el rediseño completo y el dia que core.js
+   las entienda ya estan puestas. Las que hoy no hacen nada se marcan. */
+var WIZ_POS = [
+  ["bar",   "Barra inferior", "bottom", true],
+  ["card",  "Tarjeta",        "card",   false],
+  ["modal", "Centrado",       "modal",  false]
+];
+var WIZ_PANEL = [
+  ["center","Centrado",     true],
+  ["side",  "Lateral",      false],
+  ["bottom","Inferior",     false]
+];
+
+function wLayout(o){
+  var bn = o.banner || {}, bt = o.buttons || {}, pn = o.panel || {}, tr = o.trigger || {}, ch = o.chip || {};
+  var pos = bn.position === "card" || bn.position === "modal" ? bn.position : "bar";
+  var peso = bt.equalWeight ? "equal" : "highlight";
+  var pan  = pn.placement || "center";
+  var reab = tr.mode === "link" ? "footer" : "tab";
+  var esq  = ch.position || "bottom-left";
+  var cont = ch.mode === "image" ? "icon" : (ch.mode === "text" ? "text" : "both");
+
+  function tarjetas(lista, actual, fn, ancho){
+    return '<div class="wz-grid'+(ancho||3)+'">'+ lista.map(function(x){
+      var sop = x[3] === false || x[2] === false;
+      return '<button class="wz-pick row'+(actual===x[0]?' on':'')+'" onclick="'+fn+'(\''+x[0]+'\')">'+
+        '<span class="wz-pick-l">'+x[1]+(sop?' <em class="wz-todavia">pendiente</em>':'')+'</span></button>';
+    }).join("") +'</div>';
+  }
+
+  return '<div class="wz-intro"><h2>Donde y como aparece</h2>'+
+      '<p>Las opciones siguen al componente elegido en la vista previa: banner, panel o pestana.</p></div>'+
+
+    '<div class="wz-field"><label class="wz-lab">Posicion del banner</label>'+
+      tarjetas(WIZ_POS, pos, "wSetPos") + '</div>'+
+
+    '<div class="wz-field"><label class="wz-lab">Jerarquia de los botones</label>'+
+      '<div class="wz-grid2">'+
+        ['<button class="wz-pick'+(peso==="equal"?" on":"")+'" onclick="wSetPeso(\'equal\')">'+
+           '<span class="wz-pick-l">Mismo peso</span>'+
+           '<span class="wz-help">Igual tamano y borde; solo cambia el relleno.</span></button>',
+         '<button class="wz-pick'+(peso==="highlight"?" on":"")+'" onclick="wSetPeso(\'highlight\')">'+
+           '<span class="wz-pick-l">Aceptar destacado</span>'+
+           '<span class="wz-help">Rechazar con un borde mas suave.</span></button>'].join("")+
+      '</div>'+
+      (peso==="highlight" ? '<span class="wz-help">La CPRA pide que rechazar no cueste mas que aceptar.</span>' : '')+
+    '</div>'+
+
+    '<div class="wz-field"><label class="wz-lab">Colocacion del panel</label>'+
+      tarjetas(WIZ_PANEL, pan, "wSetPanel") + '</div>'+
+
+    '<div class="wz-field"><label class="wz-lab">Control de reapertura</label>'+
+      '<div class="wz-grid2">'+
+        ['<button class="wz-pick'+(reab==="tab"?" on":"")+'" onclick="wSetReab(\'tab\')">'+
+           '<span class="wz-pick-l">Pestana en la esquina</span></button>',
+         '<button class="wz-pick'+(reab==="footer"?" on":"")+'" onclick="wSetReab(\'footer\')">'+
+           '<span class="wz-pick-l">Enlace en el pie</span></button>'].join("")+
+      '</div>'+
+      '<span class="wz-help">Siempre presente. La CCPA/CPRA exige una via facil para cambiar de '+
+      'opinion en cualquier momento.</span>'+
+      (reab==="tab" ?
+        '<div class="wz-sub2"><label class="wz-lab">Esquina</label>'+
+          tarjetas([["bottom-left","Abajo izq."],["bottom-right","Abajo der."],
+                    ["top-left","Arriba izq."],["top-right","Arriba der."]], esq, "wSetEsq", 2)+
+         '<label class="wz-lab">Contenido</label>'+
+          tarjetas([["both","Icono y texto"],["icon","Solo icono"],["text","Solo texto"]], cont, "wSetCont")+
+        '</div>' : '')+
+    '</div>';
+}
+
+function wSetPos(v){ var o=wCfg(); if(!o) return; o.banner=o.banner||{};
+  o.banner.position = v==="bar" ? "bottom" : v; wGuardar(o); }
+function wSetPeso(v){ var o=wCfg(); if(!o) return; o.buttons=o.buttons||{};
+  o.buttons.equalWeight = (v==="equal"); wGuardar(o); }
+function wSetPanel(v){ var o=wCfg(); if(!o) return; o.panel=o.panel||{};
+  o.panel.placement = v; wGuardar(o); }
+function wSetReab(v){ var o=wCfg(); if(!o) return;
+  o.trigger=o.trigger||{}; o.chip=o.chip||{};
+  o.trigger.mode = v==="footer" ? "link" : "";
+  o.chip.enabled = (v==="tab"); wGuardar(o); }
+function wSetEsq(v){ var o=wCfg(); if(!o) return; o.chip=o.chip||{}; o.chip.position=v; wGuardar(o); }
+function wSetCont(v){ var o=wCfg(); if(!o) return; o.chip=o.chip||{};
+  o.chip.mode = v==="icon" ? "image" : (v==="text" ? "text" : "both"); wGuardar(o); }
+
+/* ---- Paso 3: textos ---------------------------------------------------
+   Un campo por texto, con contador. El limite no bloquea: avisa. */
+var WIZ_TEXTOS = [
+  ["body",       "Texto del banner",      3, 180],
+  ["accept",     "Boton aceptar",         1,  24],
+  ["reject",     "Boton rechazar",        1,  24],
+  ["manage",     "Boton personalizar",    1,  24],
+  ["panelTitle", "Titulo del panel",      1,  40],
+  ["panelIntro", "Introduccion del panel",2, 120],
+  ["chip",       "Texto de la pestana",   1,  16]
+];
+var WIZ_LANG = "es";
+
+function wCopy(o){
+  var t = ((o.texts || {})[WIZ_LANG]) || {};
+  var langs = [["es","Espanol"],["en","English"]].map(function(l){
+    return '<button class="'+(WIZ_LANG===l[0]?'on':'')+'" onclick="wSetLang(\''+l[0]+'\')">'+l[1]+'</button>';
+  }).join("");
+  var campos = WIZ_TEXTOS.map(function(f){
+    var v = t[f[0]] || "", n = v.length, pasa = n > f[3];
+    // Vacio no es "borrado": el bundle usa su texto por defecto. El marcador
+    // lo dice, para que nadie crea que se perdio el contenido.
+    var ph = 'placeholder="usa el texto por defecto"';
+    var ed = f[2] > 1
+      ? '<textarea class="wz-in" rows="'+f[2]+'" data-k="'+f[0]+'" '+ph+' oninput="wSetTexto(this)">'+esc(v)+'</textarea>'
+      : '<input class="wz-in" data-k="'+f[0]+'" '+ph+' value="'+esc(v)+'" oninput="wSetTexto(this)">';
+    return '<div class="wz-field">'+
+      '<div class="row between"><label class="wz-lab">'+f[1]+'</label>'+
+        '<span class="wz-count'+(pasa?' bad':'')+'">'+n+'/'+f[3]+'</span></div>'+ ed +'</div>';
+  }).join("");
+
+  return '<div class="wz-intro"><h2>Textos</h2>'+
+      '<p>Los textos por defecto estan revisados legalmente. Cambia solo lo que quieras adaptar a tu tono.</p></div>'+
+    '<div class="modes wz-langs">'+langs+'</div>'+ campos;
+}
+function wSetLang(l){ WIZ_LANG = l; renderVisual(); }
+function wSetTexto(inp){
+  var o = wCfg(); if(!o) return;
+  o.texts = o.texts || {}; o.texts[WIZ_LANG] = o.texts[WIZ_LANG] || {};
+  o.texts[WIZ_LANG][inp.dataset.k] = inp.value;
+  // No repintamos al teclear: se perderia el foco. Solo guardamos y refrescamos.
+  el("cfg").value = JSON.stringify(o, null, 2);
+  validarCfg();
+  var c = inp.parentNode.querySelector(".wz-count");
+  if(c){ var max = c.textContent.split("/")[1];
+         c.textContent = inp.value.length + "/" + max;
+         c.className = "wz-count" + (inp.value.length > +max ? " bad" : ""); }
+  clearTimeout(wSetTexto._t); wSetTexto._t = setTimeout(refrescarPreview, 400);
+}
+
+
+/* ---- Modo desarrollador ------------------------------------------------
+   El asistente cubre las decisiones de marca; aqui esta todo lo demas, que
+   es con lo que se configura un sitio de verdad: categorias, bloqueo de
+   scripts, cookies que se borran, textos, y las propiedades sueltas.
+
+   La aportacion del rediseño es saber que viene derivado de Brand y que se
+   ha puesto a mano: lo segundo se marca y se puede devolver al valor
+   derivado, uno a uno o todos de golpe. */
+
+/* Rutas que no son "propiedades" sino contenido: no tienen valor derivado y
+   no se marcan. */
+function wEsContenido(ruta){
+  return ruta === "categories" || ruta === "autoBlock" || ruta === "cookiePatterns" ||
+         ruta.indexOf("texts.") === 0 || ruta === "customCss";
+}
+
+/* Una propiedad esta "puesta a mano" en dos casos: difiere de lo que derivaria
+   el modo guiado, o tiene valor propio cuando el bundle ya traia uno de serie.
+   En el segundo caso revertir significa vaciarla, no escribir nada. */
+function wSobrescritas(o){
+  var d = wDerivar(wMarca(o)), fuera = [];
+  UI_GROUPS.forEach(function(g){
+    g.items.forEach(function(it){
+      var ruta = it.p;
+      if(wEsContenido(ruta)) return;
+      var actual = getPath(o, ruta);
+      if(actual === undefined || actual === null || actual === "") return;
+      if(d[ruta] !== undefined){
+        if(String(actual).toUpperCase() !== String(d[ruta]).toUpperCase()) fuera.push(ruta);
+      } else {
+        fuera.push(ruta);
+      }
+    });
+  });
+  return fuera;
+}
+
+function devHTML(o){
+  var ov = wSobrescritas(o);
+  if(!WIZ_NPROPS) WIZ_NPROPS = UI_GROUPS.reduce(function(n,g){ return n + g.items.length; }, 0);
+  var props = WIZ.devTab !== "json";
+  return '<div class="wz">'+
+    '<div class="wz-head">'+
+      '<div class="row between">'+
+        '<div><h1 class="wz-h1">Editor de desarrollador</h1>'+
+          '<span class="wz-sub3">'+WIZ_NPROPS+' <span>propiedades</span> &middot; '+
+             ov.length+' <span>sobrescritas</span></span></div>'+
+        '<button class="btn ghost sm" onclick="wModo(\'guided\')">&larr; Modo guiado</button>'+
+      '</div>'+
+      '<div class="modes wz-langs">'+
+        '<button class="'+(props?'on':'')+'" onclick="wDevTab(\'props\')">Propiedades</button>'+
+        '<button class="'+(props?'':'on')+'" onclick="wDevTab(\'json\')">JSON</button>'+
+      '</div>'+
+
+    '</div>'+
+    '<div class="wz-body">'+
+      (props ? '<p class="wz-explica">Cada valor sale del modo guiado. Escribe para sobrescribirlo; '+
+                 '&#8634; lo devuelve al valor derivado.'+
+               '</p><div id="wz-grupos"></div>'
+             : '<div class="wz-help" style="margin-bottom:8px">La configuracion completa. '+
+               'Los cambios se validan al escribir.</div>'+
+               '<div id="wz-json-host"></div>')+
+    '</div>'+
+    wPie('<button class="btn ghost" onclick="wResetTodo()"'+(ov.length?'':' disabled')+
+         '>Devolver todo a lo derivado</button>')+
+  '</div>';
+}
+
+/* Marca en el DOM los campos derivados y los sobrescritos. Se hace despues
+   de pintar porque los grupos los genera el render de siempre. */
+/* Numero de campos por grupo, a la derecha del titulo, como en el prototipo. */
+function wContarGrupos(){
+  var host = el("wz-grupos"); if(!host) return;
+  host.querySelectorAll("details.group").forEach(function(d){
+    var sum = d.querySelector("summary"); if(!sum) return;
+    var n = d.querySelectorAll(".ctl[data-p]").length; if(!n) return;
+    var ov = d.querySelectorAll(".ctl.wz-ov").length;
+    var sp = sum.querySelector(".grp-n");
+    if(!sp){ sp = document.createElement("span"); sp.className = "grp-n"; sum.appendChild(sp); }
+    // "8 · 1 overridden": el numero solo no dice donde hay algo a mano.
+    sp.innerHTML = n + (ov ? ' &middot; ' + ov + ' <span>sobrescritas</span>' : '');
+  });
+}
+
+function wMarcarCampos(o){
+  var d = wDerivar(wMarca(o)), fuera = wSobrescritas(o);
+  var host = el("wz-grupos"); if(!host) return;
+  var rutas = {};
+  for(var k in d) rutas[k] = 1;
+  fuera.forEach(function(r){ rutas[r] = 1; });
+  for(var ruta in rutas){
+    var nodo = host.querySelector('.ctl[data-p="'+ruta+'"]');
+    if(!nodo || nodo.classList.contains("ctl-full")) continue;
+    var puesto = fuera.indexOf(ruta) >= 0;
+    nodo.classList.add("wz-deriv");
+    nodo.classList.toggle("wz-ov", puesto);
+    // Si el campo esta puesto a mano, abrimos su grupo: de poco sirve marcarlo
+    // dentro de un desplegable cerrado.
+    if(puesto){
+      var det = nodo.closest("details");
+      if(det) det.open = true;
+    }
+    if(!nodo.querySelector(".wz-revert")){
+      var b = document.createElement("button");
+      b.className = "wz-revert"; b.innerHTML = "&#8634;";
+      b.setAttribute("aria-label", "volver a lo derivado");
+      b.title = d[ruta] !== undefined ? ("Valor derivado: " + d[ruta]) : "Volver al valor de serie";
+      b.onclick = (function(r){ return function(){ wRevertir(r); }; })(ruta);
+      nodo.appendChild(b);
+    }
+  }
+}
+
+function wRevertir(ruta){
+  var o = wCfg(); if(!o) return;
+  var d = wDerivar(wMarca(o));
+  if(d[ruta] !== undefined) setPath(o, ruta, d[ruta]);
+  else borrarPath(o, ruta);          // sin derivada: vuelve al valor de serie
+  wGuardar(o);
+}
+function wResetTodo(){
+  var o = wCfg(); if(!o) return;
+  var d = wDerivar(wMarca(o));
+  wSobrescritas(o).forEach(function(ruta){
+    if(d[ruta] !== undefined) setPath(o, ruta, d[ruta]);
+    else borrarPath(o, ruta);
+  });
+  for(var r in d) setPath(o, r, d[r]);
+  wGuardar(o);
+}
+/* Refresca marcas y contador sin repintar los campos: repintarlos mientras
+   se teclea perderia el foco y el cursor. */
+function wRefrescarDev(){
+  if(WIZ.modo !== "dev" || WIZ.devTab === "json") return;
+  var o = wCfg(); if(!o) return;
+  var host = el("wz-grupos"); if(!host) return;
+  host.querySelectorAll(".ctl.wz-ov").forEach(function(n){ n.classList.remove("wz-ov"); });
+  wMarcarCampos(o);
+  wContarGrupos();
+  var n = wSobrescritas(o).length;
+  var txt = document.querySelector(".wz-ovbar .wz-help");
+  if(txt) txt.textContent = n + " propiedad(es) puestas a mano sobre lo derivado";
+  var btn = document.querySelector(".wz-ovbar .btn");
+  if(btn) btn.disabled = !n;
+}
+
+function wModo(m){ WIZ.modo = m; renderVisual(); }
+function wDevTab(t){ WIZ.devTab = t; renderVisual(); }
+
 function renderVisual(){
   cargarDetectadas();
   var obj;
@@ -1381,7 +2123,7 @@ function renderVisual(){
   }).join('');
   el("pane-visual").innerHTML =
     '<div class="vis">'+
-      '<div>'+groups+'</div>'+
+      '<div>'+ (WIZ.modo === "dev" ? devHTML(obj) : wizardHTML(obj)) +'</div>'+
       '<div class="preview">'+
         '<div class="bar">'+
           '<div class="modes prev-modes">'+
@@ -1394,10 +2136,32 @@ function renderVisual(){
             '<button id="pl-es" onclick="setPrevLang(\'es\')">ES</button>'+
             '<button id="pl-en" onclick="setPrevLang(\'en\')">EN</button>'+
           '</div>'+
-          '<button class="btn ghost sm" onclick="refrescarPreview()">Recargar</button></div>'+
-        '<iframe id="prev"></iframe>'+
+          '<div class="modes prev-modes" style="margin-left:8px">'+
+            '<button id="pd-desktop" onclick="setPrevDisp(\'desktop\')">Escritorio</button>'+
+            '<button id="pd-mobile"  onclick="setPrevDisp(\'mobile\')">Movil</button>'+
+          '</div>'+
+          '<span class="prev-nota">Vista en vivo · pagina neutra</span>'+
+        '</div>'+
+        '<div class="lienzo"><iframe id="prev"'+
+          (PREV_DISP === "mobile" ? ' style="max-width:390px;margin:0 auto"' : '')+'></iframe></div>'+
+      // La nota va DENTRO de la columna de la vista previa: fuera, la rejilla la
+      // trataba como un tercer elemento y caia bajo el formulario.
+      '<p class="prev-pie">Pasa el raton por un ajuste para ver que cambia; pulsa un grupo para '+
+      'mostrarlo en la vista previa. Una vez publicado, el sitio recoge la nueva version al '+
+      'recargar; no hace falta tocar el codigo instalado.</p>'+
       '</div>'+
     '</div>';
+  var _g = el("wz-grupos");
+  if(_g){ _g.innerHTML = groups;
+          if(WIZ.modo === "dev"){ wMarcarCampos(obj); wContarGrupos(); } }
+  // El editor JSON es el mismo nodo de siempre: se mueve, no se duplica, para
+  // no perder el contenido ni los avisos enganchados a el.
+  var _jh = el("wz-json-host"), _ed = el("ed-wrap");
+  if(_jh && _ed && _ed.parentNode !== _jh) _jh.appendChild(_ed);
+  if(!_jh && _ed && el("pane-json") && _ed.parentNode !== el("pane-json")) el("pane-json").appendChild(_ed);
+  var _a = el("pd-desktop"), _b = el("pd-mobile");
+  if(_a) _a.className = PREV_DISP === "desktop" ? "on" : "";
+  if(_b) _b.className = PREV_DISP === "mobile" ? "on" : "";
   setPreview(prevEstado);
   marcarLang();
 }
@@ -1879,7 +2643,14 @@ function control(obj, it){
     body = '<input type="text" id="'+id+'" value="'+esc(v==null?"":v)+'" placeholder="'+esc(it.ph||"por defecto")+'" '+
       'oninput="onCtl(\''+it.p+'\',this.value)" />';
   }
-  return '<div class="ctl"><label>'+esc(it.l)+'</label>'+body+'</div>';
+  // data-p permite marcar despues que campos vienen derivados de Brand y
+  // cuales se han puesto a mano (modo desarrollador).
+  // Los editores con interfaz propia (categorias, patrones, bloqueo) ocupan
+  // el ancho entero: la rejilla de dos columnas los aplastaria.
+  var completo = (it.k === "cats" || it.k === "patrones" || it.k === "bloqueo");
+  return '<div class="ctl'+(completo ? ' ctl-full' : '')+'" data-p="'+it.p+'">'+
+         '<span class="ctl-t"><label>'+esc(it.l)+'</label>'+
+         '<span class="ctl-p">'+esc(it.p)+'</span></span>'+ body +'</div>';
 }
 
 var _prevTimer = null;
@@ -1893,6 +2664,7 @@ function onCtl(path, value, mirrorId){
   el("cfg").value = JSON.stringify(obj, null, 2);
   if(mirrorId){ var m = el(mirrorId); if(m) m.value = value; }   // color -> campo de texto
   validarCfg();
+  wRefrescarDev();                                  // marcas de "puesto a mano"
   clearTimeout(_prevTimer);
   _prevTimer = setTimeout(refrescarPreview, 400);   // el iframe se rehace, no en cada tecla
 }
@@ -1900,6 +2672,22 @@ function onCtl(path, value, mirrorId){
 /* La vista previa monta el bundle real dentro de un iframe con la config
    que hay en el editor, sin guardar nada. */
 var prevEstado = "banner";   // banner | panel | chip
+
+var PREV_DISP = "desktop";
+/* Escritorio o movil: el lienzo se estrecha a 390px, que es el ancho que usa
+   el prototipo para movil. El iframe se rehace para que el banner recalcule
+   sus media queries. */
+function setPrevDisp(d){
+  if(PREV_DISP === d) return;
+  PREV_DISP = d;
+  var f = el("prev");
+  if(f) f.style.maxWidth = d === "mobile" ? "390px" : "";
+  if(f) f.style.margin = d === "mobile" ? "0 auto" : "";
+  var a = el("pd-desktop"), b = el("pd-mobile");
+  if(a) a.className = d === "desktop" ? "on" : "";
+  if(b) b.className = d === "mobile" ? "on" : "";
+  refrescarPreview();
+}
 
 function setPreview(modo){
   prevEstado = modo;
@@ -1969,11 +2757,33 @@ function refrescarPreview(){
             "por eso no aparece nada.") + "</p>";
   }
 
+  // Pagina neutra: bloques grises en vez de texto, con las medidas del
+  // prototipo. Sirve para juzgar el banner sobre una pagina cualquiera sin
+  // que el contenido de ejemplo distraiga.
+  var maqueta =
+    '<div class="pg">'+
+      '<div class="fila"><span class="logo"></span>'+
+        '<span class="nav"><i></i><i></i><i></i></span></div>'+
+      '<div class="hero"></div>'+
+      '<div class="texto"><span class="t1"></span><span class="t2"></span><span class="t3"></span></div>'+
+      '<div class="cols"><span></span><span></span><span></span></div>'+
+    '</div>';
   var html =
     '<!doctype html><html><head><meta charset="utf-8">'+
-    '<style>body{margin:0;font-family:-apple-system,sans-serif;background:#fbfaf7;'+
-    'padding:22px;color:#8a8a8a;font-size:13px}</style></head><body>'+
-    '<p>'+frase("Contenido de ejemplo del sitio.")+'</p>'+ aviso + bloqueEnlace(cfg) +
+    '<style>html,body{margin:0;height:100%}'+
+    'body{font-family:-apple-system,sans-serif;background:#fff;color:#8a8a8a;font-size:13px}'+
+    '.pg{position:absolute;inset:0;padding:22px;display:flex;flex-direction:column;gap:16px;background:#fff}'+
+    '.fila{display:flex;justify-content:space-between;align-items:center}'+
+    '.logo{width:80px;height:16px;background:#E5E5E5}'+
+    '.nav{display:flex;gap:12px}.nav i{width:44px;height:8px;background:#E5E5E5}'+
+    '.hero{flex:1;background:#EDEDED}'+
+    '.texto{display:flex;flex-direction:column;gap:8px;max-width:60%}'+
+    '.t1{height:14px;width:60%;background:#E5E5E5}'+
+    '.t2{height:8px;background:#EDEDED}.t3{height:8px;width:85%;background:#EDEDED}'+
+    '.cols{height:70px;display:flex;gap:12px}.cols span{flex:1;background:#EDEDED}'+
+    '.nota{position:absolute;left:22px;bottom:22px;z-index:5;max-width:60%}'+
+    '</style></head><body>'+
+    maqueta + '<div class="nota">' + aviso + bloqueEnlace(cfg) + '</div>' +
     '<script>window.__consentConfig='+JSON.stringify(cfg)+';<\/script>'+
     '<script src="'+API+'/consent-banner.js"><\/script>'+
     '<script>'+
@@ -2044,10 +2854,14 @@ function validarCfg(){
   }
   el("ed-wrap").classList.toggle("bad", fatal);
   var b = el("btn-save"); if(b) b.disabled = fatal;
-  el("checks").innerHTML = res.map(function(c){
-    var ic = c.s==="pass" ? "&#10003;" : (c.s==="fail" ? "!" : "i");
-    return '<div class="check '+c.s+'"><span class="ic">'+ic+'</span><span>'+c.t+'</span></div>';
-  }).join('');
+  var caja = el("checks");
+  if(caja){
+    var soloFallos = res.filter(function(c){ return c.s === "fail"; });
+    caja.innerHTML = soloFallos.map(function(c){
+      return '<div class="check fail"><span class="ic">!</span><span>'+c.t+'</span></div>';
+    }).join('');
+    caja.classList.toggle("hide", !soloFallos.length);
+  }
   return !fatal;
 }
 
@@ -2105,8 +2919,11 @@ function avisosPolitica(o, res){
   var u = o.policyUrl;
   var vacio = !u || (typeof u === "object" && !u.es && !u.en);
   if(vacio){
+    // Mercado objetivo: Estados Unidos. La CCPA/CPRA exige un "notice at
+    // collection" con enlace a la politica antes de recoger datos personales;
+    // Colorado, Connecticut y Virginia piden lo equivalente.
     res.push({s:"warn", t:"<b>Sin URL de politica</b>: el banner no mostrara el enlace. "+
-      "El RGPD pide que el visitante pueda leer que se hace con sus datos antes de decidir."});
+      "La CCPA/CPRA exige avisar en el momento de la recogida y enlazar la politica de privacidad."});
     return;
   }
   if(typeof u === "object"){
@@ -2179,6 +2996,7 @@ function saveCfg(){
     if(r.ok){
       // openTab repinta la pestana entera, asi que el mensaje se escribe
       // DESPUES de repintar o se pierde y parece que no se guardo nada.
+      WIZ_PUBLICADA = r.d.version;
       _trasRecargar = "Guardado. Version " + r.d.version + ".";
       openTab("config");
     }
