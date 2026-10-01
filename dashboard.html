@@ -339,6 +339,9 @@
                    border-radius:var(--radius)}
   .preview .lienzo iframe{background:var(--canvas)}
   .preview iframe{width:100%;height:560px;border:0;display:block;background:#fbfaf7;
+                  transition:height .15s}
+  .preview iframe.alto{height:720px}
+  .preview iframe{
                   border:1px solid var(--line);border-radius:8px}
   /* ---------- cookies detectadas ---------- */
   .ck-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
@@ -2853,6 +2856,9 @@ function setPreview(modo){
   ["banner","panel","chip","enlace"].forEach(function(m){
     var b = el("pv-"+m); if(b) b.className = (m===modo ? "on" : "");
   });
+  // El panel es mas alto que el banner: con el lienzo corto salia recortado y
+  // con barra de desplazamiento, que no es como se ve en el sitio.
+  var f = el("prev"); if(f) f.classList.toggle("alto", modo === "panel");
   refrescarPreview();
 }
 
@@ -2971,8 +2977,13 @@ function formatCfg(){
    y el fallo solo aparecia en produccion. */
 function validarCfg(){
   var res = [], obj = null, fatal = false;
+  var crudo = (el("cfg") && el("cfg").value || "").trim();
+  if(!crudo){
+    var c0 = el("checks"); if(c0){ c0.innerHTML = ""; c0.classList.add("hide"); }
+    return true;                       // sin datos todavia: no hay nada que validar
+  }
   try{
-    obj = JSON.parse(el("cfg").value);
+    obj = JSON.parse(crudo);
     res.push({s:"pass", t:"<b>JSON valido.</b>"});
   }catch(e){
     res.push({s:"fail", t:"<b>JSON invalido.</b> "+esc(e.message)});
@@ -3151,9 +3162,8 @@ function avisosApariencia(o, res){
 
 function saveCfg(){
   if(!validarCfg()){ msg("smsg","Corrige los errores antes de guardar.",true); return; }
-  var cfg;
-  try{ cfg = JSON.parse(el("cfg").value); }
-  catch(e){ msg("smsg","JSON invalido.",true); return; }
+  var cfg = temaBase();
+  if(!cfg){ msg("smsg","JSON invalido.",true); return; }
   j("POST","/dash/site/save",{site_id:current,config:cfg}).then(function(r){
     if(r.ok){
       // openTab repinta la pestana entera, asi que el mensaje se escribe
