@@ -1949,9 +1949,10 @@ function wCopy(o){
     // Vacio no es "borrado": el bundle usa su texto por defecto. El marcador
     // lo dice, para que nadie crea que se perdio el contenido.
     var ph = 'placeholder="usa el texto por defecto"';
+    var hl = ' onfocus="hlPorCampo(\''+f[0]+'\')" onblur="hlFuera()"';
     var ed = f[2] > 1
-      ? '<textarea class="wz-in" rows="'+f[2]+'" data-k="'+f[0]+'" '+ph+' oninput="wSetTexto(this)">'+esc(v)+'</textarea>'
-      : '<input class="wz-in" data-k="'+f[0]+'" '+ph+' value="'+esc(v)+'" oninput="wSetTexto(this)">';
+      ? '<textarea class="wz-in" rows="'+f[2]+'" data-k="'+f[0]+'" '+ph+hl+' oninput="wSetTexto(this)">'+esc(v)+'</textarea>'
+      : '<input class="wz-in" data-k="'+f[0]+'" '+ph+hl+' value="'+esc(v)+'" oninput="wSetTexto(this)">';
     return '<div class="wz-field">'+
       '<div class="row between"><label class="wz-lab">'+f[1]+'</label>'+
         '<span class="wz-count'+(pasa?' bad':'')+'">'+n+'/'+f[3]+'</span></div>'+ ed +'</div>';
@@ -2260,17 +2261,72 @@ function temaProbar(){
               encodeURIComponent(TEMA_EDIT || (temaBase()||{}).theme || ""), "_blank");
 }
 
+
+/* ---- Resaltado cruzado -------------------------------------------------
+   Al enfocar un campo o pasar por un grupo, la vista previa salta al
+   componente que toca y lo rodea con un borde discontinuo. Las reglas de que
+   va con que son las del prototipo. */
+var HL_ACTUAL = null;
+
+/* Se reintenta: si acabamos de cambiar de pestaña, el iframe se esta
+   rehaciendo y el mensaje llegaria antes de que el banner exista. */
+function hlEnviar(que, intentos){
+  var fr = el("prev");
+  if(!fr || !fr.contentWindow) return;
+  try{ fr.contentWindow.postMessage({tipo:"cb-resalta", que:que || null}, "*"); }catch(e){}
+  if(!que) return;
+  var n = intentos === undefined ? 12 : intentos;
+  if(n <= 0) return;
+  clearTimeout(hlEnviar._t);
+  hlEnviar._t = setTimeout(function(){
+    if(HL_ACTUAL === que) hlEnviar(que, n - 1);
+  }, 150);
+}
+
+/* Cambia de pestaña solo si hace falta: rehacer el iframe en cada hover
+   seria lento y ademas perderia el resaltado. */
+function hlPestana(p){
+  if(p && prevEstado !== p) setPreview(p);
+}
+
+function hlPorCampo(clave){
+  var p = clave.indexOf("panel") === 0 ? "panel" : (clave === "chip" ? "chip" : "banner");
+  var q = clave === "accept" ? "accept" : (clave === "chip" ? "chip" : "banner");
+  if(p === "panel") q = "panel";
+  hlPestana(p);
+  HL_ACTUAL = q;
+  hlEnviar(q);
+}
+
+function hlPorGrupo(titulo){
+  var t = String(titulo || "");
+  var p = /Panel|panel/.test(t) ? "panel" : (/Pill|pestana|chip/i.test(t) ? "chip" : "banner");
+  var q = /Panel|panel/.test(t) ? "panel"
+        : (/Pill|pestana|chip/i.test(t) ? "chip"
+        : (/Botones|Buttons/i.test(t) ? "accept" : "banner"));
+  hlPestana(p);
+  HL_ACTUAL = q;
+  hlEnviar(q);
+}
+
+function hlFuera(){ HL_ACTUAL = null; clearTimeout(hlEnviar._t); hlEnviar(null, 0); }
+
 function renderVisual(){
   cargarDetectadas();
-  var obj;
-  try{ obj = JSON.parse(el("cfg").value); }
-  catch(e){
+  // Un editor vacio no es un JSON roto: es que la pestaña se esta repintando y
+  // los datos no han llegado. Pintar el error ahi era lo que salia justo
+  // despues de publicar.
+  if(!(el("cfg") && el("cfg").value || "").trim()) return;
+  // objVista() da la base, o base+parche si se esta editando una apariencia.
+  var obj = objVista();
+  if(!obj){
     el("pane-visual").innerHTML =
       '<div class="empty">El JSON tiene errores. Corrigelo en la pestana JSON para volver aqui.</div>';
     return;
   }
   var groups = UI_GROUPS.map(function(g){
-    return '<details class="group"'+(g.open?' open':'')+'><summary>'+esc(g.t)+'</summary><div class="body">'+
+    var hg = ' onmouseenter="hlPorGrupo(\''+g.t.replace(/'/g,"")+'\')" onmouseleave="hlFuera()"';
+    return '<details class="group"'+(g.open?' open':'')+hg+'><summary>'+esc(g.t)+'</summary><div class="body">'+
       g.items.map(function(it){ return control(obj, it); }).join('')+
     '</div></details>';
   }).join('');
@@ -2959,6 +3015,15 @@ function refrescarPreview(){
     'var h=document.querySelector("#consent-banner-host");'+
     'if(h&&h.shadowRoot&&fn(h.shadowRoot)){clearInterval(t);}'+
     'if(n>60)clearInterval(t);},100);}'+
+    'var SEL={banner:".cb-inner",accept:".cb-accept",panel:".cb-panel",chip:".cb-chip"};'+
+    'window.addEventListener("message",function(e){var d=e.data||{};'+
+    'if(d.tipo!=="cb-resalta")return;'+
+    'var h=document.querySelector("#consent-banner-host");'+
+    'if(!h||!h.shadowRoot)return;var sr=h.shadowRoot;'+
+    'Object.keys(SEL).forEach(function(k){var n=sr.querySelector(SEL[k]);'+
+    'if(n){n.style.outline="";n.style.outlineOffset="";}});'+
+    'if(!d.que)return;var n=sr.querySelector(SEL[d.que]);'+
+    'if(n){n.style.outline="2px dashed #2E7D74";n.style.outlineOffset="2px";}});'+
     guion+
     '<\/script>'+
     '<\/body><\/html>';
