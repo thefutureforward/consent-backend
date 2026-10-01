@@ -321,11 +321,21 @@ let _userConfig = null;
   function leeParam(n) {
     try { return new URLSearchParams(location.search).get(n); } catch (e) { return null; }
   }
+  var BASE_MARCA = "__base";   // "ver la base", distinto de "no estar en prueba"
+
   function modoPrueba() {
     var p = leeParam("consentTheme");
     if (p !== null) {
-      try { p ? localStorage.setItem(PRUEBA_KEY, p) : localStorage.removeItem(PRUEBA_KEY); } catch (e) {}
-      return p || null;
+      var v = (p === "" || p === "base") ? BASE_MARCA : p;
+      try { localStorage.setItem(PRUEBA_KEY, v); } catch (e) {}
+      // Se quita de la URL: si se quedara, al recargar volveria a imponerse y
+      // lo elegido en el selector no duraria ni un clic.
+      try {
+        var u = new URL(location.href);
+        u.searchParams.delete("consentTheme");
+        history.replaceState(null, "", u.pathname + (u.search || "") + u.hash);
+      } catch (e) {}
+      return v;
     }
     try { return localStorage.getItem(PRUEBA_KEY); } catch (e) { return null; }
   }
@@ -337,6 +347,7 @@ let _userConfig = null;
   function temaActivo(m) {
     var t = m.themes || {};
     var prueba = modoPrueba();
+    if (prueba === BASE_MARCA) return "";
     if (prueba && t[prueba]) return prueba;
     if (m.theme && t[m.theme]) return m.theme;
     return "";
@@ -355,9 +366,11 @@ let _userConfig = null;
     caja.id = "consent-theme-preview";
     var sh = caja.attachShadow ? caja.attachShadow({ mode: "open" }) : caja;
     var activo = C._temaActivo || "";
-    var botones = nombres.map(function (n) {
-      return "<button data-t='" + n + "'" + (n === activo ? " class='on'" : "") + ">" + n + "</button>";
-    }).join("");
+    var botones = [[BASE_MARCA, "Base"]].concat(nombres.map(function (n) { return [n, n]; }))
+      .map(function (x) {
+        var on = (x[0] === BASE_MARCA) ? !activo : (x[0] === activo);
+        return "<button data-t='" + x[0] + "'" + (on ? " class='on'" : "") + ">" + x[1] + "</button>";
+      }).join("");
     var st = document.createElement("style");
     st.textContent =
       ".w{position:fixed;left:50%;transform:translateX(-50%);top:16px;z-index:2147483646;" +
