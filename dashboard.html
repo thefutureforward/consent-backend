@@ -137,6 +137,16 @@
   .wz .grp-n{font-size:12px;font-weight:400}
   /* Los editores con interfaz propia conservan su caja, pero sin el verde. */
   .wz .ctl-wide,.wz .ctl-full{background:none}
+  .tm-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px;
+          padding:8px 10px;background:var(--white);border:1px solid var(--line);border-radius:10px}
+  .tm-lab{font-size:12px;color:var(--muted);margin-right:4px}
+  .tm{border:1px solid var(--line);background:var(--white);border-radius:7px;padding:5px 11px;
+      font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:5px}
+  .tm.on{background:var(--ink);color:#F7F6F2;border-color:var(--ink)}
+  .tm i{font-style:normal;color:#E8B931;font-size:11px}
+  .tm-add{border:1px dashed var(--line);background:none;border-radius:7px;padding:5px 10px;
+          cursor:pointer;color:var(--muted);font-size:14px;line-height:1}
+  .tm-sp{flex:1}
   .btn.sm{padding:6px 10px;font-size:12px}
   .wz-pub{font-size:12.5px;color:var(--accent);font-weight:600;margin-right:4px}
   .wz-foot .row{gap:12px;align-items:center}
@@ -734,6 +744,10 @@ var DICT = {
   "Publicado como v":"Published as v",
   "Devolver todo a lo derivado": "Reset all overrides",
   "Pasa el raton por un ajuste para ver que cambia; pulsa un grupo para mostrarlo en la vista previa. Una vez publicado, el sitio recoge la nueva version al recargar; no hace falta tocar el codigo instalado.": "Hover a setting to see what it changes; click a group to show it in the preview. Once published, the site picks up the new version on reload; no need to touch the installed code.",
+  "Apariencias": "Appearances",
+  "Usar esta": "Use this",
+  "Probar en mi sitio": "Test on my site",
+  "El que ven los visitantes": "The one visitors see",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -1337,6 +1351,7 @@ function viewConfig(d){
     '</div>';
   var _vp = el("ver-pill"); if(_vp) _vp.textContent = "v" + String(d.version);
   if(!WIZ_PUBLICADA) WIZ_PUBLICADA = d.version;
+  _datosSitio = d;
   el("cfg").value = JSON.stringify(d.config, null, 2);
   el("cfg").addEventListener("input", function(){ validarCfg(); });
   setCfgMode(cfgMode);
@@ -1599,6 +1614,7 @@ function borrarPath(o, path){
 
 var WIZ = { paso: 1, modo: "guided", devTab: "props" };
 var WIZ_NPROPS = 0;   // lo cuenta el render
+var _datosSitio = null;
 
 /* ---- color: luminancia, contraste y mezcla ---------------------------
    Mismas formulas que el prototipo (WCAG 2.x). Sirven para elegir texto
@@ -2107,6 +2123,140 @@ function wRefrescarDev(){
 function wModo(m){ WIZ.modo = m; renderVisual(); }
 function wDevTab(t){ WIZ.devTab = t; renderVisual(); }
 
+
+/* ===================== TEMAS =====================
+   Un tema es un parche sobre la configuracion base: solo lleva lo que cambia.
+   El asistente y el editor de desarrollador trabajan sobre la VISTA (base +
+   parche), pero al guardar se vuelve a reducir al parche, para que un tema no
+   acabe con las 147 propiedades dentro. */
+
+var TEMA_EDIT = "";   // "" = la base; si no, el nombre del tema que se edita
+
+function temaBase(){ try{ return JSON.parse(el("cfg").value); }catch(e){ return null; } }
+
+function temaFusion(base, parche){
+  var o = JSON.parse(JSON.stringify(base));
+  (function mezcla(d, s){
+    for(var k in s){
+      if(!s.hasOwnProperty(k)) continue;
+      if(s[k] && typeof s[k] === "object" && !Array.isArray(s[k]) &&
+         d[k] && typeof d[k] === "object" && !Array.isArray(d[k])) mezcla(d[k], s[k]);
+      else d[k] = s[k];
+    }
+  })(o, parche || {});
+  return o;
+}
+
+/* Lo que ven los renders: base, o base + parche si se esta editando un tema. */
+function objVista(){
+  var b = temaBase(); if(!b) return null;
+  if(!TEMA_EDIT || !b.themes || !b.themes[TEMA_EDIT]) return b;
+  return temaFusion(b, b.themes[TEMA_EDIT]);
+}
+
+/* Reduce la vista al parche: solo las hojas que difieren de la base. */
+function temaDiff(base, vista){
+  function rec(b, v){
+    var out = {}, hay = false;
+    for(var k in v){
+      if(!v.hasOwnProperty(k)) continue;
+      if(k === "themes" || k === "theme" || k === "_temaActivo") continue;
+      var bv = b ? b[k] : undefined, vv = v[k];
+      if(vv && typeof vv === "object" && !Array.isArray(vv)){
+        var sub = rec(bv && typeof bv === "object" ? bv : {}, vv);
+        if(sub !== null){ out[k] = sub; hay = true; }
+      } else if(JSON.stringify(bv) !== JSON.stringify(vv)){
+        out[k] = vv; hay = true;
+      }
+    }
+    return hay ? out : null;
+  }
+  return rec(base, vista) || {};
+}
+
+/* Guarda una vista modificada en el sitio correcto. */
+function temaGuardarVista(vista){
+  var b = temaBase(); if(!b) return;
+  if(!TEMA_EDIT){ el("cfg").value = JSON.stringify(vista, null, 2); }
+  else {
+    b.themes = b.themes || {};
+    b.themes[TEMA_EDIT] = temaDiff(b, vista);
+    el("cfg").value = JSON.stringify(b, null, 2);
+  }
+  validarCfg(); renderVisual(); refrescarPreview();
+}
+
+/* ---- barra de temas ---- */
+function temasHTML(o){
+  var t = o.themes || {}, nombres = Object.keys(t);
+  var activo = o.theme || "";
+  var chips = [['', 'Base']].concat(nombres.map(function(n){ return [n, n]; })).map(function(x){
+    var on = TEMA_EDIT === x[0];
+    var esActivo = x[0] && x[0] === activo;
+    return '<button class="tm'+(on?' on':'')+'" onclick="temaEditar(\''+x[0]+'\')">'+
+      esc(x[1]) + (esActivo ? '<i title="El que ven los visitantes">&#9733;</i>' : '') +
+    '</button>';
+  }).join("");
+  var puedeMas = TEMA_EDIT !== "";
+  return '<div class="tm-bar">'+
+    '<span class="tm-lab">Apariencias</span>'+ chips +
+    '<button class="tm-add" onclick="temaNuevo()" title="Duplicar la actual">+</button>'+
+    '<span class="tm-sp"></span>'+
+    (puedeMas ?
+      '<button class="btn ghost sm" onclick="temaActivar()"'+(TEMA_EDIT===activo?' disabled':'')+
+        '>Usar esta</button>'+
+      '<button class="btn ghost sm" onclick="temaBorrar()">Borrar</button>' : '')+
+    '<button class="btn ghost sm" onclick="temaProbar()">Probar en mi sitio</button>'+
+  '</div>';
+}
+
+function temaEditar(n){ TEMA_EDIT = n; renderVisual(); refrescarPreview(); }
+
+function temaNuevo(){
+  var b = temaBase(); if(!b) return;
+  var n = prompt("Nombre de la apariencia nueva (sin espacios):", "");
+  if(!n) return;
+  n = String(n).trim().toLowerCase().replace(/\s+/g, "-");
+  if(!n) return;
+  b.themes = b.themes || {};
+  if(b.themes[n]){ alert("Ya existe una apariencia con ese nombre."); return; }
+  // Nace como copia de la que se esta viendo: cambiar dos colores es mas
+  // comodo que partir de cero.
+  b.themes[n] = TEMA_EDIT && b.themes[TEMA_EDIT]
+    ? JSON.parse(JSON.stringify(b.themes[TEMA_EDIT])) : {};
+  el("cfg").value = JSON.stringify(b, null, 2);
+  TEMA_EDIT = n;
+  validarCfg(); renderVisual(); refrescarPreview();
+}
+
+function temaActivar(){
+  var b = temaBase(); if(!b || !TEMA_EDIT) return;
+  b.theme = TEMA_EDIT;
+  el("cfg").value = JSON.stringify(b, null, 2);
+  validarCfg(); renderVisual();
+}
+
+function temaBorrar(){
+  var b = temaBase(); if(!b || !TEMA_EDIT) return;
+  if(!confirm('Borrar la apariencia "'+TEMA_EDIT+'"?')) return;
+  delete b.themes[TEMA_EDIT];
+  if(b.theme === TEMA_EDIT) b.theme = "";
+  el("cfg").value = JSON.stringify(b, null, 2);
+  TEMA_EDIT = "";
+  validarCfg(); renderVisual(); refrescarPreview();
+}
+
+/* Abre el sitio del cliente con el parametro puesto. A partir de ahi el bundle
+   recuerda el modo en ese navegador y enseña su propio selector. */
+function temaProbar(){
+  var d = _datosSitio || {};
+  var dom = d.domain || "";
+  if(!dom){ alert("Este sitio no tiene dominio configurado."); return; }
+  if(!/^https?:/.test(dom)) dom = "https://" + dom;
+  window.open(dom + (dom.indexOf("?") >= 0 ? "&" : "?") + "consentTheme=" +
+              encodeURIComponent(TEMA_EDIT || (temaBase()||{}).theme || ""), "_blank");
+}
+
 function renderVisual(){
   cargarDetectadas();
   var obj;
@@ -2123,7 +2273,8 @@ function renderVisual(){
   }).join('');
   el("pane-visual").innerHTML =
     '<div class="vis">'+
-      '<div>'+ (WIZ.modo === "dev" ? devHTML(obj) : wizardHTML(obj)) +'</div>'+
+      '<div>'+ temasHTML(temaBase()||{}) +
+        (WIZ.modo === "dev" ? devHTML(obj) : wizardHTML(obj)) +'</div>'+
       '<div class="preview">'+
         '<div class="bar">'+
           '<div class="modes prev-modes">'+
@@ -2655,13 +2806,21 @@ function control(obj, it){
 
 var _prevTimer = null;
 function onCtl(path, value, mirrorId){
-  var obj;
-  try{ obj = JSON.parse(el("cfg").value); }catch(e){ return; }
+  var obj = objVista();
+  if(!obj) return;
   // Un campo vacio significa "usa el texto de serie", no "pon cadena vacia".
   // Si guardaramos "" el banner mostraria un hueco en vez del texto por defecto.
   if(value === "" || value === null){ borrarPath(obj, path); }
   else { setPath(obj, path, value); }
-  el("cfg").value = JSON.stringify(obj, null, 2);
+  if(TEMA_EDIT){
+    // Editando una apariencia: el cambio va al parche, no a la base.
+    var b = temaBase();
+    b.themes = b.themes || {};
+    b.themes[TEMA_EDIT] = temaDiff(b, obj);
+    el("cfg").value = JSON.stringify(b, null, 2);
+  } else {
+    el("cfg").value = JSON.stringify(obj, null, 2);
+  }
   if(mirrorId){ var m = el(mirrorId); if(m) m.value = value; }   // color -> campo de texto
   validarCfg();
   wRefrescarDev();                                  // marcas de "puesto a mano"
@@ -2726,9 +2885,12 @@ function bloqueEnlace(cfg){
 
 function refrescarPreview(){
   var fr = el("prev"); if(!fr) return;
-  var cfg;
-  try{ cfg = JSON.parse(el("cfg").value); }catch(e){ return; }
+  var cfg = objVista();
+  if(!cfg) return;
   cfg = JSON.parse(JSON.stringify(cfg));
+  // La vista previa ya trae el tema fusionado; sin esto el bundle lo
+  // aplicaria otra vez y mandaria el activo, no el que se esta editando.
+  delete cfg.themes; delete cfg.theme;
   // Sin siteId ni apiBase el bundle no pide la config remota ni registra nada.
   delete cfg.endpoint; delete cfg.siteId; delete cfg.apiBase; delete cfg.publicKey;
   cfg.consentVersion = "preview-" + Date.now();   // sin decision previa: se muestra el banner

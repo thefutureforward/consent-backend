@@ -41,6 +41,14 @@ let _userConfig = null;
       width: "", height: "", radius: "", knobRadius: "", inset: "",
       on: "", off: "", border: "", onBorder: "", knob: "", knobOn: ""
     },
+    // Plantilla base. "" mantiene los valores de siempre; "base-2026" aplica
+    // el rediseño. Ver TEMPLATES mas abajo.
+    template: "",
+    /* Temas: variantes de la misma configuracion. Cada uno es un parche que se
+       aplica ENCIMA de todo lo demas, asi que solo lleva lo que cambia. El
+       cliente los crea en el dashboard y marca uno activo. */
+    themes: {},
+    theme: "",
     // Etiqueta breve sobre el titulo del banner y del panel. false la oculta.
     showEyebrow: true,
     // Pildora "siempre activas" junto a la categoria bloqueada.
@@ -121,6 +129,7 @@ let _userConfig = null;
       copyGap: "8px",            // entre eyebrow, titulo y cuerpo
       border: "1px solid rgba(255,255,255,.14)",
       shadow: "0 10px 40px rgba(15,24,38,.28)",
+      animate: true,   // false quita la subida del banner
       background: "",            // vacio = usa colors.ink
       color: ""                  // vacio = usa colors.text
     },
@@ -136,6 +145,7 @@ let _userConfig = null;
       footPadding: "20px 28px 24px",
       rowGap: "20px",
       shadow: "0 20px 60px rgba(22,35,59,.28)",
+      animate: true,   // false quita la entrada del panel y del velo
       overlay: "rgba(22,35,59,.28)",
       background: ""             // vacio = usa colors.panelBg
     },
@@ -158,6 +168,11 @@ let _userConfig = null;
     buttons: {
       radius: "8px",
       padding: "",
+      // Aceptar y rechazar con la misma caja: mismo padding y mismo borde de
+      // 1px, y solo cambia el relleno. La CPRA pide que rechazar no cueste mas
+      // que aceptar, y un boton fantasma al lado de uno solido inclina la
+      // eleccion aunque el texto sea correcto.
+      equalWeight: false,
       accept:    { background: "", color: "", border: "0",  weight: 600, padding: "" },
       reject:    { background: "transparent", color: "", border: "1px solid rgba(255,255,255,.32)", weight: 500, padding: "" },
       customize: { background: "transparent", color: "", border: "0", weight: 500, padding: "" },
@@ -264,9 +279,121 @@ let _userConfig = null;
     }
     return target;
   }
+  /* Plantillas base, versionadas.
+     DEFAULTS no se toca nunca: es lo que ven los sitios que llevan tiempo en
+     produccion, y cambiarlo les movería el banner sin avisar. Una plantilla es
+     un parche que se aplica encima y solo si la config lo pide con
+     "template". Asi el rediseño llega a los sitios nuevos, y los antiguos lo
+     adoptan cuando su dueño quiera. La config del cliente siempre gana sobre
+     la plantilla: el parche va antes del assign de local. */
+  var TEMPLATES = {
+    "base-2026": {
+      // 1. Simetria: rechazar cuesta lo mismo que aceptar.
+      buttons: { equalWeight: true, padding: "12px 22px" },
+      // 2. Una familia y dos tamanos; el peso hace la jerarquia. Sin mono,
+      //    sin mayusculas y sin espaciado en los rotulos del sistema.
+      typography: {
+        eyebrow:   { family: "body", size: "12px", weight: 600, letterSpacing: "", transform: "none" },
+        catName:   { family: "body", size: "14.5px", weight: 500, letterSpacing: "", transform: "none" },
+        button:    { family: "body", size: "14px", weight: 500, letterSpacing: "", transform: "none" },
+        chip:      { family: "body", size: "13px", weight: 500, letterSpacing: "", transform: "none" }
+      },
+      // 3. El rotulo de encima del titulo y la pildora de "siempre activas"
+      //    no aportan informacion: el texto ya lo dice.
+      showEyebrow: false,
+      showAlwaysPill: false,
+      // 4. Sin sombras y sin animacion de entrada: separa el borde de 1px.
+      //    La animacion retrasa el primer clic y en moviles lentos lo falla.
+      banner: { shadow: "none", animate: false },
+      panel:  { shadow: "none", animate: false },
+      // 5. El acento sale del verde y pasa a la tinta de marca. Un verde en un
+      //    interruptor copia el de iOS y sugiere "correcto" donde solo hay una
+      //    eleccion neutral.
+      colors: { accent: "#1A1A1A", accentHover: "#333333", pillBg: "#EDEDED", pillFg: "#1A1A1A" }
+    }
+  };
+
+  /* Modo de prueba: el cliente llega desde el dashboard con ?consentTheme=x,
+     el bundle lo recuerda en este navegador y enseña un selector flotante para
+     ir comparando sin tocar la URL. Un visitante normal nunca lo activa porque
+     nunca llega con el parametro. */
+  var PRUEBA_KEY = "cb_theme_preview";
+  function leeParam(n) {
+    try { return new URLSearchParams(location.search).get(n); } catch (e) { return null; }
+  }
+  function modoPrueba() {
+    var p = leeParam("consentTheme");
+    if (p !== null) {
+      try { p ? localStorage.setItem(PRUEBA_KEY, p) : localStorage.removeItem(PRUEBA_KEY); } catch (e) {}
+      return p || null;
+    }
+    try { return localStorage.getItem(PRUEBA_KEY); } catch (e) { return null; }
+  }
+  function salirDePrueba() {
+    try { localStorage.removeItem(PRUEBA_KEY); } catch (e) {}
+    location.reload();
+  }
+
+  function temaActivo(m) {
+    var t = m.themes || {};
+    var prueba = modoPrueba();
+    if (prueba && t[prueba]) return prueba;
+    if (m.theme && t[m.theme]) return m.theme;
+    return "";
+  }
+
+
+  /* Barrita de prueba. Vive FUERA del shadow DOM del banner, en su propio
+     host, para que no herede sus estilos ni estorbe al medirlo. */
+  function pintaSelectorPrueba(C) {
+    if (!modoPrueba()) return;
+    var nombres = Object.keys(C.themes || {});
+    if (!nombres.length) return;
+    if (document.getElementById("consent-theme-preview")) return;
+
+    var caja = document.createElement("div");
+    caja.id = "consent-theme-preview";
+    var sh = caja.attachShadow ? caja.attachShadow({ mode: "open" }) : caja;
+    var activo = C._temaActivo || "";
+    var botones = nombres.map(function (n) {
+      return "<button data-t='" + n + "'" + (n === activo ? " class='on'" : "") + ">" + n + "</button>";
+    }).join("");
+    var st = document.createElement("style");
+    st.textContent =
+      ".w{position:fixed;left:50%;transform:translateX(-50%);top:16px;z-index:2147483646;" +
+      "display:flex;align-items:center;gap:6px;padding:6px;border-radius:10px;" +
+      "background:#14243D;color:#F7F6F2;box-shadow:0 6px 24px rgba(0,0,0,.28);" +
+      "font:500 12px/1 system-ui,-apple-system,sans-serif}" +
+      ".t{padding:0 8px;opacity:.6;white-space:nowrap}" +
+      "button{border:0;border-radius:6px;padding:7px 12px;cursor:pointer;" +
+      "background:transparent;color:inherit;font:inherit;text-transform:capitalize}" +
+      "button:hover{background:rgba(255,255,255,.12)}" +
+      "button.on{background:#F7F6F2;color:#14243D}" +
+      ".x{opacity:.6;padding:7px 9px}";
+    var w = document.createElement("div");
+    w.className = "w";
+    w.innerHTML = "<span class='t'>Vista de prueba</span>" + botones + "<button class='x' data-x='1'>&times;</button>";
+    sh.appendChild(st); sh.appendChild(w);
+    document.body.appendChild(caja);
+
+    w.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("button") : null;
+      if (!b) return;
+      if (b.getAttribute("data-x")) { salirDePrueba(); return; }
+      var t = b.getAttribute("data-t");
+      try { localStorage.setItem(PRUEBA_KEY, t); } catch (err) {}
+      // Recargamos a proposito: el tema toca estilos que se calculan al montar.
+      location.reload();
+    });
+  }
+
   function merged() {
     var m = JSON.parse(JSON.stringify(DEFAULTS));
     var local = _userConfig || (typeof window !== "undefined" && window.__consentConfig) || {};
+    var plantilla = (_remote && _remote.template) || local.template || "";
+    if (plantilla && TEMPLATES[plantilla]) {
+      assign(m, JSON.parse(JSON.stringify(TEMPLATES[plantilla])));
+    }
     assign(m, local);
     if (_remote) {
       var localBlock = m.autoBlock;
@@ -276,6 +403,17 @@ let _userConfig = null;
       if ((!m.autoBlock || !m.autoBlock.length) && localBlock && localBlock.length) {
         m.autoBlock = localBlock;
       }
+    }
+    // El tema va el ultimo: es una variante de lo ya configurado, no una base.
+    var th = temaActivo(m);
+    if (th) {
+      var parche = JSON.parse(JSON.stringify(m.themes[th]));
+      // El CSS del tema se SUMA al del sitio, no lo reemplaza: si no, elegir un
+      // tema borraria todo el CSS a medida que el cliente tenga escrito.
+      var extra = parche.customCss; delete parche.customCss;
+      assign(m, parche);
+      if (extra) m.customCss = (m.customCss || "") + "\n" + extra;
+      m._temaActivo = th;
     }
     return m;
   }
@@ -820,7 +958,7 @@ let _userConfig = null;
     "*{box-sizing:border-box;font-family:" + F.body + "}" +
     // ---- Banner: tarjeta flotante sobre ink, no barra a sangre ----
     ".cb-banner{position:fixed;left:0;right:0;" + vert + "z-index:2147483000;display:flex;justify-content:" + justify + ";padding:0;margin:" + (BN.margin || "0 20px 20px") + "}" +
-    ".cb-inner{width:100%;max-width:" + (BN.maxWidth || "1172px") + ";background:" + bnBg + ";color:" + bnFg + ";border:" + (BN.border || "1px solid rgba(255,255,255,.14)") + ";border-radius:" + (BN.radius || "12px") + ";box-shadow:" + (BN.shadow || "0 10px 40px rgba(15,24,38,.28)") + ";padding:" + (BN.padding || "22px 26px") + ";display:flex;flex-wrap:wrap;gap:" + (BN.gap || "28px") + ";align-items:center;justify-content:space-between;animation:cb-rise .26s cubic-bezier(.2,.6,.2,1)}" +
+    ".cb-inner{width:100%;max-width:" + (BN.maxWidth || "1172px") + ";background:" + bnBg + ";color:" + bnFg + ";border:" + (BN.border || "1px solid rgba(255,255,255,.14)") + ";border-radius:" + (BN.radius || "12px") + ";box-shadow:" + (BN.shadow || "0 10px 40px rgba(15,24,38,.28)") + ";padding:" + (BN.padding || "22px 26px") + ";display:flex;flex-wrap:wrap;gap:" + (BN.gap || "28px") + ";align-items:center;justify-content:space-between" + (BN.animate === false ? "" : ";animation:cb-rise .26s cubic-bezier(.2,.6,.2,1)") + "}" +
     ".cb-copy{flex:1 1 380px;display:flex;flex-direction:column;gap:" + (BN.copyGap || "8px") + ";min-width:0}" +
     ".cb-eyebrow{margin:0;" + typo(C, "eyebrow") + "color:" + K.accentPale + "}" +
     ".cb-body{margin:0;" + typo(C, "bannerText") + "color:" + bnFg + ";max-width:68ch}" +
@@ -835,10 +973,18 @@ let _userConfig = null;
     ".cb-actions .cb-ghost:first-child{" + btn(C, "customize", "transparent", bnFg) + "}" +
     ".cb-actions .cb-ghost:first-child:hover{text-decoration:underline;text-underline-offset:3px}" +
     ".cb-accept{" + btn(C, "accept", K.accent, K.textBright) + "border-radius:" + (BT.radius || "8px") + "}" +
+    // Simetria: misma caja para aceptar y rechazar. Va despues de las reglas
+    // base a proposito, para ganarles sin depender del orden de las claves.
+    (BT.equalWeight ? (
+      ".cb-actions .cb-btn:not(:first-child){padding:" + (BT.padding || "12px 22px") +
+        ";border-width:1px;border-style:solid;font-weight:" + (BT.accept && BT.accept.weight || 600) + "}" +
+      ".cb-ghost:not(:first-child){border-color:" + bnFg + ";color:" + bnFg + "}" +
+      ".cb-accept{border-color:" + (BT.accept && BT.accept.background || K.accent) + "}"
+    ) : "") +
     ".cb-accept:hover{background:" + K.accentHover + "}" +
     // ---- Panel ----
-    ".cb-overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483001;background:" + (PN.overlay || "rgba(22,35,59,.28)") + ";display:flex;align-items:center;justify-content:center;padding:24px;animation:cb-fade .2s ease}" +
-    ".cb-panel{background:" + pnBg + ";color:" + K.heading + ";width:100%;max-width:" + (PN.maxWidth || "560px") + ";max-height:" + (PN.maxHeight || "92vh") + ";overflow:auto;border:1px solid " + K.border + ";border-radius:" + (PN.radius || "12px") + ";box-shadow:" + (PN.shadow || "0 20px 60px rgba(22,35,59,.28)") + ";animation:cb-rise .24s cubic-bezier(.2,.6,.2,1)}" +
+    ".cb-overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483001;background:" + (PN.overlay || "rgba(22,35,59,.28)") + ";display:flex;align-items:center;justify-content:center;padding:24px" + (PN.animate === false ? "" : ";animation:cb-fade .2s ease") + "}" +
+    ".cb-panel{background:" + pnBg + ";color:" + K.heading + ";width:100%;max-width:" + (PN.maxWidth || "560px") + ";max-height:" + (PN.maxHeight || "92vh") + ";overflow:auto;border:1px solid " + K.border + ";border-radius:" + (PN.radius || "12px") + ";box-shadow:" + (PN.shadow || "0 20px 60px rgba(22,35,59,.28)") + (PN.animate === false ? "" : ";animation:cb-rise .24s cubic-bezier(.2,.6,.2,1)") + "}" +
     ".cb-head{padding:" + (PN.headPadding || "28px 28px 20px") + ";display:flex;flex-direction:column;gap:10px;border-bottom:1px solid " + K.border + "}" +
     ".cb-eyebrow2{margin:0;" + typo(C, "eyebrow") + "color:" + K.accentHover + "}" +
     ".cb-panel h2{margin:0;" + typo(C, "panelTitle") + "color:" + K.heading + "}" +
@@ -904,6 +1050,7 @@ let _userConfig = null;
     style.textContent = css(C) + cssAMedida(C);
     shadow.appendChild(style);
     document.body.appendChild(host);
+    pintaSelectorPrueba(C);
     root = shadow; // a partir de aqui todo se monta dentro del shadow root
   }
 
