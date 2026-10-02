@@ -107,9 +107,11 @@ def init_db():
       id INTEGER PRIMARY KEY AUTOINCREMENT, consent_id TEXT, site_id TEXT,
       choice TEXT, categories TEXT, version_texto TEXT, language TEXT,
       ts TEXT, ip TEXT, user_agent TEXT);
+    -- role:   super | admin | user      (super es el dueno de la instalacion)
+    -- status: activo | pendiente        (el alta por registro nace pendiente)
     CREATE TABLE IF NOT EXISTS users(
       username TEXT PRIMARY KEY, pw_hash TEXT, salt TEXT, created_at TEXT,
-      role TEXT DEFAULT 'user');
+      role TEXT DEFAULT 'user', status TEXT DEFAULT 'activo');
     CREATE TABLE IF NOT EXISTS sessions(
       token TEXT PRIMARY KEY, username TEXT, created_at TEXT);
     CREATE TABLE IF NOT EXISTS site_owners(
@@ -129,6 +131,15 @@ def init_db():
         # Quien ya existia era el unico que habia: se queda como admin para
         # no dejar la instalacion sin nadie que pueda gestionar usuarios.
         c.execute("UPDATE users SET role='admin'")
+    # Migracion al rol super. Va atada a la columna status, que se anade una
+    # sola vez: asi la promocion no se repite en cada arranque y un super al
+    # que se degrade a proposito se queda degradado.
+    if "status" not in cols:
+        c.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'activo'")
+        c.execute("UPDATE users SET status='activo' WHERE status IS NULL")
+        # Los administradores de antes pasan a super: eran los duenos de la
+        # instalacion, y si no quedara ninguno nadie podria aprobar altas.
+        c.execute("UPDATE users SET role='super' WHERE role='admin'")
     c.commit()
     if fresh:
         seed(c)
@@ -265,7 +276,9 @@ def hash_pw(pw, salt):
 def seed(c):
     salt = secrets.token_hex(16)
     pw = os.environ.get("ADMIN_PASSWORD", "admin")       # en produccion, definir la variable
-    c.execute("INSERT INTO users VALUES(?,?,?,?,?)", ("admin", hash_pw(pw, salt), salt, now(), "admin"))
+    c.execute("INSERT INTO users(username,pw_hash,salt,created_at,role,status)"
+              " VALUES(?,?,?,?,?,?)",
+              ("admin", hash_pw(pw, salt), salt, now(), "super", "activo"))
     site_id = "site_" + secrets.token_hex(4)
     key = "pk_" + secrets.token_hex(16)
     c.execute("INSERT INTO sites VALUES(?,?,?,?,?)", (site_id, "Sitio demo", "localhost", "pro", now()))
@@ -459,6 +472,7 @@ LIMITES = {
     "config":  (120, 60),   # 120 lecturas de config por minuto y por IP
     "cookies": (90, 60),    # 90 envios de inventario por minuto y por IP
     "detect":  (10, 300),   # 10 detecciones por 5 minutos y por IP: descarga webs ajenas
+    "registro": (5, 900),   # 5 altas por 15 minutos y por IP: endpoint publico
 }
 _hits = {}
 _hits_lock = threading.Lock()
@@ -564,12 +578,16 @@ class H(BaseHTTPRequestHandler):
         c.close()
         return (r["role"] if r else None) or "user"
 
+    def _es_super(self, user):
+        return self._role(user) == "super"
+
     def _es_admin(self, user):
-        return self._role(user) == "admin"
+        # Un super es tambien administrador: hereda todo lo que puede un admin.
+        return self._role(user) in ("admin", "super")
 
     def _owns(self, user, site_id):
-        if self._es_admin(user):
-            return True          # el administrador llega a todos los sitios
+        if self._es_super(user):
+            return True          # solo el super llega a todos los sitios
         c = db()
         r = c.execute("SELECT 1 FROM site_owners WHERE username=? AND site_id=?", (user, site_id)).fetchone()
         c.close()
@@ -588,6 +606,8 @@ class H(BaseHTTPRequestHandler):
             return self.api_config(q)
         if p == "/dash/users":
             return self.dash_users_list()
+        if p == "/dash/pending":
+            return self.dash_pending_list()
         if p == "/dash/me":
             return self.dash_me()
         if p == "/dash/site/detect":
@@ -609,6 +629,10 @@ class H(BaseHTTPRequestHandler):
             return self.api_cookies()
         if p == "/dash/login":
             return self.dash_login()
+        if p == "/dash/register":
+            return self.dash_register()
+        if p == "/dash/pending/resolve":
+            return self.dash_pending_resolve()
         if p == "/dash/logout":
             return self.dash_logout()
         if p == "/dash/site/create":
@@ -700,14 +724,77 @@ class H(BaseHTTPRequestHandler):
             return self._send(429, {"error": "demasiados intentos, espera unos minutos"})
         d = self._body()
         c = db()
-        r = c.execute("SELECT pw_hash,salt FROM users WHERE username=?", (d.get("username", ""),)).fetchone()
+        r = c.execute("SELECT pw_hash,salt,status FROM users WHERE username=?", (d.get("username", ""),)).fetchone()
         if not r or hash_pw(d.get("password", ""), r["salt"]) != r["pw_hash"]:
             c.close(); return self._send(401, {"error": "credenciales invalidas"})
+        # La contrasena es correcta, pero la cuenta todavia no esta aprobada.
+        # Se comprueba DESPUES de la contrasena: si no, cualquiera podria
+        # averiguar que cuentas existen probando nombres.
+        if (r["status"] or "activo") != "activo":
+            c.close(); return self._send(403, {"error": "tu cuenta todavia esta pendiente de aprobacion"})
         token = secrets.token_hex(24)
         c.execute("INSERT INTO sessions VALUES(?,?,?)", (token, d["username"], now()))
         c.commit(); c.close()
         ck = "dash=%s; Path=/; HttpOnly; SameSite=Lax%s" % (token, "; Secure" if SECURE_COOKIES else "")
         self._send(200, {"ok": True}, cookie=ck)
+
+    # ---- Alta de cuenta (publico) -----------------------------------------
+    # Cualquiera puede pedir una cuenta de administrador, pero nace PENDIENTE:
+    # no puede iniciar sesion hasta que un super la aprueba. Asi el formulario
+    # puede estar abierto sin que una alta cree acceso por si sola.
+    def dash_register(self):
+        if not rate_ok("registro", ip_cliente(self)):
+            return self._send(429, {"error": "demasiadas solicitudes, espera un rato"})
+        d = self._body()
+        nombre = (d.get("username") or "").strip().lower()
+        pw = d.get("password") or ""
+        if not re.match(r"^[a-z0-9._-]{3,32}$", nombre):
+            return self._send(400, {"error": "usuario: de 3 a 32 caracteres, letras, numeros, punto, guion o guion bajo"})
+        if len(pw) < 8:
+            return self._send(400, {"error": "la contrasena debe tener al menos 8 caracteres"})
+        c = db()
+        if c.execute("SELECT 1 FROM users WHERE username=?", (nombre,)).fetchone():
+            # Mismo mensaje y mismo codigo que el alta buena: desde fuera no se
+            # puede distinguir un nombre ocupado de uno libre.
+            c.close(); return self._send(200, {"ok": True, "pendiente": True})
+        salt = secrets.token_hex(16)
+        c.execute("INSERT INTO users(username,pw_hash,salt,created_at,role,status)"
+                  " VALUES(?,?,?,?,?,?)",
+                  (nombre, hash_pw(pw, salt), salt, now(), "admin", "pendiente"))
+        c.commit(); c.close()
+        self._send(200, {"ok": True, "pendiente": True})
+
+    def dash_pending_list(self):
+        if not self._solo_super():
+            return
+        c = db()
+        filas = [dict(r) for r in c.execute(
+            "SELECT username, created_at FROM users WHERE status='pendiente' ORDER BY created_at")]
+        c.close()
+        self._send(200, {"rows": filas, "total": len(filas)})
+
+    def dash_pending_resolve(self):
+        """Aprueba o rechaza una solicitud. Rechazar borra la fila: la persona
+        puede volver a pedirla, y no dejamos cuentas muertas ocupando nombre."""
+        yo = self._solo_super()
+        if not yo:
+            return
+        d = self._body()
+        nombre = (d.get("username") or "").strip().lower()
+        accion = d.get("accion")
+        if accion not in ("aprobar", "rechazar"):
+            return self._send(400, {"error": "accion debe ser aprobar o rechazar"})
+        c = db()
+        r = c.execute("SELECT status FROM users WHERE username=?", (nombre,)).fetchone()
+        if not r or r["status"] != "pendiente":
+            c.close(); return self._send(404, {"error": "no hay ninguna solicitud con ese nombre"})
+        if accion == "aprobar":
+            rol = "super" if d.get("role") == "super" else "admin"
+            c.execute("UPDATE users SET status='activo', role=? WHERE username=?", (rol, nombre))
+        else:
+            c.execute("DELETE FROM users WHERE username=?", (nombre,))
+        c.commit(); c.close()
+        self._send(200, {"ok": True, "username": nombre, "accion": accion})
 
     def dash_logout(self):
         ck = http.cookies.SimpleCookie(self.headers.get("Cookie", ""))
@@ -720,7 +807,9 @@ class H(BaseHTTPRequestHandler):
         if not u:
             return self._send(401, {"error": "no auth"})
         c = db()
-        if self._es_admin(u):
+        # Solo el super ve el catalogo entero. Un admin ve lo que tenga asignado
+        # en site_owners, igual que un usuario normal.
+        if self._es_super(u):
             rows = c.execute("SELECT site_id,name,domain,plan FROM sites ORDER BY name").fetchall()
         else:
             rows = c.execute("SELECT s.site_id,s.name,s.domain,s.plan FROM sites s "
@@ -737,21 +826,36 @@ class H(BaseHTTPRequestHandler):
     # mas para que un usuario deje de ver un sitio.
 
     def _solo_admin(self):
-        """Devuelve el usuario si es admin; si no, responde y devuelve None."""
+        """Devuelve el usuario si es admin o super; si no, responde y devuelve None."""
         u = self._user()
         if not u:
             self._send(401, {"error": "no auth"}); return None
         if not self._es_admin(u):
-            self._send(403, {"error": "solo un administrador puede gestionar usuarios"})
+            self._send(403, {"error": "hace falta ser administrador"})
+            return None
+        return u
+
+    def _solo_super(self):
+        """Lo reservado al dueno de la instalacion: gestionar cuentas, borrar
+        sitios y escribir CSS a medida. Un admin normal recibe 403."""
+        u = self._user()
+        if not u:
+            self._send(401, {"error": "no auth"}); return None
+        if not self._es_super(u):
+            self._send(403, {"error": "solo el super administrador puede hacer esto"})
             return None
         return u
 
     def dash_users_list(self):
-        if not self._solo_admin():
+        if not self._solo_super():
             return
         c = db()
         users = []
-        for r in c.execute("SELECT username, role, created_at FROM users ORDER BY username").fetchall():
+        # Las cuentas pendientes no se listan aqui: viven en la bandeja de
+        # solicitudes, y mezclarlas con las activas invita a asignarles sitios
+        # a gente que todavia no tiene acceso.
+        for r in c.execute("SELECT username, role, created_at FROM users "
+                           "WHERE status IS NULL OR status='activo' ORDER BY username").fetchall():
             sids = [x["site_id"] for x in c.execute(
                 "SELECT site_id FROM site_owners WHERE username=?", (r["username"],)).fetchall()]
             users.append({"username": r["username"], "role": r["role"] or "user",
@@ -762,12 +866,12 @@ class H(BaseHTTPRequestHandler):
         self._send(200, {"users": users, "sites": sitios})
 
     def dash_user_create(self):
-        if not self._solo_admin():
+        if not self._solo_super():
             return
         d = self._body()
         nombre = (d.get("username") or "").strip().lower()
         pw = d.get("password") or ""
-        rol = "admin" if d.get("role") == "admin" else "user"
+        rol = d.get("role") if d.get("role") in ("super", "admin") else "user"
         if not re.match(r"^[a-z0-9._-]{3,32}$", nombre):
             return self._send(400, {"error": "usuario: de 3 a 32 caracteres, letras, numeros, punto, guion o guion bajo"})
         if len(pw) < 8:
@@ -776,8 +880,11 @@ class H(BaseHTTPRequestHandler):
         if c.execute("SELECT 1 FROM users WHERE username=?", (nombre,)).fetchone():
             c.close(); return self._send(400, {"error": "ese usuario ya existe"})
         salt = secrets.token_hex(16)
-        c.execute("INSERT INTO users VALUES(?,?,?,?,?)",
-                  (nombre, hash_pw(pw, salt), salt, now(), rol))
+        # Una cuenta creada a mano por el super nace activa: no tiene sentido
+        # que tenga que aprobar su propia alta.
+        c.execute("INSERT INTO users(username,pw_hash,salt,created_at,role,status)"
+                  " VALUES(?,?,?,?,?,?)",
+                  (nombre, hash_pw(pw, salt), salt, now(), rol, "activo"))
         for sid in (d.get("sites") or []):
             if c.execute("SELECT 1 FROM sites WHERE site_id=?", (sid,)).fetchone():
                 c.execute("INSERT OR IGNORE INTO site_owners VALUES(?,?)", (nombre, sid))
@@ -785,7 +892,7 @@ class H(BaseHTTPRequestHandler):
         self._send(200, {"ok": True, "username": nombre})
 
     def dash_user_delete(self):
-        yo = self._solo_admin()
+        yo = self._solo_super()
         if not yo:
             return
         nombre = (self._body().get("username") or "").strip().lower()
@@ -794,11 +901,12 @@ class H(BaseHTTPRequestHandler):
         c = db()
         if not c.execute("SELECT 1 FROM users WHERE username=?", (nombre,)).fetchone():
             c.close(); return self._send(404, {"error": "ese usuario no existe"})
-        # Nunca dejar la instalacion sin ningun administrador.
-        if self._es_admin(nombre):
-            n = c.execute("SELECT COUNT(*) n FROM users WHERE role='admin'").fetchone()["n"]
+        # Nunca dejar la instalacion sin ningun super: es el unico rol que
+        # aprueba altas y gestiona cuentas.
+        if self._es_super(nombre):
+            n = c.execute("SELECT COUNT(*) n FROM users WHERE role='super'").fetchone()["n"]
             if n <= 1:
-                c.close(); return self._send(400, {"error": "es el unico administrador que queda"})
+                c.close(); return self._send(400, {"error": "es el unico super administrador que queda"})
         c.execute("DELETE FROM users        WHERE username=?", (nombre,))
         c.execute("DELETE FROM site_owners  WHERE username=?", (nombre,))
         c.execute("DELETE FROM sessions     WHERE username=?", (nombre,))   # cerrarle la sesion
@@ -807,7 +915,7 @@ class H(BaseHTTPRequestHandler):
 
     def dash_user_assign(self):
         """Reemplaza la lista completa de sitios de un usuario."""
-        yo = self._solo_admin()
+        yo = self._solo_super()
         if not yo:
             return
         d = self._body()
@@ -826,7 +934,7 @@ class H(BaseHTTPRequestHandler):
 
     def dash_user_password(self):
         """El admin fija una contrasena nueva sin conocer la anterior."""
-        if not self._solo_admin():
+        if not self._solo_super():
             return
         d = self._body()
         nombre = (d.get("username") or "").strip().lower()
@@ -896,7 +1004,21 @@ class H(BaseHTTPRequestHandler):
         except Exception:
             return self._send(400, {"error": "config invalida"})
         c = db()
-        row = c.execute("SELECT version FROM site_config WHERE site_id=?", (site_id,)).fetchone()
+        row = c.execute("SELECT version, json FROM site_config WHERE site_id=?", (site_id,)).fetchone()
+        # El CSS a medida es la via mas facil de romper el banner de un cliente,
+        # asi que solo el super lo escribe. A un admin no se le responde con un
+        # error: se le conserva el que ya habia, de modo que pueda seguir
+        # guardando el resto de la config sin pelearse con el formulario.
+        if row and not self._es_super(u):
+            try:
+                previa = json.loads(row["json"])
+            except Exception:
+                previa = {}
+            if cfg.get("customCss") != previa.get("customCss"):
+                if "customCss" in previa:
+                    cfg["customCss"] = previa["customCss"]
+                else:
+                    cfg.pop("customCss", None)
         newv = (row["version"] if row else 0) + 1
         c.execute("UPDATE site_config SET version=?, json=?, updated_at=? WHERE site_id=?",
                   (newv, json.dumps(cfg), now(), site_id))
@@ -906,7 +1028,7 @@ class H(BaseHTTPRequestHandler):
     def dash_site_delete(self):
         """Borra un sitio y todo lo que cuelga de el: config, claves, registros.
         Irreversible. El bundle instalado en ese dominio dejara de recibir config."""
-        u = self._solo_admin()
+        u = self._solo_super()
         if not u:
             return
         d = self._body(); site_id = d.get("site_id")
