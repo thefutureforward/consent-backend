@@ -287,11 +287,178 @@ def seed(c):
 # ---------------------------------------------------------------- limites de uso
 # Ventana deslizante en memoria, por IP y por cubo. Suficiente para una replica;
 # al migrar a varias instancias esto se mueve a Redis o al borde.
+# ---------------------------------------------------------------- DETECTOR
+# Lee la portada del sitio del cliente y deduce tipografia, color de accion,
+# fondo y radios. Reglas simples sobre el HTML y el CSS, sin IA.
+#
+# Un endpoint que descarga una URL que manda el usuario es un riesgo clasico
+# (SSRF): sirve para que alguien use tu servidor como trampolin hacia la red
+# interna. De ahi las comprobaciones de abajo.
+
+import socket, ipaddress, urllib.request, urllib.error
+from urllib.parse import urljoin
+
+DET_MAX_BYTES = 1_500_000      # 1,5 MB por recurso
+DET_TIMEOUT   = 6              # segundos
+DET_MAX_CSS   = 4              # hojas enlazadas que se miran
+
+DET_PERMITIR = set(filter(None, (os.environ.get("DETECT_ALLOW_HOSTS") or "").split(",")))
+
+def _ip_publica(host):
+    """False si el nombre resuelve a una direccion privada, local o reservada."""
+    if host in DET_PERMITIR:   # escotilla solo para pruebas automaticas
+        return True
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except Exception:
+        return False
+    for inf in infos:
+        try:
+            ip = ipaddress.ip_address(inf[4][0])
+        except ValueError:
+            return False
+        if (ip.is_private or ip.is_loopback or ip.is_link_local or
+                ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            return False
+    return True
+
+def det_normaliza(url):
+    url = (url or "").strip()
+    if not url:
+        return None, "Falta la URL."
+    if not re.match(r"^https?://", url, re.I):
+        url = "https://" + url
+    p = urlparse(url)
+    if p.scheme not in ("http", "https"):
+        return None, "Solo http o https."
+    if not p.hostname:
+        return None, "URL invalida."
+    if not _ip_publica(p.hostname):
+        return None, "Ese dominio no es publico."
+    return url, None
+
+def det_baja(url):
+    """Descarga un recurso con limite de tamano y sin seguir a sitios privados."""
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "ConsentBanner-Detector/1.0",
+        "Accept": "text/html,text/css,*/*",
+    })
+    with urllib.request.urlopen(req, timeout=DET_TIMEOUT) as r:
+        destino = r.geturl()
+        if not _ip_publica(urlparse(destino).hostname or ""):
+            raise ValueError("redireccion a un destino no publico")
+        datos = r.read(DET_MAX_BYTES + 1)
+    if len(datos) > DET_MAX_BYTES:
+        datos = datos[:DET_MAX_BYTES]
+    return datos.decode("utf-8", "ignore")
+
+def _color_valido(c):
+    c = c.strip().lower()
+    if c in ("transparent", "inherit", "currentcolor", "none", "#fff", "#ffffff",
+             "#000", "#000000", "white", "black"):
+        return None
+    m = re.match(r"^#([0-9a-f]{3}|[0-9a-f]{6})$", c)
+    if m:
+        h = m.group(1)
+        if len(h) == 3:
+            h = "".join(ch * 2 for ch in h)
+        return "#" + h.upper()
+    m = re.match(r"^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)", c)
+    if m:
+        r, g, b = (int(m.group(i)) for i in (1, 2, 3))
+        if (r, g, b) in ((255, 255, 255), (0, 0, 0)):
+            return None
+        return "#%02X%02X%02X" % (r, g, b)
+    return None
+
+def det_analiza(html, css):
+    todo = css + "\n" + html
+    out = {}
+
+    # Tipografia: la primera font-family de body o :root, que es la del sitio.
+    m = re.search(r"(?:^|[},])\s*(?:body|html|:root)[^{}]*\{[^{}]*font-family\s*:\s*([^;}]+)", todo, re.I)
+    if not m:
+        m = re.search(r"font-family\s*:\s*([^;}]+)", todo, re.I)
+    if m:
+        fam = re.sub(r"\s+", " ", m.group(1)).strip().rstrip(";")
+        if fam and "var(" not in fam:
+            out["fontFamily"] = fam
+
+    # Color de accion: el color de fondo mas repetido entre botones y enlaces,
+    # descartando blancos y negros, que no dicen nada de la marca.
+    cand = {}
+    for m in re.finditer(r"(\.?btn[^{}]*|a[^{}]*|button[^{}]*)\{([^{}]*)\}", todo, re.I):
+        for c in re.findall(r"background(?:-color)?\s*:\s*([^;}]+)", m.group(2), re.I):
+            v = _color_valido(c)
+            if v:
+                cand[v] = cand.get(v, 0) + 1
+    if not cand:
+        for c in re.findall(r"background(?:-color)?\s*:\s*([^;}]+)", todo, re.I):
+            v = _color_valido(c)
+            if v:
+                cand[v] = cand.get(v, 0) + 1
+    if cand:
+        out["accent"] = max(cand.items(), key=lambda kv: kv[1])[0]
+
+    # Fondo de la pagina: claro u oscuro, para elegir la superficie del banner.
+    m = re.search(r"(?:^|[},])\s*body[^{}]*\{[^{}]*background(?:-color)?\s*:\s*([^;}]+)", todo, re.I)
+    fondo = _color_valido(m.group(1)) if m else None
+    if fondo:
+        r = int(fondo[1:3], 16); g = int(fondo[3:5], 16); b = int(fondo[5:7], 16)
+        out["surface"] = "dark" if (0.2126*r + 0.7152*g + 0.0722*b) < 110 else "light"
+    else:
+        out["surface"] = "light"
+
+    # Radios: el valor mas repetido manda.
+    rad = {}
+    for c in re.findall(r"border-radius\s*:\s*([0-9.]+)px", todo, re.I):
+        try:
+            rad[round(float(c))] = rad.get(round(float(c)), 0) + 1
+        except ValueError:
+            pass
+    if rad:
+        px = max(rad.items(), key=lambda kv: kv[1])[0]
+        out["radius"] = "rectas" if px <= 1 else ("suaves" if px <= 10 else "redondeadas")
+    else:
+        out["radius"] = "rectas"
+    return out
+
+def det_detectar(url):
+    url, err = det_normaliza(url)
+    if err:
+        return {"error": err}
+    try:
+        html = det_baja(url)
+    except Exception as e:
+        return {"error": "No se pudo leer la pagina: " + str(e)[:120]}
+
+    css = ""
+    hojas = re.findall(r"<link[^>]+rel=[\"']?stylesheet[\"']?[^>]*>", html, re.I)
+    enlaces = []
+    for h in hojas:
+        m = re.search(r"href=[\"']([^\"']+)[\"']", h, re.I)
+        if m:
+            enlaces.append(urljoin(url, m.group(1)))
+    for e in enlaces[:DET_MAX_CSS]:
+        try:
+            if _ip_publica(urlparse(e).hostname or ""):
+                css += "\n" + det_baja(e)
+        except Exception:
+            pass
+    for m in re.finditer(r"<style[^>]*>(.*?)</style>", html, re.S | re.I):
+        css += "\n" + m.group(1)
+
+    r = det_analiza(html, css)
+    r["url"] = url
+    r["hojas"] = len(enlaces[:DET_MAX_CSS])
+    return r
+
 LIMITES = {
     "consent": (60, 60),    # 60 registros por minuto y por IP
     "login":   (20, 300),   # 20 intentos de login por 5 minutos y por IP
     "config":  (120, 60),   # 120 lecturas de config por minuto y por IP
     "cookies": (90, 60),    # 90 envios de inventario por minuto y por IP
+    "detect":  (10, 300),   # 10 detecciones por 5 minutos y por IP: descarga webs ajenas
 }
 _hits = {}
 _hits_lock = threading.Lock()
@@ -423,6 +590,8 @@ class H(BaseHTTPRequestHandler):
             return self.dash_users_list()
         if p == "/dash/me":
             return self.dash_me()
+        if p == "/dash/site/detect":
+            return self.dash_detect(q)
         if p == "/dash/site/get":
             return self.dash_site_get(q)
         if p == "/dash/site/logs":
@@ -695,6 +864,16 @@ class H(BaseHTTPRequestHandler):
         c.execute("INSERT INTO site_owners VALUES(?,?)", (u, site_id))
         c.commit(); c.close()
         self._send(200, {"site_id": site_id, "publicKey": key})
+
+    def dash_detect(self, q):
+        """Lee la portada del sitio y propone marca. Solo con sesion iniciada."""
+        u = self._user()
+        if not u:
+            return self._send(401, {"error": "no auth"})
+        if not rate_ok("detect", ip_cliente(self)):
+            return self._send(429, {"error": "demasiadas detecciones, espera un poco"})
+        r = det_detectar((q.get("url") or [""])[0])
+        return self._send(400 if r.get("error") else 200, r)
 
     def dash_site_get(self, q):
         u = self._user(); site_id = (q.get("site_id") or [""])[0]

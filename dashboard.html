@@ -158,6 +158,10 @@
   /* ---------- barra superior ---------- */
   .topbar{background:var(--ink);color:#fff;padding:8px 24px;display:flex;align-items:center;
           gap:6px 18px;min-height:56px;position:sticky;top:0;z-index:20;flex-wrap:wrap}
+  .site-current{display:flex;align-items:center;gap:10px}
+  .pt{width:8px;height:8px;border-radius:50%;flex:0 0 8px;background:rgba(247,246,242,.35)}
+  .pt.ok{background:#8FD3C2}
+  .pt.sucio{background:#E8B931}
   .ver-pill{padding:3px 8px;border:1px solid rgba(255,255,255,.18);border-radius:999px;
             font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.85}
   .brand{font-weight:700;letter-spacing:.01em;font-size:15px;white-space:nowrap}
@@ -754,6 +758,16 @@ var DICT = {
   "Que abre": "What it opens",
   "El panel de ajustes": "The settings panel",
   "El aviso completo": "The full banner",
+  "sin publicar": "not published",
+  "publicado": "published",
+  "Tu sitio": "Your site",
+  "Pagina neutra": "Blank page",
+  "Este sitio no tiene dominio configurado.": "This site has no domain configured.",
+  "Detectar de nuevo": "Detect again",
+  "Leyendo...": "Reading...",
+  "Escribe la direccion de tu sitio.": "Type your site address.",
+  "No se pudo leer el sitio.": "Could not read the site.",
+  "Leemos la portada y sus hojas de estilo para sacar tipografia, color, fondo y radios. Reglas simples, sin IA.": "We read the home page and its stylesheets for font, color, background and radius. Rule-based, no AI.",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -1269,9 +1283,10 @@ function renderPicker(){
   var cur = sites.filter(function(s){return s.site_id===current;})[0] || sites[0];
   p.innerHTML =
     '<div class="site-current" onclick="toggleMenu(event)">'+
+      '<span class="pt" id="pt-estado"></span>'+
       '<div style="min-width:0">'+
         '<div class="nm">'+esc(cur.name)+'</div>'+
-        '<div class="id">'+esc(cur.site_id)+'</div>'+
+        '<div class="id" id="sitio-estado">'+esc(cur.site_id)+'</div>'+
       '</div><span class="caret">&#9660;</span>'+
     '</div>'+
     (menuOpen ? renderMenu() : '');
@@ -1355,7 +1370,8 @@ function viewConfig(d){
       '<div class="checks" id="checks"></div>'+
 
     '</div>';
-  var _vp = el("ver-pill"); if(_vp) _vp.textContent = "v" + String(d.version);
+  WIZ_PUBLICADA = d.version;
+  marcarPublicado(d.config);
   if(!WIZ_PUBLICADA) WIZ_PUBLICADA = d.version;
   _datosSitio = d;
   el("cfg").value = JSON.stringify(d.config, null, 2);
@@ -1658,6 +1674,12 @@ function wSobre(bg){
 }
 
 /* ---- tipografias que ofrece el asistente ---- */
+/* La tipografia que encuentra el detector se suma al desplegable como "la de
+   tu sitio": asi pasa por el mismo camino que las demas y el asistente no la
+   pisa al recalcular. */
+var WIZ_FUENTE_SITIO = null;   // {fam, nombre}
+var WIZ_DET_MSG = "";
+
 var WIZ_FUENTES = [
   ["plex",   "Instrument Sans · Google Fonts", "'Instrument Sans', sans-serif", true],
   ["work",   "Work Sans · Google Fonts",       "'Work Sans', sans-serif",       true],
@@ -1670,7 +1692,7 @@ var WIZ_FUENTES = [
 function wCfg(){ try{ return JSON.parse(el("cfg").value); }catch(e){ return null; } }
 function wGuardar(o){
   el("cfg").value = JSON.stringify(o, null, 2);
-  validarCfg(); renderVisual(); refrescarPreview();
+  validarCfg(); pintaEstado(); renderVisual(); refrescarPreview();
 }
 function wMarca(o){
   // Las cuatro decisiones se guardan aparte, en "brand". Si se dedujeran de
@@ -1680,7 +1702,8 @@ function wMarca(o){
   var c = o.colors || {}, f = o.fonts || {}, bn = o.banner || {};
   var fam = f.body || "";
   var id = "plex";
-  for(var i=0;i<WIZ_FUENTES.length;i++){ if(WIZ_FUENTES[i][2] === fam) id = WIZ_FUENTES[i][0]; }
+  var LF = wListaFuentes();
+  for(var i=0;i<LF.length;i++){ if(LF[i][2] === fam) id = LF[i][0]; }
   var radio = String((o.buttons && o.buttons.radius) || "");
   return {
     fuente: id,
@@ -1696,7 +1719,7 @@ function wMarca(o){
    escribirlos. Sirve para dos cosas: aplicarlos, y saber en el modo
    desarrollador que campos el cliente ha puesto a mano. */
 function wDerivar(m){
-  var fuente = WIZ_FUENTES.filter(function(f){ return f[0] === m.fuente; })[0] || WIZ_FUENTES[0];
+  var fuente = wListaFuentes().filter(function(f){ return f[0] === m.fuente; })[0] || WIZ_FUENTES[0];
   var color  = /^#[0-9a-fA-F]{6}$/.test(m.color) ? m.color.toUpperCase() : "#2F7E6C";
   var rad    = { rectas:[0,0,0,0], suaves:[6,6,10,4], redondeadas:[999,16,20,999] }[m.esquinas];
   var oscuro = m.fondo === "dark", marca = m.fondo === "brand";
@@ -1782,12 +1805,18 @@ function wizardHTML(o){
   '</div>';
 }
 
+function wListaFuentes(){
+  if(!WIZ_FUENTE_SITIO) return WIZ_FUENTES;
+  return [["site", "La de tu sitio \u00b7 " + WIZ_FUENTE_SITIO.nombre,
+           WIZ_FUENTE_SITIO.fam, false]].concat(WIZ_FUENTES);
+}
+
 function wPaso1(o,m){
   var color = m.color.toUpperCase();
   var cr = wContraste(color, wSobre(color));
   var nivel = cr >= 7 ? "AAA" : cr >= 4.5 ? "AA" : "Bajo";
   var bajo = cr < 4.5;
-  var fuentes = WIZ_FUENTES.map(function(f){
+  var fuentes = wListaFuentes().map(function(f){
     return '<option value="'+f[0]+'"'+(m.fuente===f[0]?' selected':'')+'>'+esc(f[1])+'</option>';
   }).join("");
   var fondos = [["light","Claro","#FFFFFF","#14243D"],["dark","Oscuro","#16233B","#F5F0E6"],
@@ -1809,10 +1838,12 @@ function wPaso1(o,m){
 
     '<div class="wz-sunken">'+
       '<label class="wz-lab">Detectar desde tu sitio</label>'+
-      '<div class="row"><input class="wz-in" id="wz-url" placeholder="tusitio.com" disabled>'+
-      '<button class="btn dark" disabled>Detectar</button></div>'+
-      '<span class="wz-help">Leeria la portada y algunas paginas enlazadas para sacar tipografia, '+
-      'color, fondo y radios. Todavia no esta disponible.</span>'+
+      '<div class="row"><input class="wz-in" id="wz-url" placeholder="tusitio.com" '+
+        'value="'+esc((_datosSitio||{}).domain || "")+'" onkeydown="if(event.key===\'Enter\')wDetectar()">'+
+      '<button class="btn dark" id="wz-det" onclick="wDetectar()">Detectar</button></div>'+
+      '<span class="wz-help" id="wz-det-msg">'+ (WIZ_DET_MSG ? esc(WIZ_DET_MSG) :
+        'Leemos la portada y sus hojas de estilo para sacar tipografia, color, fondo y '+
+        'radios. Reglas simples, sin IA.') +'</span>'+
     '</div>'+
 
     '<div class="wz-field"><label class="wz-lab">Tipografia</label>'+
@@ -2192,7 +2223,7 @@ function temaGuardarVista(vista){
     b.themes[TEMA_EDIT] = temaDiff(b, vista);
     el("cfg").value = JSON.stringify(b, null, 2);
   }
-  validarCfg(); renderVisual(); refrescarPreview();
+  validarCfg(); pintaEstado(); renderVisual(); refrescarPreview();
 }
 
 /* ---- barra de temas ---- */
@@ -2235,7 +2266,7 @@ function temaNuevo(){
     ? JSON.parse(JSON.stringify(b.themes[TEMA_EDIT])) : {};
   el("cfg").value = JSON.stringify(b, null, 2);
   TEMA_EDIT = n;
-  validarCfg(); renderVisual(); refrescarPreview();
+  validarCfg(); pintaEstado(); renderVisual(); refrescarPreview();
 }
 
 function temaActivar(){
@@ -2252,7 +2283,7 @@ function temaBorrar(){
   if(b.theme === TEMA_EDIT) b.theme = "";
   el("cfg").value = JSON.stringify(b, null, 2);
   TEMA_EDIT = "";
-  validarCfg(); renderVisual(); refrescarPreview();
+  validarCfg(); pintaEstado(); renderVisual(); refrescarPreview();
 }
 
 /* Abre el sitio del cliente con el parametro puesto. A partir de ahi el bundle
@@ -2316,6 +2347,99 @@ function hlPorGrupo(titulo){
 
 function hlFuera(){ HL_ACTUAL = null; clearTimeout(hlEnviar._t); hlEnviar(null, 0); }
 
+
+/* ---- Estado de publicacion ---------------------------------------------
+   No hay borrador en el servidor, asi que "sin publicar" significa: lo que
+   tienes en el editor no coincide con la ultima version guardada. Es lo que
+   el cliente necesita saber, y no hace falta tocar el backend. */
+var _ultimoPublicado = null;
+
+function marcarPublicado(cfg){
+  _ultimoPublicado = JSON.stringify(cfg);
+  pintaEstado();
+}
+
+function haycambios(){
+  if(_ultimoPublicado === null) return false;
+  var b = temaBase(); if(!b) return false;
+  return JSON.stringify(b) !== _ultimoPublicado;
+}
+
+function pintaEstado(){
+  var sucio = haycambios();
+  var pt = el("pt-estado");
+  if(pt) pt.className = "pt" + (sucio ? " sucio" : " ok");
+  var id = el("sitio-estado");
+  if(id) id.textContent = sucio ? "sin publicar" : "publicado";
+  var vp = el("ver-pill");
+  if(vp && WIZ_PUBLICADA) vp.textContent = (sucio ? "borrador \u00b7 " : "") + "v" + WIZ_PUBLICADA;
+}
+
+
+/* ---- Fondo de la vista previa ------------------------------------------
+   "Tu sitio" carga la web del cliente en el lienzo y le monta el banner
+   encima. Muchos sitios lo impiden con X-Frame-Options, asi que si no carga
+   se avisa en vez de dejar un hueco en blanco. */
+var PREV_FONDO = "blank";
+
+function setPrevFondo(f){
+  var dom = (_datosSitio || {}).domain || "";
+  if(f === "site" && !dom){ msg("smsg", "Este sitio no tiene dominio configurado.", true); return; }
+  PREV_FONDO = f;
+  var a = el("pf-site"), b = el("pf-blank");
+  if(a) a.className = f === "site" ? "on" : "";
+  if(b) b.className = f === "blank" ? "on" : "";
+  var n = el("prev-nota");
+  if(n) n.textContent = "Vista en vivo \u00b7 " + (f === "site" ? dom : "pagina neutra");
+  refrescarPreview();
+}
+
+function fondoDelSitio(){
+  var dom = (_datosSitio || {}).domain || "";
+  if(PREV_FONDO !== "site" || !dom) return "";
+  if(!/^https?:/.test(dom)) dom = "https://" + dom;
+  return '<iframe class="sitio" src="' + dom.replace(/"/g, "&quot;") + '" ' +
+         'style="position:absolute;inset:0;width:100%;height:100%;border:0" ' +
+         'onload="this.setAttribute(\'data-ok\',\'1\')"></iframe>' +
+         '<div class="bloqueado">Tu sitio no deja incrustarse aqui (X-Frame-Options).</div>';
+}
+
+
+/* ---- Detector ----------------------------------------------------------
+   Pide al servidor que lea la portada del cliente y aplica lo que encuentre
+   a las cuatro decisiones de marca. Lo que no se pueda deducir se deja como
+   esta, en vez de inventarlo. */
+function wDetectar(){
+  var inp = el("wz-url"), btn = el("wz-det"), m = el("wz-det-msg");
+  if(!inp) return;
+  var url = inp.value.trim();
+  if(!url){ if(m) m.textContent = "Escribe la direccion de tu sitio."; return; }
+  if(btn){ btn.disabled = true; btn.textContent = "Leyendo..."; }
+  if(m) m.textContent = "Leyendo " + url + "...";
+  j("GET", "/dash/site/detect?url=" + encodeURIComponent(url)).then(function(r){
+    if(btn){ btn.disabled = false; btn.textContent = "Detectar de nuevo"; }
+    if(!r.ok || r.d.error){
+      if(m) m.textContent = r.d.error || "No se pudo leer el sitio.";
+      return;
+    }
+    var d = r.d, cambio = {}, dicho = [];
+    if(d.fontFamily){
+      // Se guarda como opcion del desplegable; es suya, no se descarga nada.
+      var corto = d.fontFamily.split(",")[0].replace(/['"]/g, "").trim();
+      WIZ_FUENTE_SITIO = { fam: d.fontFamily, nombre: corto };
+      cambio.fuente = "site";
+      dicho.push("tipografia");
+    }
+    if(d.accent){ cambio.color = d.accent; dicho.push("color"); }
+    if(d.surface){ cambio.fondo = d.surface === "dark" ? "dark" : "light"; dicho.push("fondo"); }
+    if(d.radius){ cambio.esquinas = d.radius; dicho.push("esquinas"); }
+    WIZ_DET_MSG = dicho.length
+      ? "Aplicado: " + dicho.join(", ") + ". Revisa y ajusta lo que no encaje."
+      : "No se pudo deducir nada de ese sitio.";
+    if(Object.keys(cambio).length) wAplicarMarca(cambio); else renderVisual();
+  });
+}
+
 function renderVisual(){
   cargarDetectadas();
   // Un editor vacio no es un JSON roto: es que la pestaña se esta repintando y
@@ -2355,7 +2479,11 @@ function renderVisual(){
             '<button id="pd-desktop" onclick="setPrevDisp(\'desktop\')">Escritorio</button>'+
             '<button id="pd-mobile"  onclick="setPrevDisp(\'mobile\')">Movil</button>'+
           '</div>'+
-          '<span class="prev-nota">Vista en vivo · pagina neutra</span>'+
+          '<div class="modes prev-modes">'+
+            '<button id="pf-site"  onclick="setPrevFondo(\'site\')">Tu sitio</button>'+
+            '<button id="pf-blank" onclick="setPrevFondo(\'blank\')">Pagina neutra</button>'+
+          '</div>'+
+          '<span class="prev-nota" id="prev-nota">Vista en vivo · pagina neutra</span>'+
         '</div>'+
         '<div class="lienzo"><iframe id="prev"'+
           (PREV_DISP === "mobile" ? ' style="max-width:390px;margin:0 auto"' : '')+'></iframe></div>'+
@@ -2374,6 +2502,9 @@ function renderVisual(){
   var _jh = el("wz-json-host"), _ed = el("ed-wrap");
   if(_jh && _ed && _ed.parentNode !== _jh) _jh.appendChild(_ed);
   if(!_jh && _ed && el("pane-json") && _ed.parentNode !== el("pane-json")) el("pane-json").appendChild(_ed);
+  var _fa = el("pf-site"), _fb = el("pf-blank");
+  if(_fa) _fa.className = PREV_FONDO === "site" ? "on" : "";
+  if(_fb) _fb.className = PREV_FONDO === "blank" ? "on" : "";
   var _a = el("pd-desktop"), _b = el("pd-mobile");
   if(_a) _a.className = PREV_DISP === "desktop" ? "on" : "";
   if(_b) _b.className = PREV_DISP === "mobile" ? "on" : "";
@@ -2887,6 +3018,7 @@ function onCtl(path, value, mirrorId){
   }
   if(mirrorId){ var m = el(mirrorId); if(m) m.value = value; }   // color -> campo de texto
   validarCfg();
+  pintaEstado();
   wRefrescarDev();                                  // marcas de "puesto a mano"
   clearTimeout(_prevTimer);
   _prevTimer = setTimeout(refrescarPreview, 400);   // el iframe se rehace, no en cada tecla
@@ -3011,8 +3143,12 @@ function refrescarPreview(){
     '.t2{height:8px;background:#EDEDED}.t3{height:8px;width:85%;background:#EDEDED}'+
     '.cols{height:70px;display:flex;gap:12px}.cols span{flex:1;background:#EDEDED}'+
     '.nota{position:absolute;left:22px;bottom:22px;z-index:5;max-width:60%}'+
+    '.bloqueado{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;'+
+    'padding:40px;text-align:center;color:#8a8a8a;font-size:13px;background:#fff}'+
+    'iframe.sitio[data-ok]+.bloqueado{display:none}'+
     '</style></head><body>'+
-    maqueta + '<div class="nota">' + aviso + bloqueEnlace(cfg) + '</div>' +
+    (PREV_FONDO === "site" ? fondoDelSitio() : maqueta) +
+    '<div class="nota">' + aviso + bloqueEnlace(cfg) + '</div>' +
     '<script>window.__consentConfig='+JSON.stringify(cfg)+';<\/script>'+
     '<script src="'+API+'/consent-banner.js"><\/script>'+
     '<script>'+
@@ -3239,6 +3375,7 @@ function saveCfg(){
       // openTab repinta la pestana entera, asi que el mensaje se escribe
       // DESPUES de repintar o se pierde y parece que no se guardo nada.
       WIZ_PUBLICADA = r.d.version;
+      marcarPublicado(cfg);
       _trasRecargar = "Guardado. Version " + r.d.version + ".";
       openTab("config");
     }
