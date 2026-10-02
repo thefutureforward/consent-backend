@@ -624,10 +624,60 @@ let _userConfig = null;
     });
   }
 
+  // Reglas vigentes, cacheadas. El parche de insercion se consulta en CADA
+  // appendChild de la pagina, asi que no puede permitirse llamar a merged(),
+  // que clona los DEFAULTS enteros.
+  var _reglasVivas = [];
+
+  /* Interceptar en la INSERCION, no despues.
+     Un <script> al que se le pone src y luego se inserta queda "preparado" por
+     el navegador en ese mismo instante: la descarga arranca y el elemento se
+     marca como ya iniciado. Quitarle el src despues no cancela nada, y el
+     callback de un MutationObserver es un microtask que corre cuando el script
+     que hizo la insercion ya termino. Por eso un observer solo basta para las
+     etiquetas que escribe el parser, y no para las que inyecta codigo, que es
+     justo como se cargan GTM, HubSpot y casi todo lo que importa.
+     Aqui envolvemos los tres metodos de insercion para neutralizar el nodo
+     ANTES de que toque el documento. */
+  var _preRules = null;   // las reglas del pre-bloqueador inline, si lo hay
+  var _parcheado = false;
+  function parcheaInsercion() {
+    if (_parcheado || typeof Node === "undefined" || !Node.prototype) return;
+    _parcheado = true;
+    var P = Node.prototype;
+    var nAppend = P.appendChild, nInsert = P.insertBefore, nReplace = P.replaceChild;
+
+    function revisa(n) {
+      // Camino rapido: sin reglas no se toca nada, y esto corre en cada
+      // insercion del DOM de la pagina.
+      if (!n || !_reglasVivas.length) return n;
+      if (n.nodeType === 1) {
+        if (n.tagName === "SCRIPT") {
+          var r = ruleFor(_reglasVivas, n.getAttribute && n.getAttribute("src"));
+          if (r) neutralize(n, r);
+        }
+        return n;
+      }
+      // Un fragmento puede traer varios scripts dentro.
+      if (n.nodeType === 11 && n.querySelectorAll) {
+        Array.prototype.forEach.call(n.querySelectorAll("script[src]"), function (s) {
+          var r = ruleFor(_reglasVivas, s.getAttribute("src"));
+          if (r) neutralize(s, r);
+        });
+      }
+      return n;
+    }
+
+    P.appendChild  = function (n) { return nAppend.call(this, revisa(n)); };
+    P.insertBefore = function (n, ref) { return nInsert.call(this, revisa(n), ref); };
+    P.replaceChild = function (n, viejo) { return nReplace.call(this, revisa(n), viejo); };
+  }
+
   // Se instala lo antes posible, sin esperar a la config remota ni al DOM.
   function installAutoBlock() {
     var C = merged();
     var rules = C.autoBlock || [];
+    _reglasVivas = rules;
     // Si el pre-bloqueador inline ya esta corriendo, lo adoptamos en vez de
     // montar un segundo observer: el inline se instala antes que este bundle,
     // que llega por red y para entonces el parser ya lanzo las etiquetas.
@@ -635,10 +685,20 @@ let _userConfig = null;
     if (pre && pre.observer) {
       _observer = pre.observer;
       _blocked = pre.blocked || [];
+      // El inline trae su propio parche; si es una version anterior que no lo
+      // tiene, lo ponemos nosotros. Y repasamos lo que ya este en el documento:
+      // antes esta rama se iba sin mirar, asi que una etiqueta que se le
+      // escapara al observer no la revisaba nadie.
+      if (!pre.patched) parcheaInsercion();
+      // Su array de reglas vive en el closure del snippet: lo guardamos para
+      // poder vaciarlo cuando el visitante conceda una categoria.
+      if (pre.rules) _preRules = pre.rules;
+      if (rules.length) scanExisting(rules);
       log("autoblock", "Pre-bloqueador inline adoptado (" + _blocked.length + " scripts).");
       return;
     }
     if (!rules.length || _observer) return;
+    parcheaInsercion();
     scanExisting(rules);
     _observer = new MutationObserver(function (muts) {
       var live = merged().autoBlock || rules;
@@ -656,10 +716,16 @@ let _userConfig = null;
 
   // Al conceder una categoria ya no hace falta seguir interceptandola.
   function refreshAutoBlock(C, chosen) {
-    if (!_observer) return;
     var rules = (C.autoBlock || []).filter(function (r) {
       return !isGranted(C, chosen, r.category);
     });
+    // El parche de insercion lee de aqui, asi que esto es lo que de verdad
+    // deja de bloquear una categoria concedida. Va antes del return: el parche
+    // sigue puesto aunque no haya observer que desconectar.
+    _reglasVivas = rules;
+    // Y las del inline, en sitio: su hit() cierra sobre ese mismo array.
+    if (_preRules) { _preRules.length = 0; rules.forEach(function (r) { _preRules.push(r); }); }
+    if (!_observer) return;
     if (!rules.length) { _observer.disconnect(); _observer = null; }
     if (_blocked.length) log("autoblock", "Bloqueados: " + _blocked.join(", "));
   }
@@ -814,8 +880,11 @@ let _userConfig = null;
     gtag("consent", "update", signals);
     log("update", JSON.stringify(signals));
     // 3b. Activar scripts bloqueados de las categorias concedidas (sitios sin GTM).
-    activateScripts(C, chosen);
+    // Primero se retiran las reglas de las categorias concedidas y despues se
+    // reactiva: al reves, el parche de insercion volveria a neutralizar el
+    // script recien revivido, porque replaceChild tambien pasa por el.
     refreshAutoBlock(C, chosen);
+    activateScripts(C, chosen);
     // 4. Borrado activo si analitica quedo en denied.
     // Se ejecuta siempre que haya alguna categoria denegada; dentro se filtra
     // que patrones tocar. Antes solo corria si la analitica estaba denegada.
@@ -1462,8 +1531,10 @@ let _userConfig = null;
       }
       showChip(C);
       checkSafety(C);
-      activateScripts(C, state.chosen);
+      // Mismo orden que en persist: retirar las reglas concedidas antes de
+      // reactivar, o el parche de insercion mata lo que acabamos de revivir.
       refreshAutoBlock(C, state.chosen);
+      activateScripts(C, state.chosen);
     } else {
       log("init", prev ? "Version de consentimiento cambio: se vuelve a preguntar." : "Sin decision previa: se muestra el banner.");
       showBanner(C);

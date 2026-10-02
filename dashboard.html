@@ -3467,7 +3467,21 @@ function buildSnippet(d){
 'n.setAttribute("data-consent-src",s);n.setAttribute("data-consent-category",r.category);n.removeAttribute("src");B.blocked.push(s)}\n'+
 'B.observer=new MutationObserver(function(m){m.forEach(function(x){Array.prototype.forEach.call(x.addedNodes,function(n){\n'+
 'if(n.tagName==="SCRIPT"){var r=hit(n.getAttribute("src"));if(r)kill(n,r)}})})});\n'+
-'B.observer.observe(document.documentElement,{childList:true,subtree:true});})();\n';
+'B.observer.observe(document.documentElement,{childList:true,subtree:true});\n'+
+// Un <script> al que se le pone src y luego se inserta arranca la descarga AL
+// insertarse: quitarle el src despues ya no lo para, y el observer avisa un
+// microtask tarde. Por eso hay que mirarlo ANTES de que toque el documento,
+// que es como se cargan GTM, HubSpot y practicamente todo lo que importa.
+'B.rules=R;\n'+
+'var P=Node.prototype,na=P.appendChild,ni=P.insertBefore,nr=P.replaceChild;\n'+
+'function chk(n){if(!n||!R.length)return n;\n'+
+'if(n.nodeType===1){if(n.tagName==="SCRIPT"){var r=hit(n.getAttribute&&n.getAttribute("src"));if(r)kill(n,r)}return n}\n'+
+'if(n.nodeType===11&&n.querySelectorAll){Array.prototype.forEach.call(n.querySelectorAll("script[src]"),function(t){\n'+
+'var r=hit(t.getAttribute("src"));if(r)kill(t,r)})}return n}\n'+
+'P.appendChild=function(n){return na.call(this,chk(n))};\n'+
+'P.insertBefore=function(n,f){return ni.call(this,chk(n),f)};\n'+
+'P.replaceChild=function(n,o){return nr.call(this,chk(n),o)};\n'+
+'B.patched=true;})();\n';
   }
   s += '<\/script>\n<script async src="'+API+'/consent-banner.js"><\/script>';
   return s;
