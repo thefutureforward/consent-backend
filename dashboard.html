@@ -52,18 +52,6 @@
            border-radius:0 0 var(--radius) var(--radius)}
   .wz-intro h2{margin:0 0 6px;font-size:16px;font-weight:700}
   .wz-intro p{margin:0;font-size:13.5px;line-height:1.55;color:var(--muted)}
-  /* Fila de confirmacion del detector: lo encontrado, en chips, y el deshacer. */
-  .wz-det-ok{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
-  .wz-det-n{font-size:12px;font-weight:600;color:var(--ok)}
-  .wz-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;
-           background:var(--ok-bg);color:var(--ok-fg);font-size:12px}
-  .wz-chip i{width:10px;height:10px;border-radius:2px;display:inline-block;
-             border:1px solid rgba(20,36,61,.18)}
-  .wz-deshacer{margin-left:auto;background:none;border:0;padding:0;cursor:pointer;
-               font-size:12px;font-weight:600;color:var(--accent);text-decoration:underline}
-  /* Aviso de cumplimiento dentro del asistente: ambar, como en el rediseno. */
-  .wz-aviso{margin:10px 0 0;padding:10px 12px;background:#FDF4E3;border-radius:8px;
-            font-size:12.5px;line-height:1.55;color:#7A5B16}
   .wz-sunken{display:flex;flex-direction:column;gap:10px;padding:14px;
              background:var(--paper);border-radius:10px}
   .wz-field{display:flex;flex-direction:column;gap:8px}
@@ -313,24 +301,6 @@
        background:var(--line-soft);color:var(--muted)}
   .cat.on{background:#e6f4ea;color:#1e6b36}
 
-  /* ---------- dominios: fichas y selector ---------- */
-  .dom-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
-  .dom-chip{display:inline-flex;align-items:center;gap:6px;background:var(--paper);
-            border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 11px;
-            font-size:12.5px;font-weight:500;color:var(--ink)}
-  .dom-chip.redundante{opacity:.62;border-style:dashed}
-  .dom-chip button{border:0;background:transparent;cursor:pointer;color:var(--muted);
-                   font-size:15px;line-height:1;padding:0 3px;border-radius:50%}
-  .dom-chip button:hover{color:#B3261E;background:#F6E4E2}
-  .dom-vacio{font-size:12.5px;color:var(--muted)}
-  .dom-add{display:flex;gap:8px;align-items:center;flex-wrap:nowrap}
-  .dom-add input{flex:1 1 auto;min-width:0}
-  .dom-add button{flex:0 0 auto;white-space:nowrap}
-  .dom-add select.dom-sel{flex:0 0 auto;max-width:150px}
-  select.dom-sel{border:1px solid var(--line);border-radius:8px;padding:5px 8px;
-                 font-size:12.5px;font-weight:500;color:var(--ink);background:var(--white);
-                 max-width:200px}
-
   /* ---------- panel visual de apariencia ---------- */
   .modes{display:flex;gap:2px;background:var(--white);border:1px solid var(--line);
          border-radius:8px;padding:3px}
@@ -464,19 +434,6 @@
     <div class="field"><label>Contrasena</label><input id="p" type="password" value="admin" /></div>
     <div class="row mt"><button class="btn" style="flex:1" onclick="login()">Entrar</button></div>
     <p class="hint" id="lmsg"></p>
-    <p class="hint" style="text-align:center;margin-top:14px">
-      <a href="#" onclick="modoAlta(true);return false">Crear una cuenta</a></p>
-  </div>
-  <div class="card hide" id="alta-card">
-    <h1>Crear cuenta</h1>
-    <p class="sub">Pide acceso como administrador. Un super administrador tiene que aprobarla antes de que puedas entrar.</p>
-    <div class="field"><label>Usuario</label><input id="ru" type="text" placeholder="de 3 a 32 caracteres" /></div>
-    <div class="field"><label>Contrasena</label><input id="rp" type="password" placeholder="8 caracteres o mas" /></div>
-    <div class="field"><label>Repite la contrasena</label><input id="rp2" type="password" /></div>
-    <div class="row mt"><button class="btn" style="flex:1" onclick="registrar()">Enviar solicitud</button></div>
-    <p class="hint" id="rmsg"></p>
-    <p class="hint" style="text-align:center;margin-top:14px">
-      <a href="#" onclick="modoAlta(false);return false">Volver a entrar</a></p>
   </div>
 </div>
 
@@ -530,29 +487,6 @@ var DICT = {
   "Contrasena nueva": "New password",
   "Contrasena": "Password",
   "Entrar": "Sign in",
-  "Crear una cuenta": "Create an account",
-  "Crear cuenta": "Create account",
-  "Pide acceso como administrador. Un super administrador tiene que aprobarla antes de que puedas entrar.":
-    "Request administrator access. A super administrator has to approve it before you can sign in.",
-  "de 3 a 32 caracteres": "3 to 32 characters",
-  "8 caracteres o mas": "8 characters or more",
-  "Repite la contrasena": "Repeat the password",
-  "Enviar solicitud": "Send request",
-  "Volver a entrar": "Back to sign in",
-  "Las dos contrasenas no coinciden.": "The two passwords do not match.",
-  "No se pudo enviar la solicitud.": "The request could not be sent.",
-  "Solicitud enviada": "Request sent",
-  "Tu cuenta queda a la espera de que un super administrador la apruebe. Cuando lo haga, podras entrar con el usuario y la contrasena que acabas de elegir.":
-    "Your account is waiting for a super administrator to approve it. Once they do, you can sign in with the username and password you just chose.",
-  "Volver": "Back",
-  "Solicitudes de acceso": "Access requests",
-  "Estas personas pidieron una cuenta. No pueden entrar hasta que apruebes.":
-    "These people asked for an account. They cannot sign in until you approve.",
-  "Pedida": "Requested",
-  "Aprobar": "Approve",
-  "Rechazar": "Reject",
-  "Los super administradores ven todos y pueden gestionar cuentas.":
-    "Super administrators see them all and can manage accounts.",
   "Salir": "Sign out",
   "Configuracion": "Settings",
   "Instalar": "Install",
@@ -572,25 +506,10 @@ var DICT = {
   "Nombre": "Name",
   "Tienda del cliente": "Client store",
   "Dominios (separados por coma)": "Domains (comma separated)",
-  "Dominio principal": "Main domain",
-  "Los demas se anaden despues en Instalar, uno a uno.":
-    "You can add the rest later under Install, one at a time.",
   "Dominios autorizados": "Allowed domains",
   "Separados por coma. Solo desde estos dominios se aceptan registros.":
     "Comma separated. Records are only accepted from these domains.",
-  "Solo desde estos dominios se aceptan registros. Los subdominios entran solos, asi que con el dominio raiz ya cubres www y los demas.":
-    "Records are only accepted from these domains. Subdomains are included, so the root domain already covers www and the rest.",
-  "Sin dominios: se aceptan registros desde cualquier sitio.":
-    "No domains: records are accepted from anywhere.",
-  "Anadido. Dale a Guardar dominios para que surta efecto.":
-    "Added. Hit Save domains to apply.",
-  "Quitado. Dale a Guardar dominios para que surta efecto.":
-    "Removed. Hit Save domains to apply.",
-  "Ya estaba en la lista.": "Already in the list.",
-  "Escribe un dominio.": "Type a domain.",
-  "No parece un dominio: ": "That does not look like a domain: ",
   "Guardar dominios": "Save domains",
-  "Anadir": "Add",
   "Cancelar": "Cancel",
   "Si, borrar": "Yes, delete",
   "Borrar": "Delete",
@@ -756,9 +675,6 @@ var DICT = {
   "Leeria la portada y algunas paginas enlazadas para sacar tipografia, color, fondo y radios. Todavia no esta disponible.": "It would read the home page and a few linked pages for font, color, background and radius. Not available yet.",
   "Tipografia": "Typeface",
   "Las de Google las descarga el widget y crean una conexion con un tercero, que el visitante vera en tu politica de privacidad.": "Google fonts are loaded by the widget and create a third-party connection, which visitors see in your privacy policy.",
-  "La tomamos de tu sitio sin descargar nada: ": "Taken from your site, nothing downloaded: ",
-  "Si la tienes alojada en tu servidor, aqui al lado veras una sustituta, pero en tu sitio el banner la usara, porque la carga tu pagina.": "If you self-host it, the preview on the right shows a stand-in, but on your site the banner will use it, because your page loads it.",
-  "El pill usa el <b>icono incluido</b>. Pon una URL en <code>chip.image</code> si quieres el tuyo.": "The pill uses the <b>built-in icon</b>. Put a URL in <code>chip.image</code> to use your own.",
   "Color de accion": "Action color",
   "boton aceptar y enlaces": "Accept button and links",
   "Por debajo de 4.5:1 el texto del boton cuesta de leer.": "Below 4.5:1 the button text is hard to read.",
@@ -771,22 +687,6 @@ var DICT = {
   "Suaves": "Soft",
   "Redondeadas": "Rounded",
   "Donde y como aparece": "Where and how it appears",
-  "Estas son las opciones de": "These are the options for",
-  "el banner": "the banner",
-  "el panel": "the panel",
-  "la pestana": "the tab",
-  "el enlace del pie": "the footer link",
-  "Cambia de componente en la vista previa para ver las suyas.":
-    "Switch component in the preview to see its own.",
-  "Con la CCPA/CPRA y las normas de Colorado y Connecticut, empujar al visitante hacia aceptar puede contar como patron oscuro. \"Mismo peso\" es la opcion segura.":
-    "Under CCPA/CPRA and Colorado/Connecticut rules, steering visitors toward accepting can count as a dark pattern. \"Equal weight\" is the safer choice.",
-  "Que abre el enlace": "What the link opens",
-  "El panel de preferencias": "The preferences panel",
-  "El aviso completo": "The full notice",
-  "Ahora mismo la reapertura va por el enlace del pie, asi que la pestana no se muestra. Cambia el control de arriba para configurarla.":
-    "Reopening currently goes through the footer link, so the tab is hidden. Change the control above to configure it.",
-  "Ahora mismo la reapertura va por la pestana de la esquina. Cambia el control de arriba para configurar el enlace del pie.":
-    "Reopening currently goes through the corner tab. Change the control above to configure the footer link.",
   "Las opciones siguen al componente elegido en la vista previa: banner, panel o pestana.": "Options follow the component selected in the preview: banner, panel or tab.",
   "Posicion del banner": "Banner position",
   "Barra inferior": "Bottom bar",
@@ -864,24 +764,27 @@ var DICT = {
   "Pagina neutra": "Blank page",
   "Este sitio no tiene dominio configurado.": "This site has no domain configured.",
   "Detectar de nuevo": "Detect again",
-  "La de tu sitio": "Your site’s",
-  "Pega un enlace o un boton con": "Put a link or a button with",
-  "en tu pie, o uno que apunte a": "in your footer, or one pointing to",
-  "valores aplicados": "values applied",
-  "Deshacer": "Undo",
-  "Fondo oscuro": "Dark background",
-  "Fondo claro": "Light background",
-  "Esquinas rectas": "Square corners",
-  "Esquinas suaves": "Soft corners",
-  "Esquinas redondeadas": "Rounded corners",
-  "Revisa y ajusta lo que no encaje.": "Review and adjust anything that does not fit.",
-  "Deshecho. La apariencia vuelve a como estaba.": "Undone. Appearance is back to how it was.",
-  "Leemos la portada y sus hojas de estilo para sacar tipografia, color, fondo y radios. Reglas simples, sin IA. Se aplica al banner, al panel y a la pestana.":
-    "We read the home page and its stylesheets for font, color, background and radius. Rule-based, no AI. It applies to the banner, the panel and the tab.",
   "Leyendo...": "Reading...",
   "Escribe la direccion de tu sitio.": "Type your site address.",
   "No se pudo leer el sitio.": "Could not read the site.",
   "Leemos la portada y sus hojas de estilo para sacar tipografia, color, fondo y radios. Reglas simples, sin IA.": "We read the home page and its stylesheets for font, color, background and radius. Rule-based, no AI.",
+  "Personalizar: fondo": "Customize: background",
+  "Personalizar: texto": "Customize: text",
+  "Personalizar: borde": "Customize: border",
+  "Personalizar: tamano": "Customize: size",
+  "Personalizar: peso": "Customize: weight",
+  "Personalizar: padding": "Customize: padding",
+  "Personalizar: subrayado": "Customize: underline",
+  "Aceptar: tamano": "Accept: size",
+  "Aceptar: peso": "Accept: weight",
+  "Aceptar: borde": "Accept: border",
+  "Rechazar: tamano": "Reject: size",
+  "Rechazar: peso": "Reject: weight",
+  "Rechazar: padding": "Reject: padding",
+  "Guardar: tamano": "Save: size",
+  "Guardar: peso": "Save: weight",
+  "Guardar: padding": "Save: padding",
+  "Guardar: borde": "Save: border",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -1083,8 +986,6 @@ var DICT = {
   "Quitar": "Remove",
   "Usuarios": "Users",
   "Crear usuario": "Create user",
-  "super admin": "super admin",
-
   "Cada usuario ve solo los sitios que le asignes. Los administradores ven todos y pueden gestionar usuarios.":
     "Each user only sees the sites you assign them. Administrators see all of them and can manage users.",
   "Rol": "Role",
@@ -1092,10 +993,8 @@ var DICT = {
   "Todos los sitios": "All sites",
   "No hay sitios todavia.": "No sites yet.",
   "usuario": "user",
-  "Usuario (solo los sitios que le asignes)": "User (only the sites you assign)",
-  "Administrador (sus sitios, no gestiona cuentas)": "Administrator (their sites, no account management)",
-  "Super administrador (todo)": "Super administrator (everything)",
-
+  "Usuario (solo sus sitios)": "User (their sites only)",
+  "Administrador (todo)": "Administrator (everything)",
   "Elige los sitios que podra ver. Se cambia despues cuando quieras.":
     "Pick the sites they will see. You can change this later.",
   "Minimo 8 caracteres": "At least 8 characters",
@@ -1372,26 +1271,6 @@ function login(){
 }
 function logout(){ j("POST","/dash/logout").then(function(){ location.reload(); }); }
 
-/* Alta de cuenta. El formulario es publico, pero la cuenta nace pendiente:
-   sin la aprobacion de un super, el login responde 403. */
-function modoAlta(si){
-  el("login").querySelector(".card").classList.toggle("hide", si);
-  el("alta-card").classList.toggle("hide", !si);
-  msg("lmsg",""); msg("rmsg","");
-}
-function registrar(){
-  var u = val("ru"), p = val("rp"), p2 = val("rp2");
-  if(p !== p2) return msg("rmsg","Las dos contrasenas no coinciden.", true);
-  j("POST","/dash/register",{username:u, password:p}).then(function(r){
-    if(!r.ok) return msg("rmsg", r.d.error||"No se pudo enviar la solicitud.", true);
-    el("alta-card").innerHTML =
-      '<h1>Solicitud enviada</h1>'+
-      '<p class="sub">Tu cuenta queda a la espera de que un super administrador la apruebe. '+
-      'Cuando lo haga, podras entrar con el usuario y la contrasena que acabas de elegir.</p>'+
-      '<div class="row mt"><button class="btn ghost" style="flex:1" onclick="location.reload()">Volver</button></div>';
-  });
-}
-
 function boot(){
   LANG = idiomaInicial();
   document.documentElement.setAttribute("lang", LANG);
@@ -1400,8 +1279,7 @@ function boot(){
     if(!r.ok){ show("login"); return; }
     show("app");
     window._usuario = r.d.username;
-    esAdmin = (r.d.role === "admin" || r.d.role === "super");
-    esSuper = (r.d.role === "super");
+    esAdmin = (r.d.role === "admin");
     el("who").textContent = r.d.username;
     sites = r.d.sites || [];
     var existe = sites.filter(function(s){ return s.site_id===current; }).length;
@@ -1436,8 +1314,8 @@ function renderMenu(){
       var safe = esc(s.name).replace(/'/g,"");
       return '<div class="opt'+(s.site_id===current?' sel':'')+'" onclick="pickSite(\''+s.site_id+'\')">'+
         '<div class="info"><b>'+esc(s.name)+'</b><small>'+esc(s.site_id)+'</small></div>'+
-        (esSuper ? '<button class="mini-del" title="Borrar sitio" onclick="event.stopPropagation();modalBorrarSitio(\''+
-          s.site_id+'\',\''+safe+'\')">&times;</button>' : '')+
+        '<button class="mini-del" title="Borrar sitio" onclick="event.stopPropagation();modalBorrarSitio(\''+
+          s.site_id+'\',\''+safe+'\')">&times;</button>'+
       '</div>';
     }).join('')+
     '<div class="sep"></div>'+
@@ -1459,15 +1337,13 @@ var TABS = [
   {id:"cookies",   label:"Cookies detectadas"},
   {id:"registros", label:"Registros"},
   {id:"cuenta",    label:"Cuenta"},
-  {id:"usuarios",  label:"Usuarios", super:true}
+  {id:"usuarios",  label:"Usuarios", admin:true}
 ];
 // Lo rellena /dash/me. Ocultar la pestana es comodidad, no seguridad: quien
 // llame al endpoint a mano recibe un 403 del backend igualmente.
 var esAdmin = false;
-// Solo el super gestiona cuentas, borra sitios, ve todos los sitios y toca el CSS.
-var esSuper = false;
 function renderTabs(){
-  var lista = TABS.filter(function(t){ return (!t.admin || esAdmin) && (!t.super || esSuper); });
+  var lista = TABS.filter(function(t){ return !t.admin || esAdmin; });
   el("tabbar").innerHTML = lista.map(function(t){
     return '<button class="'+(t.id===tab?'on':'')+'" onclick="openTab(\''+t.id+'\')">'+t.label+'</button>';
   }).join('');
@@ -1574,7 +1450,7 @@ var UI_GROUPS = [
     {p:"trigger.style.fontFamily", k:"text",  l:"Tipografia", ph:"hereda la del sitio"},
     {p:"trigger.style.underline",  k:"bool",  l:"Subrayado (solo texto)", def:true}
   ]},
-  { t:"CSS a medida", soloSuper:true, items:[
+  { t:"CSS a medida", items:[
     {p:"customCss", k:"css", l:""}
   ]},
   { t:"Comportamiento", items:[
@@ -1677,7 +1553,26 @@ var UI_GROUPS = [
     {p:"buttons.reject.color",      k:"color", l:"Rechazar: texto"},
     {p:"buttons.reject.border",     k:"text",  l:"Rechazar: borde", ph:"1px solid ..."},
     {p:"buttons.save.background",   k:"color", l:"Guardar: fondo"},
-    {p:"buttons.save.color",        k:"color", l:"Guardar: texto"}
+    {p:"buttons.save.color",        k:"color", l:"Guardar: texto"},
+    /* Personalizar faltaba entero, y el tamano y el subrayado faltaban en
+       todos: el bundle los lee por boton desde siempre. */
+    {p:"buttons.customize.background", k:"text",  l:"Personalizar: fondo", ph:"transparent"},
+    {p:"buttons.customize.color",      k:"color", l:"Personalizar: texto"},
+    {p:"buttons.customize.border",     k:"text",  l:"Personalizar: borde", ph:"0"},
+    {p:"buttons.customize.size",       k:"text",  l:"Personalizar: tamano", ph:"16px"},
+    {p:"buttons.customize.weight",     k:"text",  l:"Personalizar: peso", ph:"500"},
+    {p:"buttons.customize.padding",    k:"text",  l:"Personalizar: padding", ph:"0"},
+    {p:"buttons.customize.underline",  k:"bool",  l:"Personalizar: subrayado", def:false},
+    {p:"buttons.accept.size",          k:"text",  l:"Aceptar: tamano", ph:"14px"},
+    {p:"buttons.accept.weight",        k:"text",  l:"Aceptar: peso", ph:"600"},
+    {p:"buttons.reject.size",          k:"text",  l:"Rechazar: tamano", ph:"14px"},
+    {p:"buttons.reject.weight",        k:"text",  l:"Rechazar: peso", ph:"500"},
+    {p:"buttons.reject.padding",       k:"text",  l:"Rechazar: padding", ph:"12px 22px"},
+    {p:"buttons.save.size",            k:"text",  l:"Guardar: tamano", ph:"14px"},
+    {p:"buttons.save.weight",          k:"text",  l:"Guardar: peso", ph:"600"},
+    {p:"buttons.save.padding",         k:"text",  l:"Guardar: padding", ph:"12px 22px"},
+    {p:"buttons.save.border",          k:"text",  l:"Guardar: borde", ph:"0"},
+    {p:"buttons.accept.border",        k:"text",  l:"Aceptar: borde", ph:"0"}
   ]},
   { t:"Interruptores", items:[
     {p:"switchStyle.shape", k:"select", l:"Forma", opts:[["switch","Interruptor"],["checkbox","Casilla"]]},
@@ -1781,50 +1676,6 @@ var WIZ = { paso: 1, modo: "guided", devTab: "props" };
 var WIZ_NPROPS = 0;   // lo cuenta el render
 var _datosSitio = null;
 
-/* ---- dominios del sitio ----------------------------------------------
-   Se guardan en una sola columna separados por coma, porque asi los lee
-   origen_permitido en el backend. Pero todo lo que necesita UNO solo (abrir
-   el sitio, detectar el estilo, el fondo de la previsualizacion) tiene que
-   elegir cual: antes se usaba la cadena entera como si fuera una URL y con
-   dos dominios quedaba "https://cliente.com, www.cliente.com".          */
-function domLista(s){
-  if(s === undefined) s = (_datosSitio || {}).domain || "";
-  return String(s || "").split(",").map(function(x){ return x.trim(); })
-    .filter(function(x){ return !!x; });
-}
-var DOM_ACTIVO = "";   // el que han elegido los selectores; "" = el primero
-function domActivo(){
-  var L = domLista();
-  if(!L.length) return "";
-  return (DOM_ACTIVO && L.indexOf(DOM_ACTIVO) >= 0) ? DOM_ACTIVO : L[0];
-}
-function domUrl(d){
-  d = d || domActivo();
-  return d ? (/^https?:/i.test(d) ? d : "https://" + d) : "";
-}
-/* Un unico sitio activo para los tres sitios donde se usa, para que elegir en
-   uno no deje a los otros apuntando a otra parte. */
-function setDomActivo(v){
-  DOM_ACTIVO = v || "";
-  var u = el("wz-url");
-  if(u) u.value = domActivo();
-  var n = el("prev-nota");
-  if(n && PREV_FONDO === "site") n.textContent = "Vista en vivo · " + domActivo();
-  document.querySelectorAll("select.dom-sel").forEach(function(s){ s.value = domActivo(); });
-  if(PREV_FONDO === "site") refrescarPreview();
-}
-/* Con un solo dominio el selector no aporta nada y solo quita sitio. */
-function domSelect(extra){
-  var L = domLista();
-  if(L.length < 2) return "";
-  var act = domActivo();
-  return '<select class="dom-sel'+(extra ? " " + extra : "")+'" '+
-    'onchange="setDomActivo(this.value)" title="Dominio a usar">'+
-    L.map(function(d){
-      return '<option value="'+esc(d)+'"'+(d===act?' selected':'')+'>'+esc(d)+'</option>';
-    }).join("")+'</select>';
-}
-
 /* ---- color: luminancia, contraste y mezcla ---------------------------
    Mismas formulas que el prototipo (WCAG 2.x). Sirven para elegir texto
    legible sobre un fondo y para derivar el hover sin pedirlo.            */
@@ -1864,9 +1715,6 @@ function wSobre(bg){
    pisa al recalcular. */
 var WIZ_FUENTE_SITIO = null;   // {fam, nombre}
 var WIZ_DET_MSG = "";
-var WIZ_DET_CHIPS = null;   // [[etiqueta, color|null], ...] de lo ultimo detectado
-var WIZ_DET_PREVIA = null;  // la marca de antes, para el deshacer
-var WIZ_DET_TIMER = null;
 
 var WIZ_FUENTES = [
   ["plex",   "Instrument Sans · Google Fonts", "'Instrument Sans', sans-serif", true],
@@ -1907,11 +1755,7 @@ function wMarca(o){
    escribirlos. Sirve para dos cosas: aplicarlos, y saber en el modo
    desarrollador que campos el cliente ha puesto a mano. */
 function wDerivar(m){
-  /* La familia detectada se resuelve desde la propia decision, no desde la
-     lista: asi no depende de que la opcion "site" siga construida en memoria. */
-  var fuente = (m.fuente === "site" && m.fuenteFam)
-    ? ["site", "La de tu sitio", m.fuenteFam, false]
-    : (wListaFuentes().filter(function(f){ return f[0] === m.fuente; })[0] || WIZ_FUENTES[0]);
+  var fuente = wListaFuentes().filter(function(f){ return f[0] === m.fuente; })[0] || WIZ_FUENTES[0];
   var color  = /^#[0-9a-fA-F]{6}$/.test(m.color) ? m.color.toUpperCase() : "#2F7E6C";
   var rad    = { rectas:[0,0,0,0], suaves:[6,6,10,4], redondeadas:[999,16,20,999] }[m.esquinas];
   var oscuro = m.fondo === "dark", marca = m.fondo === "brand";
@@ -1940,22 +1784,6 @@ function wDerivar(m){
   d["panel.radius"] = rad[2] + "px";
   d["switchStyle.radius"] = rad[3] + "px";
   d["switchStyle.on"] = acentoClaro;
-  d["switchStyle.off"] = "#FFFFFF";
-  d["switchStyle.border"] = "1px solid " + acentoClaro;
-  d["switchStyle.onBorder"] = acentoClaro;
-  // El panel se queda sobre fondo claro aunque el banner sea oscuro: es una
-  // superficie de lectura, no una franja de marca.
-  d["panel.background"] = "#FFFFFF";
-  d["panel.overlay"] = wMezcla(bnBg === "#FFFFFF" ? "#14243D" : bnBg, "#000000", .35) + "8C";
-  d["colors.panelBg"] = "#FFFFFF";
-  d["colors.border"] = wMezcla(acentoClaro, "#FFFFFF", .72);
-  // Y la pestana de reapertura, que hasta ahora no derivaba nada y se quedaba
-  // con los colores de fabrica, desentonando en cuanto la marca no era verde.
-  d["chip.background"] = acepBg;
-  d["chip.color"] = acepFg;
-  d["chip.radius"] = rad[0] + "px";
-  d["chip.border"] = "0";
-  d["chip.shadow"] = (m.esquinas === "rectas" ? "none" : "0 2px 6px rgba(22,35,59,.10)");
   return d;
 }
 
@@ -2001,7 +1829,7 @@ function wizardHTML(o){
     '<div class="wz-full">'+
       '<div><span class="wz-full-t">Necesitas control total?</span>'+
         '<span class="wz-help">Categorias, bloqueo de scripts, textos y cada propiedad suelta, mas el JSON.</span></div>'+
-      (esSuper ? '<button class="btn ghost sm" onclick="wModo(\'dev\')">&lt;/&gt; Editor de desarrollador</button>' : '')+
+      '<button class="btn ghost sm" onclick="wModo(\'dev\')">&lt;/&gt; Editor de desarrollador</button>'+
     '</div>'+
     (WIZ.paso < 3
       ? '<div class="wz-foot">'+
@@ -2014,23 +1842,9 @@ function wizardHTML(o){
 }
 
 function wListaFuentes(){
-  var f = WIZ_FUENTE_SITIO;
-  /* Al recargar la pagina esta variable se pierde, pero la familia quedo
-     guardada en brand. Sin rehidratarla, "site" no estaria en la lista y
-     wDerivar caeria al primer preset: el siguiente cambio de color o de
-     esquinas pisaba la tipografia detectada con Instrument Sans. */
-  if(!f){
-    var o = wCfg(), b = (o && o.brand) || null;
-    if(b && b.fuente === "site" && b.fuenteFam)
-      f = WIZ_FUENTE_SITIO = { fam: b.fuenteFam, nombre: b.fuenteNombre || wNombreFam(b.fuenteFam) };
-  }
-  if(!f) return WIZ_FUENTES;
-  return [["site", "La de tu sitio \u00b7 " + f.nombre, f.fam, false]].concat(WIZ_FUENTES);
-}
-
-// Primera familia de una pila CSS, sin comillas: "'Soehne', Arial" -> Soehne
-function wNombreFam(fam){
-  return String(fam || "").split(",")[0].replace(/['"]/g, "").trim();
+  if(!WIZ_FUENTE_SITIO) return WIZ_FUENTES;
+  return [["site", "La de tu sitio \u00b7 " + WIZ_FUENTE_SITIO.nombre,
+           WIZ_FUENTE_SITIO.fam, false]].concat(WIZ_FUENTES);
 }
 
 function wPaso1(o,m){
@@ -2060,39 +1874,18 @@ function wPaso1(o,m){
 
     '<div class="wz-sunken">'+
       '<label class="wz-lab">Detectar desde tu sitio</label>'+
-      /* Antes se precargaba la columna entera, asi que con dos dominios el
-         campo llevaba "a.com, b.com" y la peticion salia invalida. */
-      '<div class="row dom-add">'+ domSelect() +
-        '<input class="wz-in" id="wz-url" placeholder="tusitio.com" '+
-        'value="'+esc(domActivo())+'" onkeydown="if(event.key===\'Enter\')wDetectar()">'+
+      '<div class="row"><input class="wz-in" id="wz-url" placeholder="tusitio.com" '+
+        'value="'+esc((_datosSitio||{}).domain || "")+'" onkeydown="if(event.key===\'Enter\')wDetectar()">'+
       '<button class="btn dark" id="wz-det" onclick="wDetectar()">Detectar</button></div>'+
-      (WIZ_DET_CHIPS
-        ? '<div class="wz-det-ok">'+
-            '<span class="wz-det-n">\u2713 '+WIZ_DET_CHIPS.length+' valores aplicados</span>'+
-            WIZ_DET_CHIPS.map(function(c){
-              return '<span class="wz-chip">'+
-                (c[1] ? '<i style="background:'+esc(c[1])+'"></i>' : '')+ esc(c[0]) +'</span>';
-            }).join('')+
-            (WIZ_DET_PREVIA ? '<button class="wz-deshacer" onclick="wDetDeshacer()">Deshacer</button>' : '')+
-          '</div>'
-        : '')+
       '<span class="wz-help" id="wz-det-msg">'+ (WIZ_DET_MSG ? esc(WIZ_DET_MSG) :
         'Leemos la portada y sus hojas de estilo para sacar tipografia, color, fondo y '+
-        'radios. Reglas simples, sin IA. Se aplica al banner, al panel y a la pestana.') +'</span>'+
+        'radios. Reglas simples, sin IA.') +'</span>'+
     '</div>'+
 
     '<div class="wz-field"><label class="wz-lab">Tipografia</label>'+
       '<select class="wz-in" onchange="wAplicarMarca({fuente:this.value})">'+fuentes+'</select>'+
-      (m.fuente === "site"
-        /* La previsualizacion no puede descargar una fuente alojada en el sitio
-           del cliente, pero el banner si la usa: el @font-face del documento
-           alcanza el Shadow DOM. Mas vale decirlo que dejar pensar que falla. */
-        ? '<span class="wz-help">La tomamos de tu sitio sin descargar nada: <b>'+
-          esc((WIZ_FUENTE_SITIO||{}).nombre || "")+'</b>. '+
-          'Si la tienes alojada en tu servidor, aqui al lado veras una sustituta, pero en tu '+
-          'sitio el banner la usara, porque la carga tu pagina.</span>'
-        : '<span class="wz-help">Las de Google las descarga el widget y crean una conexion con un '+
-          'tercero, que el visitante vera en tu politica de privacidad.</span>')+'</div>'+
+      '<span class="wz-help">Las de Google las descarga el widget y crean una conexion con un '+
+      'tercero, que el visitante vera en tu politica de privacidad.</span></div>'+
 
     '<div class="wz-field"><label class="wz-lab">Color de accion '+
       '<span class="wz-sub">· boton aceptar y enlaces</span></label>'+
@@ -2124,26 +1917,24 @@ function wIrA(n){
    todas: asi el asistente refleja el rediseño completo y el dia que core.js
    las entienda ya estan puestas. Las que hoy no hacen nada se marcan. */
 var WIZ_POS = [
-  ["bar",      "Barra inferior", "bar",      true],
-  ["card",     "Tarjeta",        "card",     true],
-  ["centered", "Centrado",       "centered", true]
+  ["bar",   "Barra inferior", "bottom", true],
+  ["card",  "Tarjeta",        "card",   false],
+  ["modal", "Centrado",       "modal",  false]
 ];
 var WIZ_PANEL = [
-  ["center","Centrado", true],
-  ["side",  "Lateral",  true],
-  ["bottom","Inferior", true]
+  ["center","Centrado",     true],
+  ["side",  "Lateral",      false],
+  ["bottom","Inferior",     false]
 ];
 
 function wLayout(o){
   var bn = o.banner || {}, bt = o.buttons || {}, pn = o.panel || {}, tr = o.trigger || {}, ch = o.chip || {};
-  var pos = bn.layout === "card" || bn.layout === "centered" ? bn.layout : "bar";
-  var comp = (typeof prevEstado === "string" ? prevEstado : "banner");
+  var pos = bn.position === "card" || bn.position === "modal" ? bn.position : "bar";
   var peso = bt.equalWeight ? "equal" : "highlight";
   var pan  = pn.placement || "center";
   var reab = tr.mode === "link" ? "footer" : "tab";
   var esq  = ch.position || "bottom-left";
   var cont = ch.mode === "image" ? "icon" : (ch.mode === "text" ? "text" : "both");
-  var abre = tr.opens === "banner" ? "banner" : "panel";
 
   function tarjetas(lista, actual, fn, ancho){
     return '<div class="wz-grid'+(ancho||3)+'">'+ lista.map(function(x){
@@ -2153,14 +1944,12 @@ function wLayout(o){
     }).join("") +'</div>';
   }
 
-  /* Un grupo por componente. El texto de arriba dice que las opciones siguen a
-     la vista previa, asi que tienen que seguirla de verdad: antes se pintaban
-     los cuatro grupos a la vez y los tabs solo movian el preview. */
-  var grupos = {};
+  return '<div class="wz-intro"><h2>Donde y como aparece</h2>'+
+      '<p>Las opciones siguen al componente elegido en la vista previa: banner, panel o pestana.</p></div>'+
 
-  grupos.banner =
     '<div class="wz-field"><label class="wz-lab">Posicion del banner</label>'+
       tarjetas(WIZ_POS, pos, "wSetPos") + '</div>'+
+
     '<div class="wz-field"><label class="wz-lab">Jerarquia de los botones</label>'+
       '<div class="wz-grid2">'+
         ['<button class="wz-pick'+(peso==="equal"?" on":"")+'" onclick="wSetPeso(\'equal\')">'+
@@ -2170,16 +1959,12 @@ function wLayout(o){
            '<span class="wz-pick-l">Aceptar destacado</span>'+
            '<span class="wz-help">Rechazar con un borde mas suave.</span></button>'].join("")+
       '</div>'+
-      (peso==="highlight" ? '<p class="wz-aviso">Con la CCPA/CPRA y las normas de Colorado y '+
-         'Connecticut, empujar al visitante hacia aceptar puede contar como patron oscuro. '+
-         '"Mismo peso" es la opcion segura.</p>' : '')+
-    '</div>';
+      (peso==="highlight" ? '<span class="wz-help">La CPRA pide que rechazar no cueste mas que aceptar.</span>' : '')+
+    '</div>'+
 
-  grupos.panel =
     '<div class="wz-field"><label class="wz-lab">Colocacion del panel</label>'+
-      tarjetas(WIZ_PANEL, pan, "wSetPanel") + '</div>';
+      tarjetas(WIZ_PANEL, pan, "wSetPanel") + '</div>'+
 
-  var reabrir =
     '<div class="wz-field"><label class="wz-lab">Control de reapertura</label>'+
       '<div class="wz-grid2">'+
         ['<button class="wz-pick'+(reab==="tab"?" on":"")+'" onclick="wSetReab(\'tab\')">'+
@@ -2188,41 +1973,19 @@ function wLayout(o){
            '<span class="wz-pick-l">Enlace en el pie</span></button>'].join("")+
       '</div>'+
       '<span class="wz-help">Siempre presente. La CCPA/CPRA exige una via facil para cambiar de '+
-      'opinion en cualquier momento.</span></div>';
-
-  grupos.chip = reabrir +
-    (reab==="tab"
-      ? '<div class="wz-field"><label class="wz-lab">Esquina</label>'+
+      'opinion en cualquier momento.</span>'+
+      (reab==="tab" ?
+        '<div class="wz-sub2"><label class="wz-lab">Esquina</label>'+
           tarjetas([["bottom-left","Abajo izq."],["bottom-right","Abajo der."],
-                    ["top-left","Arriba izq."],["top-right","Arriba der."]], esq, "wSetEsq", 2)+'</div>'+
-        '<div class="wz-field"><label class="wz-lab">Contenido</label>'+
-          tarjetas([["both","Icono y texto"],["icon","Solo icono"],["text","Solo texto"]], cont, "wSetCont")+'</div>'
-      : '<p class="wz-aviso">Ahora mismo la reapertura va por el enlace del pie, asi que la '+
-        'pestana no se muestra. Cambia el control de arriba para configurarla.</p>');
-
-  grupos.enlace = reabrir +
-    (reab==="footer"
-      ? '<div class="wz-field"><label class="wz-lab">Que abre el enlace</label>'+
-          tarjetas([["panel","El panel de preferencias"],["banner","El aviso completo"]],
-                   abre, "wSetAbre", 2)+
-          '<span class="wz-help">Pega un enlace o un boton con <code>data-consent-open</code> en tu pie, '+
-          'o uno que apunte a <code>#'+esc(tr.hash || "cookies")+'</code>.</span></div>'
-      : '<p class="wz-aviso">Ahora mismo la reapertura va por la pestana de la esquina. Cambia el '+
-        'control de arriba para configurar el enlace del pie.</p>');
-
-  var titulos = {banner:"el banner", panel:"el panel", chip:"la pestana", enlace:"el enlace del pie"};
-  return '<div class="wz-intro"><h2>Donde y como aparece</h2>'+
-      '<p>Estas son las opciones de <strong>'+(titulos[comp]||"el banner")+'</strong>. '+
-      'Cambia de componente en la vista previa para ver las suyas.</p></div>'+
-    (grupos[comp] || grupos.banner);
+                    ["top-left","Arriba izq."],["top-right","Arriba der."]], esq, "wSetEsq", 2)+
+         '<label class="wz-lab">Contenido</label>'+
+          tarjetas([["both","Icono y texto"],["icon","Solo icono"],["text","Solo texto"]], cont, "wSetCont")+
+        '</div>' : '')+
+    '</div>';
 }
 
 function wSetPos(v){ var o=wCfg(); if(!o) return; o.banner=o.banner||{};
-  o.banner.layout = v;                     // bar | card | centered
-  if(v === "bar") o.banner.position = "bottom";
-  wGuardar(o); }
-function wSetAbre(v){ var o=wCfg(); if(!o) return; o.trigger=o.trigger||{};
-  o.trigger.opens = v==="banner" ? "banner" : ""; wGuardar(o); }
+  o.banner.position = v==="bar" ? "bottom" : v; wGuardar(o); }
 function wSetPeso(v){ var o=wCfg(); if(!o) return; o.buttons=o.buttons||{};
   o.buttons.equalWeight = (v==="equal"); wGuardar(o); }
 function wSetPanel(v){ var o=wCfg(); if(!o) return; o.panel=o.panel||{};
@@ -2433,7 +2196,7 @@ function wRefrescarDev(){
   if(btn) btn.disabled = !n;
 }
 
-function wModo(m){ if(m === "dev" && !esSuper) return; WIZ.modo = m; renderVisual(); }
+function wModo(m){ WIZ.modo = m; renderVisual(); }
 function wDevTab(t){ WIZ.devTab = t; renderVisual(); }
 
 
@@ -2519,7 +2282,6 @@ function temasHTML(o){
       '<button class="btn ghost sm" onclick="temaActivar()"'+(TEMA_EDIT===activo?' disabled':'')+
         '>Usar esta</button>'+
       '<button class="btn ghost sm" onclick="temaBorrar()">Borrar</button>' : '')+
-    domSelect() +
     '<button class="btn ghost sm" onclick="temaProbar()">Probar en mi sitio</button>'+
   '</div>';
 }
@@ -2563,8 +2325,10 @@ function temaBorrar(){
 /* Abre el sitio del cliente con el parametro puesto. A partir de ahi el bundle
    recuerda el modo en ese navegador y enseña su propio selector. */
 function temaProbar(){
-  var dom = domUrl();
+  var d = _datosSitio || {};
+  var dom = d.domain || "";
   if(!dom){ alert("Este sitio no tiene dominio configurado."); return; }
+  if(!/^https?:/.test(dom)) dom = "https://" + dom;
   window.open(dom + (dom.indexOf("?") >= 0 ? "&" : "?") + "consentTheme=" +
               encodeURIComponent(TEMA_EDIT || (temaBase()||{}).theme || ""), "_blank");
 }
@@ -2655,7 +2419,7 @@ function pintaEstado(){
 var PREV_FONDO = "blank";
 
 function setPrevFondo(f){
-  var dom = domActivo();
+  var dom = (_datosSitio || {}).domain || "";
   if(f === "site" && !dom){ msg("smsg", "Este sitio no tiene dominio configurado.", true); return; }
   PREV_FONDO = f;
   var a = el("pf-site"), b = el("pf-blank");
@@ -2667,8 +2431,9 @@ function setPrevFondo(f){
 }
 
 function fondoDelSitio(){
-  var dom = domUrl();
+  var dom = (_datosSitio || {}).domain || "";
   if(PREV_FONDO !== "site" || !dom) return "";
+  if(!/^https?:/.test(dom)) dom = "https://" + dom;
   return '<iframe class="sitio" src="' + dom.replace(/"/g, "&quot;") + '" ' +
          'style="position:absolute;inset:0;width:100%;height:100%;border:0" ' +
          'onload="this.setAttribute(\'data-ok\',\'1\')"></iframe>' +
@@ -2693,70 +2458,22 @@ function wDetectar(){
       if(m) m.textContent = r.d.error || "No se pudo leer el sitio.";
       return;
     }
-    var d = r.d, cambio = {}, dicho = [], chips = [];
-    // La marca de antes, para poder volver. Se guarda ANTES de tocar nada.
-    var _o = wCfg();
-    WIZ_DET_PREVIA = _o ? wFoto(_o) : null;
+    var d = r.d, cambio = {}, dicho = [];
     if(d.fontFamily){
       // Se guarda como opcion del desplegable; es suya, no se descarga nada.
-      var corto = wNombreFam(d.fontFamily);
+      var corto = d.fontFamily.split(",")[0].replace(/['"]/g, "").trim();
       WIZ_FUENTE_SITIO = { fam: d.fontFamily, nombre: corto };
-      // La familia viaja dentro de brand para sobrevivir a una recarga.
       cambio.fuente = "site";
-      cambio.fuenteFam = d.fontFamily;
-      cambio.fuenteNombre = corto;
-      dicho.push("tipografia"); chips.push([corto, null]);
+      dicho.push("tipografia");
     }
-    if(d.accent){ cambio.color = d.accent; dicho.push("color"); chips.push([d.accent, d.accent]); }
-    if(d.surface){ cambio.fondo = d.surface === "dark" ? "dark" : "light"; dicho.push("fondo");
-      chips.push([d.surface === "dark" ? "Fondo oscuro" : "Fondo claro", null]); }
-    if(d.radius){ cambio.esquinas = d.radius; dicho.push("esquinas");
-      chips.push([{rectas:"Esquinas rectas",suaves:"Esquinas suaves",redondeadas:"Esquinas redondeadas"}[d.radius] || d.radius, null]); }
-    if(!dicho.length){
-      WIZ_DET_CHIPS = null; WIZ_DET_PREVIA = null;
-      WIZ_DET_MSG = "No se pudo deducir nada de ese sitio.";
-      renderVisual(); return;
-    }
-    WIZ_DET_CHIPS = chips;
-    WIZ_DET_MSG = "Revisa y ajusta lo que no encaje.";
-    // El deshacer caduca: dejarlo para siempre haria que un \"Deshacer\" de hace
-    // media hora revirtiera ajustes hechos despues a mano.
-    if(WIZ_DET_TIMER) clearTimeout(WIZ_DET_TIMER);
-    WIZ_DET_TIMER = setTimeout(function(){
-      WIZ_DET_PREVIA = null;
-      if(WIZ.modo !== "dev" && WIZ.paso === 1) renderVisual();
-    }, 20000);
-    wAplicarMarca(cambio);
+    if(d.accent){ cambio.color = d.accent; dicho.push("color"); }
+    if(d.surface){ cambio.fondo = d.surface === "dark" ? "dark" : "light"; dicho.push("fondo"); }
+    if(d.radius){ cambio.esquinas = d.radius; dicho.push("esquinas"); }
+    WIZ_DET_MSG = dicho.length
+      ? "Aplicado: " + dicho.join(", ") + ". Revisa y ajusta lo que no encaje."
+      : "No se pudo deducir nada de ese sitio.";
+    if(Object.keys(cambio).length) wAplicarMarca(cambio); else renderVisual();
   });
-}
-
-/* Foto de lo que el detector va a pisar: la marca, y el valor anterior de
-   cada propiedad derivada. Hace falta guardar tambien las que NO existian
-   (como undefined), porque restaurar la marca de antes y volver a derivar no
-   es lo mismo: una propiedad que nunca se habia derivado volveria con un
-   valor, no vacia, y el pill cambiaria de aspecto al deshacer. */
-function wFoto(o){
-  var m = JSON.parse(JSON.stringify(wMarca(o)));
-  var antes = {}, d = wDerivar(m);
-  for(var ruta in d) antes[ruta] = getPath(o, ruta);
-  return { marca: m, antes: antes };
-}
-
-function wDetDeshacer(){
-  if(!WIZ_DET_PREVIA) return;
-  var o = wCfg(); if(!o) return;
-  var foto = WIZ_DET_PREVIA;
-  WIZ_DET_PREVIA = null; WIZ_DET_CHIPS = null;
-  WIZ_DET_MSG = "Deshecho. La apariencia vuelve a como estaba.";
-  if(WIZ_DET_TIMER){ clearTimeout(WIZ_DET_TIMER); WIZ_DET_TIMER = null; }
-  o.brand = foto.marca;
-  // borrarPath para las que no existian, y asi no dejar {"chip":{}} detras;
-  // setPath para las que si tenian valor.
-  for(var ruta in foto.antes){
-    if(foto.antes[ruta] === undefined) borrarPath(o, ruta);
-    else setPath(o, ruta, foto.antes[ruta]);
-  }
-  wGuardar(o);
 }
 
 function renderVisual(){
@@ -2772,7 +2489,7 @@ function renderVisual(){
       '<div class="empty">El JSON tiene errores. Corrigelo en la pestana JSON para volver aqui.</div>';
     return;
   }
-  var groups = UI_GROUPS.filter(function(g){ return !g.soloSuper || esSuper; }).map(function(g){
+  var groups = UI_GROUPS.map(function(g){
     var hg = ' onmouseenter="hlPorGrupo(\''+g.t.replace(/'/g,"")+'\')" onmouseleave="hlFuera()"';
     return '<details class="group"'+(g.open?' open':'')+hg+'><summary>'+esc(g.t)+'</summary><div class="body">'+
       g.items.map(function(it){ return control(obj, it); }).join('')+
@@ -2802,7 +2519,6 @@ function renderVisual(){
             '<button id="pf-site"  onclick="setPrevFondo(\'site\')">Tu sitio</button>'+
             '<button id="pf-blank" onclick="setPrevFondo(\'blank\')">Pagina neutra</button>'+
           '</div>'+
-          domSelect() +
           '<span class="prev-nota" id="prev-nota">Vista en vivo · pagina neutra</span>'+
         '</div>'+
         '<div class="lienzo"><iframe id="prev"'+
@@ -3364,9 +3080,7 @@ function setPrevDisp(d){
   refrescarPreview();
 }
 
-var _repintando = false;
 function setPreview(modo){
-  var cambio = (prevEstado !== modo);
   prevEstado = modo;
   ["banner","panel","chip","enlace"].forEach(function(m){
     var b = el("pv-"+m); if(b) b.className = (m===modo ? "on" : "");
@@ -3374,14 +3088,7 @@ function setPreview(modo){
   // El panel es mas alto que el banner: con el lienzo corto salia recortado y
   // con barra de desplazamiento, que no es como se ve en el sitio.
   var f = el("prev"); if(f) f.classList.toggle("alto", modo === "panel");
-  // El paso 2 depende del componente elegido, asi que hay que repintarlo. La
-  // guarda es necesaria porque renderVisual acaba llamando a setPreview para
-  // dejar marcado el tab: sin ella, las dos se llaman en bucle.
-  if(_repintando){ refrescarPreview(); return; }
-  if(WIZ.modo !== "dev" && WIZ.paso === 2 && cambio){
-    _repintando = true;
-    try { renderVisual(); } finally { _repintando = false; }
-  } else refrescarPreview();
+  refrescarPreview();
 }
 
 /* La previa monta el bundle real con la config del editor, sin guardar nada.
@@ -3690,7 +3397,7 @@ function avisosApariencia(o, res){
   if(cs !== null && cs < 11) res.push({s:"warn", t:"<b>Descripcion de categorias</b> a "+cs+"px: demasiado pequeno para un texto legal."});
   if(H.enabled === false) res.push({s:"warn", t:"<b>Pill desactivado</b>: sin el, el visitante no puede reabrir el panel para cambiar de opinion."});
   if((H.mode === "image" || H.mode === "both") && !H.image)
-    res.push({s:"pass", t:"El pill usa el <b>icono incluido</b>. Pon una URL en <code>chip.image</code> si quieres el tuyo."});
+    res.push({s:"warn", t:"El pill esta en modo imagen pero <b>chip.image esta vacio</b>: se mostrara solo el texto."});
   if(H.mode === "image" && H.image && !H.imageAlt)
     res.push({s:"warn", t:"Pill con solo imagen y <b>sin texto alternativo</b>: un lector de pantalla no sabra que es."});
 }
@@ -3733,21 +3440,7 @@ function buildSnippet(d){
 'n.setAttribute("data-consent-src",s);n.setAttribute("data-consent-category",r.category);n.removeAttribute("src");B.blocked.push(s)}\n'+
 'B.observer=new MutationObserver(function(m){m.forEach(function(x){Array.prototype.forEach.call(x.addedNodes,function(n){\n'+
 'if(n.tagName==="SCRIPT"){var r=hit(n.getAttribute("src"));if(r)kill(n,r)}})})});\n'+
-'B.observer.observe(document.documentElement,{childList:true,subtree:true});\n'+
-// Un <script> al que se le pone src y luego se inserta arranca la descarga AL
-// insertarse: quitarle el src despues ya no lo para, y el observer avisa un
-// microtask tarde. Por eso hay que mirarlo ANTES de que toque el documento,
-// que es como se cargan GTM, HubSpot y practicamente todo lo que importa.
-'B.rules=R;\n'+
-'var P=Node.prototype,na=P.appendChild,ni=P.insertBefore,nr=P.replaceChild;\n'+
-'function chk(n){if(!n||!R.length)return n;\n'+
-'if(n.nodeType===1){if(n.tagName==="SCRIPT"){var r=hit(n.getAttribute&&n.getAttribute("src"));if(r)kill(n,r)}return n}\n'+
-'if(n.nodeType===11&&n.querySelectorAll){Array.prototype.forEach.call(n.querySelectorAll("script[src]"),function(t){\n'+
-'var r=hit(t.getAttribute("src"));if(r)kill(t,r)})}return n}\n'+
-'P.appendChild=function(n){return na.call(this,chk(n))};\n'+
-'P.insertBefore=function(n,f){return ni.call(this,chk(n),f)};\n'+
-'P.replaceChild=function(n,o){return nr.call(this,chk(n),o)};\n'+
-'B.patched=true;})();\n';
+'B.observer.observe(document.documentElement,{childList:true,subtree:true});})();\n';
   }
   s += '<\/script>\n<script async src="'+API+'/consent-banner.js"><\/script>';
   return s;
@@ -3895,16 +3588,13 @@ function convertirTrigger(){
 
 function dominioDelSitio(){
   var st = sites.filter(function(x){ return x.site_id === current; })[0];
-  // El elegido en los selectores manda; si no hay ninguno, el primero del sitio.
-  var L = domLista(st && st.domain);
-  var d = (DOM_ACTIVO && L.indexOf(DOM_ACTIVO) >= 0 ? DOM_ACTIVO : L[0]) || "tusitio.com";
-  return /^https?:/i.test(d) ? d : "https://" + d;
+  var d = (st && st.domain ? String(st.domain).split(",")[0].trim() : "") || "tusitio.com";
+  return d.indexOf("http") === 0 ? d : "https://" + d;
 }
 
 function viewInstalar(d){
   var snippet = buildSnippet(d);
   var rules = (d.config && d.config.autoBlock) || [];
-  DOMS = domLista(d.d && d.d.domain);
   el("tabbody").innerHTML =
     '<div class="cols">'+
       '<div class="card">'+
@@ -3925,13 +3615,8 @@ function viewInstalar(d){
       '<div>'+
         '<div class="card">'+
           '<h2>Dominios autorizados</h2>'+
-          '<p class="sub">Solo desde estos dominios se aceptan registros. Los subdominios entran '+
-            'solos, asi que con el dominio raiz ya cubres www y los demas.</p>'+
-          '<div id="dom-chips" class="dom-chips"></div>'+
-          '<div class="row dom-add"><input type="text" id="dom-nuevo" placeholder="cliente.com" '+
-            'onkeydown="if(event.key===\'Enter\'){event.preventDefault();domAnadir()}" '+
-            'onpaste="domPegar(event)" />'+
-            '<button class="btn ghost sm" onclick="domAnadir()">Anadir</button></div>'+
+          '<p class="sub">Separados por coma. Solo desde estos dominios se aceptan registros.</p>'+
+          '<input type="text" id="dom" value="'+esc(d.d && d.d.domain || "")+'" placeholder="cliente.com, www.cliente.com" />'+
           '<div class="row mt"><button class="btn ghost sm" onclick="guardarDominio()">Guardar dominios</button>'+
           '<span id="dmsg" class="msg"></span></div>'+
         '</div>'+
@@ -3948,7 +3633,6 @@ function viewInstalar(d){
         '</div>'+
       '</div>'+
     '</div>';
-  domPintaChips();
   pintarTrigger(d.config || {});
 }
 function copiarSnippet(){ copiarDe("snip","cmsg"); }
@@ -3966,78 +3650,9 @@ function copiarDe(idOrigen, idMsg){
     document.body.removeChild(ta);
   }
 }
-/* ---- editor de dominios -----------------------------------------------
-   Uno por ficha, con su aspa. La columna sigue guardandose separada por coma
-   (es lo que lee origen_permitido), pero escribir las comas a mano se prestaba
-   a dejar espacios, protocolos o rutas pegadas dentro del valor.          */
-var DOMS = [];
-
-/* Acepta lo que se pegue de la barra del navegador y deja solo el host. */
-function domNormaliza(v){
-  v = String(v || "").trim().toLowerCase();
-  v = v.replace(/^[a-z][a-z0-9+.-]*:\/\//, "");   // protocolo
-  v = v.replace(/^[^@\/]*@/, "");                 // usuario:clave@
-  v = v.split("/")[0].split("?")[0].split("#")[0];
-  v = v.replace(/\.+$/, "");
-  return v;
-}
-function domValido(v){
-  if(!v) return false;
-  if(/^localhost(:\d+)?$/.test(v)) return true;
-  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(:\d+)?$/.test(v);
-}
-function domPintaChips(){
-  var c = el("dom-chips"); if(!c) return;
-  c.innerHTML = DOMS.length
-    ? DOMS.map(function(d, i){
-        // Con el padre en la lista, el subdominio ya estaba cubierto.
-        var cubierto = DOMS.some(function(o, j){
-          return j !== i && o !== d && d.length > o.length && d.slice(-(o.length + 1)) === "." + o;
-        });
-        return '<span class="dom-chip'+(cubierto?' redundante':'')+'"'+
-          (cubierto ? ' title="Ya cubierto por un dominio de la lista"' : '')+'>'+
-          esc(d)+'<button type="button" onclick="domQuitar('+i+')" '+
-          'aria-label="Quitar '+esc(d)+'">×</button></span>';
-      }).join("")
-    : '<span class="dom-vacio">Sin dominios: se aceptan registros desde cualquier sitio.</span>';
-}
-function domAnadir(v){
-  var inp = el("dom-nuevo");
-  var crudo = (typeof v === "string" ? v : (inp ? inp.value : ""));
-  var nuevos = String(crudo).split(/[,\s]+/).map(domNormaliza).filter(function(x){ return !!x; });
-  if(!nuevos.length){ msg("dmsg", "Escribe un dominio.", true); return; }
-  var malos = nuevos.filter(function(x){ return !domValido(x); });
-  if(malos.length){ msg("dmsg", "No parece un dominio: " + malos.join(", "), true); return; }
-  var repes = nuevos.filter(function(x){ return DOMS.indexOf(x) >= 0; });
-  nuevos.forEach(function(x){ if(DOMS.indexOf(x) < 0) DOMS.push(x); });
-  if(inp){ inp.value = ""; inp.focus(); }
-  domPintaChips();
-  msg("dmsg", repes.length === nuevos.length
-    ? "Ya estaba en la lista."
-    : "Anadido. Dale a Guardar dominios para que surta efecto.", false);
-}
-// Pegar "a.com, b.com" de un tiron sigue funcionando: se parte en fichas.
-function domPegar(ev){
-  var t = (ev.clipboardData || window.clipboardData);
-  if(!t) return;
-  var txt = t.getData("text") || "";
-  if(!/[,\s]/.test(txt.trim())) return;    // uno solo: que lo escriba normal
-  ev.preventDefault();
-  domAnadir(txt);
-}
-function domQuitar(i){
-  DOMS.splice(i, 1); domPintaChips();
-  msg("dmsg", "Quitado. Dale a Guardar dominios para que surta efecto.", false);
-}
 function guardarDominio(){
-  var valor = DOMS.join(",");
-  j("POST","/dash/site/domain",{site_id:current,domain:valor}).then(function(r){
-    if(!r.ok){ msg("dmsg", r.d.error||"error", true); return; }
-    // El resto del panel lee de aqui: sin esto los selectores siguen con los viejos.
-    if(_datosSitio) _datosSitio.domain = r.d.domain !== undefined ? r.d.domain : valor;
-    sites.forEach(function(s){ if(s.site_id === current) s.domain = valor; });
-    if(DOM_ACTIVO && DOMS.indexOf(DOM_ACTIVO) < 0) DOM_ACTIVO = "";
-    msg("dmsg","Guardado.",false);
+  j("POST","/dash/site/domain",{site_id:current,domain:val("dom")}).then(function(r){
+    if(r.ok) msg("dmsg","Guardado.",false); else msg("dmsg", r.d.error||"error", true);
   });
 }
 
@@ -4325,57 +3940,16 @@ var _usuarios = [], _sitiosTodos = [];
 
 function viewUsuarios(){
   el("tabbody").innerHTML =
-    '<div class="card" id="pend-card" style="margin-bottom:16px"></div>'+
     '<div class="card">'+
       '<div class="ck-head">'+
         '<div><h2>Usuarios</h2>'+
           '<p class="sub" style="margin:0">Cada usuario ve solo los sitios que le asignes. '+
-          'Los super administradores ven todos y pueden gestionar cuentas.</p></div>'+
+          'Los administradores ven todos y pueden gestionar usuarios.</p></div>'+
         '<button class="btn" onclick="modalNuevoUsuario()">Crear usuario</button>'+
       '</div>'+
       '<div id="u-body"><div class="empty">Cargando...</div></div>'+
     '</div>';
-  cargarPendientes();
   cargarUsuarios();
-}
-
-/* Solicitudes de alta. Una cuenta pendiente no puede iniciar sesion, asi que
-   esta bandeja es el unico sitio desde el que se le da acceso. */
-function cargarPendientes(){
-  j("GET","/dash/pending").then(function(r){
-    var caja = el("pend-card");
-    if(!caja) return;
-    if(!r.ok){ caja.classList.add("hide"); return; }
-    var filas = r.d.rows || [];
-    if(!filas.length){ caja.classList.add("hide"); return; }
-    caja.classList.remove("hide");
-    caja.innerHTML =
-      '<div class="ck-head"><div><h2>Solicitudes de acceso '+
-        '<span class="ver-pill" style="border-color:var(--line);color:var(--muted)">'+filas.length+'</span></h2>'+
-        '<p class="sub" style="margin:0">Estas personas pidieron una cuenta. No pueden entrar hasta que apruebes.</p>'+
-      '</div></div>'+
-      '<div class="table-wrap"><table class="ck-tbl"><thead><tr>'+
-        '<th>Usuario</th><th>Pedida</th><th></th></tr></thead><tbody>'+
-      filas.map(function(f){
-        return '<tr><td><strong>'+esc(f.username)+'</strong></td>'+
-          '<td class="sub">'+esc((f.created_at||"").slice(0,16).replace("T"," "))+'</td>'+
-          '<td style="text-align:right;white-space:nowrap">'+
-            '<button class="btn ghost sm" onclick="resolverAlta(\''+esc(f.username)+'\',\'rechazar\')">Rechazar</button> '+
-            '<button class="btn sm" onclick="resolverAlta(\''+esc(f.username)+'\',\'aprobar\')">Aprobar</button>'+
-          '</td></tr>';
-      }).join('')+
-      '</tbody></table></div><p class="hint" id="pend-msg"></p>';
-  });
-}
-
-function resolverAlta(nombre, accion){
-  if(accion === "rechazar" && !confirm("Rechazar la solicitud de "+nombre+"? Se borra, aunque podra volver a pedirla."))
-    return;
-  j("POST","/dash/pending/resolve",{username:nombre, accion:accion}).then(function(r){
-    if(!r.ok) return msg("pend-msg", r.d.error||"No se pudo.", true);
-    cargarPendientes();
-    cargarUsuarios();     // un alta aprobada aparece ya en la tabla de abajo
-  });
 }
 
 function cargarUsuarios(){
@@ -4395,9 +3969,9 @@ function pintarUsuarios(){
 }
 
 function filaUsuario(u){
-  var id = cssId(u.username), admin = (u.role === "super");
-  // Solo el super llega a todos los sitios por definicion, asi que asignarle
-  // sitios uno a uno no significaria nada. Un admin si se asigna.
+  var id = cssId(u.username), admin = (u.role === "admin");
+  // Un admin llega a todos los sitios por definicion, asi que asignarle
+  // sitios uno a uno no significaria nada.
   var sitios = admin
     ? '<span class="nota-nec">Todos los sitios</span>'
     : '<div class="u-sitios">'+ _sitiosTodos.map(function(s){
@@ -4409,9 +3983,7 @@ function filaUsuario(u){
 
   return '<tr id="u_'+id+'">'+
     '<td><div class="ck-name">'+esc(u.username)+'</div></td>'+
-    '<td>'+(u.role === "super" ? '<span class="tag all">super admin</span>'
-          : u.role === "admin" ? '<span class="tag all">admin</span>'
-          : '<span class="tag custom">usuario</span>')+'</td>'+
+    '<td>'+(admin ? '<span class="tag all">admin</span>' : '<span class="tag custom">usuario</span>')+'</td>'+
     '<td style="white-space:normal">'+sitios+'</td>'+
     '<td style="text-align:right;white-space:nowrap">'+
       '<button class="btn ghost sm" onclick="modalPassUsuario(\''+esc(u.username)+'\')">Contrasena</button> '+
@@ -4448,9 +4020,8 @@ function modalNuevoUsuario(){
       '<div class="field"><label>Usuario</label><input id="nu-name" type="text" placeholder="maria" /></div>'+
       '<div class="field"><label>Contrasena</label><input id="nu-pass" type="password" placeholder="Minimo 8 caracteres" /></div>'+
       '<div class="field"><label>Rol</label><select id="nu-role" class="ck-sel" style="width:100%">'+
-        '<option value="user">Usuario (solo los sitios que le asignes)</option>'+
-        '<option value="admin">Administrador (sus sitios, no gestiona cuentas)</option>'+
-        '<option value="super">Super administrador (todo)</option></select></div>'+
+        '<option value="user">Usuario (solo sus sitios)</option>'+
+        '<option value="admin">Administrador (todo)</option></select></div>'+
       '<div class="field"><label>Sitios</label><div class="u-sitios">'+checks+'</div></div>'+
       '<p class="hint" id="nu-msg"></p>'+
       '<div class="row mt"><button class="btn" onclick="crearUsuario()">Crear usuario</button>'+
@@ -4529,7 +4100,7 @@ function viewCuenta(){
           return '<div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line-soft)">'+
             '<div style="min-width:0"><b style="font-size:13.5px">'+esc(s.name)+'</b>'+
             '<div style="font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,monospace">'+esc(s.site_id)+'</div></div>'+
-            (esSuper ? '<button class="btn danger sm" onclick="modalBorrarSitio(\''+s.site_id+'\',\''+safe+'\')">Borrar</button>' : '')+
+            '<button class="btn danger sm" onclick="modalBorrarSitio(\''+s.site_id+'\',\''+safe+'\')">Borrar</button>'+
           '</div>';
         }).join('')+
         '<div class="row mt"><button class="btn ghost sm" onclick="modalNuevoSitio()">+ Nuevo sitio</button></div>'+
@@ -4558,8 +4129,7 @@ function modalNuevoSitio(){
     '<div class="modal-bg" onclick="if(event.target===this)cerrarModal()"><div class="modal">'+
       '<h3>Nuevo sitio</h3><p class="sub">Puedes cambiar los dominios mas tarde.</p>'+
       '<div class="field"><label>Nombre</label><input id="n-name" type="text" placeholder="Tienda del cliente" maxlength="80" /></div>'+
-      '<div class="field"><label>Dominio principal</label><input id="n-dom" type="text" placeholder="cliente.com" />'+
-        '<span class="hint">Los demas se anaden despues en Instalar, uno a uno.</span></div>'+
+      '<div class="field"><label>Dominios (separados por coma)</label><input id="n-dom" type="text" placeholder="cliente.com, pruebas.cliente.com" /></div>'+
       '<div class="row mt"><button class="btn" onclick="createSite()">Crear sitio</button>'+
       '<button class="btn ghost" onclick="cerrarModal()">Cancelar</button></div>'+
       '<p class="hint" id="n-msg"></p>'+
@@ -4569,15 +4139,12 @@ function modalNuevoSitio(){
 function createSite(){
   var name = val("n-name").trim();
   if(!name){ msg("n-msg","Pon un nombre para identificarlo.",true); return; }
-  // Se limpia aqui tambien: pegar la barra del navegador es lo mas comodo.
-  var dom = domLista(val("n-dom")).map(domNormaliza).filter(domValido).join(",");
-  j("POST","/dash/site/create",{name:name,domain:dom}).then(function(r){
+  j("POST","/dash/site/create",{name:name,domain:val("n-dom")}).then(function(r){
     if(r.ok){ current = r.d.site_id; cerrarModal(); tab = "instalar"; boot(); }
     else msg("n-msg", r.d.error||"No se pudo crear.", true);
   });
 }
 function modalBorrarSitio(id, name){
-  if(!esSuper) return;   // el backend responde 403 igualmente
   menuOpen = false; renderPicker();
   el("modal-host").innerHTML =
     '<div class="modal-bg" onclick="if(event.target===this)cerrarModal()"><div class="modal">'+
