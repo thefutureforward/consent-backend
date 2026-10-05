@@ -568,11 +568,14 @@ def public_key_for(c, site_id):
 
 # ---------------------------------------------------------------- HTTP handler
 class H(BaseHTTPRequestHandler):
-    def _send(self, code, obj=None, ctype="application/json", raw=None, cookie=None):
+    def _send(self, code, obj=None, ctype="application/json", raw=None, cookie=None,
+              headers=None):
         self.send_response(code)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Api-Key")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        for k, v in (headers or {}).items():
+            self.send_header(k, v)
         if cookie:
             self.send_header("Set-Cookie", cookie)
         body = raw if raw is not None else json.dumps(obj if obj is not None else {}).encode()
@@ -703,8 +706,23 @@ class H(BaseHTTPRequestHandler):
         ext = os.path.splitext(path)[1]
         ctype = {".html": "text/html; charset=utf-8", ".js": "text/javascript",
                  ".css": "text/css", ".json": "application/json"}.get(ext, "application/octet-stream")
+        # Sin cabeceras de cache el navegador aplica su heuristica y se queda
+        # con la copia vieja: al publicar un dashboard nuevo el cliente seguia
+        # viendo el anterior sin enterarse. El HTML no se guarda nunca; los
+        # demas se revalidan con ETag, asi que casi siempre solo viaja un 304
+        # y no el archivo entero.
+        st = os.stat(path)
+        etag = '"%x-%x"' % (int(st.st_mtime), st.st_size)
+        if ext == ".html":
+            cache = "no-store"
+        else:
+            cache = "no-cache"
+            if self.headers.get("If-None-Match") == etag:
+                return self._send(304, raw=b"", ctype=ctype,
+                                  headers={"ETag": etag, "Cache-Control": cache})
         with open(path, "rb") as f:
-            self._send(200, raw=f.read(), ctype=ctype)
+            self._send(200, raw=f.read(), ctype=ctype,
+                       headers={"ETag": etag, "Cache-Control": cache})
 
     # ---- API publica ----
     def api_config(self, q):
