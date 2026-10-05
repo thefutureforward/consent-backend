@@ -147,6 +147,15 @@
   .tm-add{border:1px dashed var(--line);background:none;border-radius:7px;padding:5px 10px;
           cursor:pointer;color:var(--muted);font-size:14px;line-height:1}
   .tm-sp{flex:1}
+  .dom-fila{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line);
+            border-radius:8px;margin-bottom:6px;background:var(--white)}
+  .dom-n{flex:1;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--ink);
+         overflow:hidden;text-overflow:ellipsis}
+  .ck-kind{display:inline-block;font-size:10.5px;font-weight:600;padding:1px 6px;border-radius:4px;
+           background:var(--line);color:var(--muted);vertical-align:middle}
+  .ck-kind.third{background:#FDECEB;color:#A5342A}
+  .banner-info.alcance{background:var(--paper);border-color:var(--line);color:var(--muted)}
+  .ck-name .ck-kind{margin-left:4px}
   .btn.sm{padding:6px 10px;font-size:12px}
   .wz-pub{font-size:12.5px;color:var(--accent);font-weight:600;margin-right:4px}
   .wz-foot .row{gap:12px;align-items:center}
@@ -785,6 +794,26 @@ var DICT = {
   "Guardar: peso": "Save: weight",
   "Guardar: padding": "Save: padding",
   "Guardar: borde": "Save: border",
+  "Anadir": "Add",
+  "Dominio anadido.": "Domain added.",
+  "Dominio quitado.": "Domain removed.",
+  "Quitar": "Remove",
+  "Sin dominios: se aceptan registros desde cualquier sitio.": "No domains: records are accepted from anywhere.",
+  "Solo desde estos dominios se aceptan registros. Los subdominios entran solos. Pega la direccion como quieras: se limpia al guardar.": "Records are only accepted from these domains. Subdomains are included. Paste the address however you like: it gets cleaned on save.",
+  "Exportar audit (CSV)": "Export audit (CSV)",
+  "No hay nada que exportar todavia.": "Nothing to export yet.",
+  "fila(s) exportadas.": "row(s) exported.",
+  "tercero": "third party",
+  "Que no recoge este informe.": "What this report does not cover.",
+  "Se lee lo que el navegador deja ver desde la propia pagina, asi que quedan fuera: las cookies de otros dominios (las que en DevTools aparecen bajo google.com, vimeo.com y similares), que ningun script puede leer, y las marcadas HttpOnly, que el navegador oculta a JavaScript. Donde se reconoce al proveedor por el nombre, se indica en la columna correspondiente.": "It reads what the browser exposes from the page itself, so these are out of scope: cookies set on other domains (the ones DevTools shows under google.com, vimeo.com and similar), which no script can read, and HttpOnly cookies, which the browser hides from JavaScript. Where the provider is recognised by name, it is stated in the matching column.",
+  "Barra": "Bar",
+  "Tarjeta": "Card",
+  "Esquina de la tarjeta": "Card corner",
+  "Abajo": "Bottom",
+  "Arriba": "Top",
+  "Izquierda": "Left",
+  "Derecha": "Right",
+  "Lado": "Side",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -1916,20 +1945,23 @@ function wIrA(n){
    Las opciones se guardan en la config aunque el bundle todavia no lea
    todas: asi el asistente refleja el rediseño completo y el dia que core.js
    las entienda ya estan puestas. Las que hoy no hacen nada se marcan. */
+/* Valores tal cual los entiende el bundle: banner.layout y panel.placement.
+   Antes esto escribia banner.position con "card"/"modal", que el core no lee,
+   y por eso elegir una opcion no cambiaba nada. */
 var WIZ_POS = [
-  ["bar",   "Barra inferior", "bottom", true],
-  ["card",  "Tarjeta",        "card",   false],
-  ["modal", "Centrado",       "modal",  false]
+  ["bar",      "Barra",    true],
+  ["card",     "Tarjeta",  true],
+  ["centered", "Centrado", true]
 ];
 var WIZ_PANEL = [
-  ["center","Centrado",     true],
-  ["side",  "Lateral",      false],
-  ["bottom","Inferior",     false]
+  ["center", "Centrado", true],
+  ["side",   "Lateral",  true],
+  ["bottom", "Inferior", true]
 ];
 
 function wLayout(o){
   var bn = o.banner || {}, bt = o.buttons || {}, pn = o.panel || {}, tr = o.trigger || {}, ch = o.chip || {};
-  var pos = bn.position === "card" || bn.position === "modal" ? bn.position : "bar";
+  var pos = (bn.layout === "card" || bn.layout === "centered") ? bn.layout : "bar";
   var peso = bt.equalWeight ? "equal" : "highlight";
   var pan  = pn.placement || "center";
   var reab = tr.mode === "link" ? "footer" : "tab";
@@ -1938,9 +1970,8 @@ function wLayout(o){
 
   function tarjetas(lista, actual, fn, ancho){
     return '<div class="wz-grid'+(ancho||3)+'">'+ lista.map(function(x){
-      var sop = x[3] === false || x[2] === false;
       return '<button class="wz-pick row'+(actual===x[0]?' on':'')+'" onclick="'+fn+'(\''+x[0]+'\')">'+
-        '<span class="wz-pick-l">'+x[1]+(sop?' <em class="wz-todavia">pendiente</em>':'')+'</span></button>';
+        '<span class="wz-pick-l">'+x[1]+'</span></button>';
     }).join("") +'</div>';
   }
 
@@ -1948,7 +1979,20 @@ function wLayout(o){
       '<p>Las opciones siguen al componente elegido en la vista previa: banner, panel o pestana.</p></div>'+
 
     '<div class="wz-field"><label class="wz-lab">Posicion del banner</label>'+
-      tarjetas(WIZ_POS, pos, "wSetPos") + '</div>'+
+      tarjetas(WIZ_POS, pos, "wSetPos") +
+      (pos === "card" ?
+        '<div class="wz-sub2"><label class="wz-lab">Esquina de la tarjeta</label>'+
+          tarjetas([["bottom","Abajo"],["top","Arriba"]], (bn.position==="top"?"top":"bottom"),
+                   "wSetBannerVert", 2)+
+          tarjetas([["left","Izquierda"],["right","Derecha"]], (bn.align==="right"?"right":"left"),
+                   "wSetBannerHor", 2)+
+        '</div>'
+        : (pos === "bar" ?
+        '<div class="wz-sub2">'+
+          tarjetas([["bottom","Abajo"],["top","Arriba"]], (bn.position==="top"?"top":"bottom"),
+                   "wSetBannerVert", 2)+
+        '</div>' : ''))+
+    '</div>'+
 
     '<div class="wz-field"><label class="wz-lab">Jerarquia de los botones</label>'+
       '<div class="wz-grid2">'+
@@ -1963,7 +2007,13 @@ function wLayout(o){
     '</div>'+
 
     '<div class="wz-field"><label class="wz-lab">Colocacion del panel</label>'+
-      tarjetas(WIZ_PANEL, pan, "wSetPanel") + '</div>'+
+      tarjetas(WIZ_PANEL, pan, "wSetPanel") +
+      (pan === "side" ?
+        '<div class="wz-sub2"><label class="wz-lab">Lado</label>'+
+          tarjetas([["right","Derecha"],["left","Izquierda"]], (pn.side==="left"?"left":"right"),
+                   "wSetPanelSide", 2)+
+        '</div>' : '')+
+    '</div>'+
 
     '<div class="wz-field"><label class="wz-lab">Control de reapertura</label>'+
       '<div class="wz-grid2">'+
@@ -1984,8 +2034,17 @@ function wLayout(o){
     '</div>';
 }
 
-function wSetPos(v){ var o=wCfg(); if(!o) return; o.banner=o.banner||{};
-  o.banner.position = v==="bar" ? "bottom" : v; wGuardar(o); }
+function wSetPos(v){
+  var o = wCfg(); if(!o) return;
+  o.banner = o.banner || {};
+  if(v === "bar"){ delete o.banner.layout; }      // vacio = la barra de siempre
+  else { o.banner.layout = v; }
+  wGuardar(o);
+}
+/* Sub-opciones: solo tienen sentido con el layout que las usa. */
+function wSetBannerVert(v){ var o=wCfg(); if(!o) return; o.banner=o.banner||{}; o.banner.position=v; wGuardar(o); }
+function wSetBannerHor(v){ var o=wCfg(); if(!o) return; o.banner=o.banner||{}; o.banner.align=v; wGuardar(o); }
+function wSetPanelSide(v){ var o=wCfg(); if(!o) return; o.panel=o.panel||{}; o.panel.side=v; wGuardar(o); }
 function wSetPeso(v){ var o=wCfg(); if(!o) return; o.buttons=o.buttons||{};
   o.buttons.equalWeight = (v==="equal"); wGuardar(o); }
 function wSetPanel(v){ var o=wCfg(); if(!o) return; o.panel=o.panel||{};
@@ -2474,6 +2533,57 @@ function wDetectar(){
       : "No se pudo deducir nada de ese sitio.";
     if(Object.keys(cambio).length) wAplicarMarca(cambio); else renderVisual();
   });
+}
+
+
+/* ---- Dominios autorizados ----------------------------------------------
+   Lista con su boton de quitar, en vez de un campo con comas donde no se ve
+   lo que hay. La limpieza de verdad la hace el backend; aqui solo se evita
+   mandar duplicados obvios. */
+function domsActuales(){
+  var d = (_datosSitio || {}).domain || "";
+  return d.split(",").map(function(x){ return x.trim(); }).filter(Boolean);
+}
+
+function pintaDominios(){
+  var caja = el("dom-lista"); if(!caja) return;
+  var ds = domsActuales();
+  caja.innerHTML = ds.length
+    ? ds.map(function(d, i){
+        return '<div class="dom-fila"><span class="dom-n">'+esc(d)+'</span>'+
+               '<button class="btn ghost sm" onclick="quitarDominio('+i+')" '+
+               'title="Quitar">&times;</button></div>';
+      }).join("")
+    : '<p class="sub">Sin dominios: se aceptan registros desde cualquier sitio.</p>';
+}
+
+function guardaDominios(lista, aviso){
+  j("POST", "/dash/site/domain", {site_id: current, domain: lista.join(",")})
+    .then(function(r){
+      if(!r.ok){ msg("dmsg", r.d.error || "No se pudo guardar.", true); return; }
+      _datosSitio = _datosSitio || {};
+      _datosSitio.domain = r.d.domain;        // el backend devuelve ya normalizado
+      pintaDominios();
+      msg("dmsg", aviso);
+    });
+}
+
+function anadirDominio(){
+  var inp = el("dom"); if(!inp) return;
+  var v = inp.value.trim();
+  if(!v){ return; }
+  var ds = domsActuales();
+  ds.push(v);
+  inp.value = "";
+  guardaDominios(ds, "Dominio anadido.");
+}
+
+function quitarDominio(i){
+  var ds = domsActuales();
+  if(i < 0 || i >= ds.length) return;
+  if(!confirm('Quitar "'+ds[i]+'"? Dejaran de aceptarse registros desde ahi.')) return;
+  ds.splice(i, 1);
+  guardaDominios(ds, "Dominio quitado.");
 }
 
 function renderVisual(){
@@ -3615,10 +3725,15 @@ function viewInstalar(d){
       '<div>'+
         '<div class="card">'+
           '<h2>Dominios autorizados</h2>'+
-          '<p class="sub">Separados por coma. Solo desde estos dominios se aceptan registros.</p>'+
-          '<input type="text" id="dom" value="'+esc(d.d && d.d.domain || "")+'" placeholder="cliente.com, www.cliente.com" />'+
-          '<div class="row mt"><button class="btn ghost sm" onclick="guardarDominio()">Guardar dominios</button>'+
-          '<span id="dmsg" class="msg"></span></div>'+
+          '<p class="sub">Solo desde estos dominios se aceptan registros. Los subdominios '+
+            'entran solos. Pega la direccion como quieras: se limpia al guardar.</p>'+
+          '<div id="dom-lista"></div>'+
+          '<div class="row mt">'+
+            '<input type="text" id="dom" placeholder="cliente.com" '+
+              'onkeydown="if(event.key===\'Enter\')anadirDominio()" />'+
+            '<button class="btn ghost sm" onclick="anadirDominio()">Anadir</button>'+
+          '</div>'+
+          '<div class="row mt"><span id="dmsg" class="msg"></span></div>'+
         '</div>'+
         '<div class="card">'+
           '<h2>Enlace para reabrir el panel</h2>'+
@@ -3634,6 +3749,8 @@ function viewInstalar(d){
       '</div>'+
     '</div>';
   pintarTrigger(d.config || {});
+  _datosSitio = d.d || _datosSitio;
+  pintaDominios();
 }
 function copiarSnippet(){ copiarDe("snip","cmsg"); }
 
@@ -3650,11 +3767,7 @@ function copiarDe(idOrigen, idMsg){
     document.body.removeChild(ta);
   }
 }
-function guardarDominio(){
-  j("POST","/dash/site/domain",{site_id:current,domain:val("dom")}).then(function(r){
-    if(r.ok) msg("dmsg","Guardado.",false); else msg("dmsg", r.d.error||"error", true);
-  });
-}
+function guardarDominio(){ anadirDominio(); }   // compatibilidad
 
 /* ---------------- REGISTROS ---------------- */
 function viewRegistros(d){
@@ -3721,6 +3834,74 @@ function cats(raw){
    cookiePatterns: una cookie de sesion o de seguridad no se debe borrar. */
 var _ckCambios = {};     // nombre -> {category, status} pendiente de guardar
 
+
+/* ---- Exportar cookie audit ---------------------------------------------
+   Siempre en ingles, sea cual sea el idioma del panel: es un documento que el
+   cliente entrega a su abogado o a su cliente final, no una pantalla. */
+function exportarAudit(){
+  var filas = window._ckRows || [];
+  if(!filas.length){ msg("ckmsg", "No hay nada que exportar todavia.", true); return; }
+
+  var CAT_EN = {esencial:"Strictly necessary", esenciales:"Strictly necessary",
+                analitica:"Analytics", analytics:"Analytics", statistics:"Analytics",
+                marketing:"Marketing", publicidad:"Marketing",
+                preferencias:"Preferences", preferences:"Preferences"};
+  var KIND_EN = {cookie:"Cookie", localStorage:"Local storage",
+                 sessionStorage:"Session storage", host:"Third-party host"};
+
+  function celda(v){
+    v = v === undefined || v === null ? "" : String(v);
+    return /[",\n;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }
+
+  var cab = ["Name","Type","Party","Provider","Provider domain","Category","Purpose",
+             "First seen","Last seen","Times seen","Observed on domain",
+             "Detected at page","Status"];
+  var lin = [cab.join(",")];
+  filas.forEach(function(f){
+    var cat = f.category || f.sugerida || "";
+    lin.push([
+      celda(f.name),
+      celda(KIND_EN[f.kind || "cookie"] || "Cookie"),
+      celda(f.provider || f.party === "third" ? "Third party" : "First party"),
+      celda(f.provider || ""),
+      celda(f.provider_domain || ""),
+      celda(CAT_EN[cat] || cat || "Unclassified"),
+      celda(f.explicacion || ""),
+      celda((f.first_seen || "").replace("T", " ").replace("Z", "")),
+      celda((f.last_seen || "").replace("T", " ").replace("Z", "")),
+      celda(f.hits || 0),
+      celda(f.sample_domain || ""),
+      celda(f.page || ""),
+      celda(f.category ? "Classified" : "Pending review")
+    ].join(","));
+  });
+
+  // El alcance va dentro del archivo: el CSV se reenvia suelto y quien lo lea
+  // despues no tiene por que haber visto el aviso de la pantalla.
+  lin.push("");
+  lin.push(celda("Scope of this report"));
+  lin.push(celda("Collected from the visitor's browser on the site itself."));
+  lin.push(celda("NOT included: cookies set on other domains (those shown in DevTools "+
+                 "under google.com, vimeo.com and similar). The browser does not allow "+
+                 "any script on the page to read them."));
+  lin.push(celda("NOT included: HttpOnly cookies, which the browser hides from JavaScript."));
+  lin.push(celda("Where the provider is recognised by the cookie name, it is stated in "+
+                 "the Provider column, even if the cookie itself lives on this domain."));
+  lin.push(celda("Generated " + new Date().toISOString().slice(0,19).replace("T"," ") + " UTC"));
+
+  // BOM para que Excel abra bien los acentos.
+  var csv = "\ufeff" + lin.join("\r\n");
+  var hoy = new Date().toISOString().slice(0, 10);
+  var sitio = ((_datosSitio || {}).site_id || current || "site");
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv;charset=utf-8"}));
+  a.download = "cookie-audit-" + sitio + "-" + hoy + ".csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  msg("ckmsg", filas.length + " fila(s) exportadas.");
+}
+
 function viewCookies(d){
   var cats = (d.config && d.config.categories) || [];
   // Solo las categorias que el visitante puede denegar. Asignar una cookie a
@@ -3733,6 +3914,7 @@ function viewCookies(d){
         '<div><h2 style="margin:0">Cookies detectadas en el sitio</h2>'+
         '<p class="sub" style="margin:4px 0 0">Clasifica cada una. Las esenciales nunca se borran.</p></div>'+
         '<div class="row">'+
+          '<button class="btn ghost sm" onclick="exportarAudit()">Exportar audit (CSV)</button>'+
           '<button class="btn ghost sm" onclick="aceptarSugerencias()">Aplicar sugerencias</button>'+
           '<button class="btn ghost sm" onclick="loadCookies()">Refrescar</button>'+
           '<button class="btn sm" id="ck-save" onclick="guardarCookies()">Guardar clasificacion</button>'+
@@ -3757,6 +3939,22 @@ function loadCookies(){
     window._ckRows = r.d.rows || [];
     pintarCookies();
   });
+}
+
+/* Etiqueta corta del tipo. Los hallazgos de tercero son para el informe: se
+   anota que existen, pero no se ofrecen para borrar, porque borrar no es algo
+   que podamos hacer sobre un dominio ajeno. */
+function ckEtiqueta(f){
+  var k = f.kind || "cookie", out = "";
+  // El proveedor es lo util: una cookie en tu dominio puesta por Google sigue
+  // siendo de un tercero a efectos del informe.
+  if(f.provider) out += '<span class="ck-kind third" title="La pone '+esc(f.provider)+
+                        ' ('+esc(f.provider_domain||"")+')">'+esc(f.provider)+'</span>';
+  else if(f.party === "third") out += '<span class="ck-kind third">tercero</span>';
+  if(k === "localStorage")   out += '<span class="ck-kind">localStorage</span>';
+  if(k === "sessionStorage") out += '<span class="ck-kind">sessionStorage</span>';
+  if(k === "host")           out += '<span class="ck-kind">host</span>';
+  return out;
 }
 
 function pintarCookies(){
@@ -3818,7 +4016,7 @@ function filaCookie(x, tipos){
   var nombreSeguro = esc(x.name).replace(/'/g,"");
 
   return '<tr'+(sinDecidir?' class="sin-decidir"':'')+' id="row_'+id+'">'+
-    '<td><div class="ck-name">'+esc(x.name)+'</div>'+sug+'</td>'+
+    '<td><div class="ck-name">'+esc(x.name)+' '+ckEtiqueta(x)+'</div>'+sug+'</td>'+
     '<td><div class="ck-desc">'+esc(desc)+'</div></td>'+
     '<td>'+
       '<select class="'+clase+'" id="tp_'+id+'" '+
@@ -3834,6 +4032,18 @@ function filaCookie(x, tipos){
 function cssId(n){ return String(n).replace(/[^a-zA-Z0-9_]/g,"_"); }
 
 /* Aviso segun el estado de la deteccion: si no esta activada, no llegaran datos. */
+/* Lo que este audit NO ve. Va en pantalla y tambien dentro del CSV: un
+   informe que calla sus limites se lee como si fuera completo. */
+function avisoAlcance(){
+  return '<div class="banner-info alcance">'+
+    '<b>Que no recoge este informe.</b> Se lee lo que el navegador deja ver '+
+    'desde la propia pagina, asi que quedan fuera: las cookies de otros '+
+    'dominios (las que en DevTools aparecen bajo google.com, vimeo.com y '+
+    'similares), que ningun script puede leer, y las marcadas HttpOnly, que el '+
+    'navegador oculta a JavaScript. Donde se reconoce al proveedor por el '+
+    'nombre, se indica en la columna correspondiente.</div>';
+}
+
 function avisoDeteccion(cuantas){
   var activa = window._cfgActual && window._cfgActual.cookieDiscovery === true;
   if(activa) return "";

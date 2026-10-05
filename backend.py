@@ -140,6 +140,7 @@ def init_db():
         # Los administradores de antes pasan a super: eran los duenos de la
         # instalacion, y si no quedara ninguno nadie podria aprobar altas.
         c.execute("UPDATE users SET role='super' WHERE role='admin'")
+    migra_cookies_found(c)
     c.commit()
     if fresh:
         seed(c)
@@ -243,6 +244,7 @@ COOKIE_CATALOGO = [
     ("__Host-",     "esencial", "Cookie de seguridad del navegador."),
 ]
 
+
 def cookie_propia(c, site_id):
     """Nombre de la cookie donde el banner guarda la decision, segun el
     namespace configurado. Se calcula igual que en el bundle (core.js)."""
@@ -254,6 +256,83 @@ def cookie_propia(c, site_id):
     except Exception:
         return ""
 
+
+
+# Quien pone cada cookie. Es lo que de verdad importa en un cookie audit: las
+# cookies de un dominio ajeno no se pueden leer desde JavaScript (el navegador
+# no lo permite), pero la mayoria de lo que se llama "de terceros" son cookies
+# del dominio propio escritas por un proveedor externo. Eso si se sabe por el
+# nombre, y es lo que hay que declarar.
+PROVEEDORES = [
+    ("_ga",         "Google Analytics",    "google-analytics.com"),
+    ("_gid",        "Google Analytics",    "google-analytics.com"),
+    ("_gat",        "Google Analytics",    "google-analytics.com"),
+    ("__utm",       "Google Analytics",    "google-analytics.com"),
+    ("_gcl",        "Google Ads",          "google.com"),
+    ("_gac",        "Google Ads",          "google.com"),
+    ("IDE",         "Google Ads",          "doubleclick.net"),
+    ("test_cookie", "Google Ads",          "doubleclick.net"),
+    ("NID",         "Google",              "google.com"),
+    ("1P_JAR",      "Google",              "google.com"),
+    ("__hstc",      "HubSpot",             "hubspot.com"),
+    ("__hssc",      "HubSpot",             "hubspot.com"),
+    ("__hssrc",     "HubSpot",             "hubspot.com"),
+    ("hubspotutk",  "HubSpot",             "hubspot.com"),
+    ("__hs_",       "HubSpot",             "hubspot.com"),
+    ("_fbp",        "Meta (Facebook)",     "facebook.com"),
+    ("_fbc",        "Meta (Facebook)",     "facebook.com"),
+    ("fr",          "Meta (Facebook)",     "facebook.com"),
+    ("_hj",         "Hotjar",              "hotjar.com"),
+    ("_clck",       "Microsoft Clarity",   "clarity.ms"),
+    ("_clsk",       "Microsoft Clarity",   "clarity.ms"),
+    ("MUID",        "Microsoft",           "bing.com"),
+    ("_uetsid",     "Microsoft Ads",       "bing.com"),
+    ("_uetvid",     "Microsoft Ads",       "bing.com"),
+    ("li_",         "LinkedIn",            "linkedin.com"),
+    ("bcookie",     "LinkedIn",            "linkedin.com"),
+    ("bscookie",    "LinkedIn",            "linkedin.com"),
+    ("lidc",        "LinkedIn",            "linkedin.com"),
+    ("UserMatchHistory", "LinkedIn",       "linkedin.com"),
+    ("_ttp",        "TikTok",              "tiktok.com"),
+    ("_tt_",        "TikTok",              "tiktok.com"),
+    ("_pin_",       "Pinterest",           "pinterest.com"),
+    ("_scid",       "Snapchat",            "snapchat.com"),
+    ("personalization_id", "X (Twitter)",  "twitter.com"),
+    ("muc_ad",      "X (Twitter)",         "twitter.com"),
+    ("vuid",        "Vimeo",               "vimeo.com"),
+    ("player",      "Vimeo",               "vimeo.com"),
+    ("VISITOR_INFO1_LIVE", "YouTube",      "youtube.com"),
+    ("YSC",         "YouTube",             "youtube.com"),
+    ("__cf_bm",     "Cloudflare",          "cloudflare.com"),
+    ("cf_",         "Cloudflare",          "cloudflare.com"),
+    ("__stripe",    "Stripe",              "stripe.com"),
+    ("intercom-",   "Intercom",            "intercom.io"),
+    ("_mkto_trk",   "Marketo",             "marketo.com"),
+    ("__insp",      "Inspectlet",          "inspectlet.com"),
+    ("ajs_",        "Segment",             "segment.com"),
+    ("amplitude",   "Amplitude",           "amplitude.com"),
+    ("mp_",         "Mixpanel",            "mixpanel.com"),
+    ("trackalyzer", "LeadLander",          "leadlander.com"),
+    ("_mcid",       "Mailchimp",           "mailchimp.com"),
+    ("mailchimp",   "Mailchimp",           "mailchimp.com"),
+]
+
+
+def proveedor_de(nombre):
+    """(proveedor, dominio) del que pone la cookie, o (None, None) si es propia.
+
+    Se busca el prefijo mas largo que encaje: "_gat" debe ganar a "_ga" y
+    "__hstc" a "__hs_", o se atribuiria al proveedor equivocado.
+    """
+    n = (nombre or "").strip().lower()
+    if not n:
+        return None, None
+    mejor = None
+    for pref, prov, dom in PROVEEDORES:
+        p = pref.lower()
+        if n.startswith(p) and (mejor is None or len(p) > len(mejor[0])):
+            mejor = (p, prov, dom)
+    return (mejor[1], mejor[2]) if mejor else (None, None)
 
 def clasificar_cookie(nombre):
     """Devuelve (categoria_sugerida, explicacion) o (None, None) si no se reconoce."""
@@ -545,6 +624,46 @@ def host_de(url):
     except Exception:
         return ""
     return h.lower()
+
+
+
+def migra_cookies_found(c):
+    """Anade kind/party/page a bases que vienen de versiones anteriores.
+    SQLite no tiene "ADD COLUMN IF NOT EXISTS", asi que se mira antes."""
+    cols = {r["name"] for r in c.execute("PRAGMA table_info(cookies_found)")}
+    for col, defecto in (("kind", "'cookie'"), ("party", "'first'"), ("page", "''")):
+        if col not in cols:
+            c.execute("ALTER TABLE cookies_found ADD COLUMN %s TEXT DEFAULT %s" % (col, defecto))
+    c.commit()
+
+def normaliza_dominios(txt):
+    """Limpia lo que escriba el cliente y devuelve una lista sin duplicados.
+
+    Se aceptan comas, espacios o saltos de linea como separadores, y se quita
+    lo que sobra: protocolo, "www.", puerto, ruta, barra final y mayusculas.
+    Sin esto, guardar "https://midominio.com/" hacia que la comprobacion de
+    origen no encontrara nunca el host y devolviera 403.
+    """
+    fuera = []
+    for trozo in re.split(r"[,\s]+", txt or ""):
+        d = trozo.strip().lower()
+        if not d:
+            continue
+        d = re.sub(r"^[a-z][a-z0-9+.-]*://", "", d)   # protocolo
+        d = d.split("/")[0]                            # ruta
+        d = d.split("?")[0].split("#")[0]
+        d = d.split("@")[-1]                           # usuario:clave@
+        d = re.sub(r":\d+$", "", d)                    # puerto
+        d = d.rstrip(".")
+        if d.startswith("www."):
+            d = d[4:]
+        # Un dominio valido: etiquetas separadas por puntos. Deja pasar
+        # "localhost" porque se usa en desarrollo.
+        if d != "localhost" and not re.match(r"^[a-z0-9-]+(\.[a-z0-9-]+)+$", d):
+            continue
+        if d not in fuera:
+            fuera.append(d)
+    return fuera
 
 def origen_permitido(origin_host, propio_host, dominios):
     """El dominio del sitio se guarda al crearlo; si esta vacio, no se valida.
@@ -1011,7 +1130,7 @@ class H(BaseHTTPRequestHandler):
         if len(name) > 80:
             return self._send(400, {"error": "el nombre no puede pasar de 80 caracteres"})
         # Dominios: coma como separador, sin espacios ni entradas vacias.
-        dominios = ",".join([x.strip() for x in (d.get("domain") or "").split(",") if x.strip()])
+        dominios = ",".join(normaliza_dominios(d.get("domain")))
         site_id = "site_" + secrets.token_hex(4)
         key = "pk_" + secrets.token_hex(16)
         c = db()
@@ -1096,7 +1215,7 @@ class H(BaseHTTPRequestHandler):
         u = self._user(); d = self._body(); site_id = d.get("site_id")
         if not u or not self._owns(u, site_id):
             return self._send(401, {"error": "no auth"})
-        dominios = (d.get("domain") or "").strip()
+        dominios = ",".join(normaliza_dominios(d.get("domain")))
         c = db()
         c.execute("UPDATE sites SET domain=? WHERE site_id=?", (dominios, site_id))
         c.commit(); c.close()
@@ -1173,9 +1292,14 @@ class H(BaseHTTPRequestHandler):
             nombre = str(nombre).strip()[:120]
             if not nombre or (propia and nombre == propia):
                 continue
-            dominio = ""
+            dominio = ""; kind = "cookie"; party = "first"; page = ""
             if isinstance(item, dict):
                 dominio = str(item.get("domain") or "")[:120]
+                kind = str(item.get("kind") or "cookie")[:20]
+                party = "third" if str(item.get("party") or "") == "third" else "first"
+                page = str(item.get("page") or "")[:200]
+            if kind not in ("cookie", "localStorage", "sessionStorage", "host"):
+                kind = "cookie"
             ya = c.execute("SELECT hits FROM cookies_found WHERE site_id=? AND name=?",
                            (site_id, nombre)).fetchone()
             if ya:
@@ -1183,8 +1307,10 @@ class H(BaseHTTPRequestHandler):
                           (ts, site_id, nombre))
             else:
                 c.execute("INSERT INTO cookies_found(site_id,name,first_seen,last_seen,hits,"
-                          "sample_domain,phase,status,category,note) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                          (site_id, nombre, ts, ts, 1, dominio, fase, "nueva", "", ""))
+                          "sample_domain,phase,status,category,note,kind,party,page) "
+                          "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                          (site_id, nombre, ts, ts, 1, dominio, fase, "nueva", "", "",
+                           kind, party, page))
                 nuevas += 1
         c.commit(); c.close()
         self._send(200, {"ok": True, "nuevas": nuevas})
@@ -1199,7 +1325,7 @@ class H(BaseHTTPRequestHandler):
         propia = cookie_propia(c, site_id)
         filas = []
         for r in c.execute("SELECT name,first_seen,last_seen,hits,sample_domain,phase,status,"
-                           "category,note FROM cookies_found WHERE site_id=? ORDER BY "
+                           "category,note,kind,party,page FROM cookies_found WHERE site_id=? ORDER BY "
                            "CASE status WHEN 'nueva' THEN 0 ELSE 1 END, name", (site_id,)):
             d = dict(r)
             if propia and d["name"] == propia:
@@ -1207,6 +1333,13 @@ class H(BaseHTTPRequestHandler):
             sug, expl = clasificar_cookie(d["name"])
             d["sugerida"] = sug or ""
             d["explicacion"] = expl or ""
+            # Quien la pone. Si hay proveedor conocido, es de un tercero aunque
+            # la cookie viva en el dominio del cliente.
+            prov, pdom = proveedor_de(d["name"])
+            d["provider"] = prov or ""
+            d["provider_domain"] = pdom or ""
+            if prov and d.get("kind", "cookie") != "host":
+                d["party"] = "third"
             filas.append(d)
         c.close()
         pend = len([f for f in filas if f["status"] == "nueva"])

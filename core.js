@@ -817,11 +817,70 @@ let _userConfig = null;
     return out;
   }
 
+  /* ---- Inventario ampliado ---------------------------------------------
+     document.cookie solo ve las cookies propias que no son HttpOnly, asi que
+     por si solo deja fuera medio informe. Para un cookie audit hace falta
+     tambien el almacenamiento local y los terceros a los que la pagina pide
+     recursos. Nada de esto se bloquea: solo se anota que existe. */
+
+  function _clavesAlmacen(tipo) {
+    var out = [];
+    try {
+      var st = tipo === "local" ? window.localStorage : window.sessionStorage;
+      if (!st) return out;
+      for (var i = 0; i < st.length; i++) {
+        var k = st.key(i);
+        if (k) out.push(k);
+      }
+    } catch (e) { /* bloqueado por el navegador o por el modo privado */ }
+    return out;
+  }
+
+  /* Hosts de terceros a los que la pagina ha pedido algo. Salen del Resource
+     Timing, que el navegador ya lleva: no se intercepta nada. */
+  var _hostsVistos = {};
+  function _tercerosObservados() {
+    var out = [];
+    try {
+      var propio = location.hostname.toLowerCase();
+      var raiz = propio.split(".").slice(-2).join(".");
+      (performance.getEntriesByType("resource") || []).forEach(function (e) {
+        var h;
+        try { h = new URL(e.name).hostname.toLowerCase(); } catch (err) { return; }
+        if (!h || h === propio || h === raiz || h.slice(-(raiz.length + 1)) === "." + raiz) return;
+        if (_hostsVistos[h]) return;
+        _hostsVistos[h] = 1;
+        out.push(h);
+      });
+    } catch (e) { /* navegador sin Resource Timing */ }
+    return out;
+  }
+
+  /* Todo lo observable, con su tipo y si es propio o de un tercero. */
+  function inventario() {
+    var items = [];
+    cookieNames().forEach(function (n) {
+      items.push({ name: n, kind: "cookie", party: "first" });
+    });
+    _clavesAlmacen("local").forEach(function (n) {
+      items.push({ name: n, kind: "localStorage", party: "first" });
+    });
+    _clavesAlmacen("session").forEach(function (n) {
+      items.push({ name: n, kind: "sessionStorage", party: "first" });
+    });
+    _tercerosObservados().forEach(function (h) {
+      items.push({ name: h, kind: "host", party: "third" });
+    });
+    return items;
+  }
+
   function reportCookies(C, phase) {
     if (!C.cookieDiscovery || !C.apiBase || !C.siteId) return;
-    var nuevas = cookieNames().filter(function (n) { return !_sent[n]; });
+    // La clave incluye el tipo: una cookie "_ga" y una clave de localStorage
+    // con el mismo nombre son dos hallazgos distintos.
+    var nuevas = inventario().filter(function (it) { return !_sent[it.kind + ":" + it.name]; });
     if (!nuevas.length) return;
-    nuevas.forEach(function (n) { _sent[n] = 1; });
+    nuevas.forEach(function (it) { _sent[it.kind + ":" + it.name] = 1; });
     var headers = { "Content-Type": "application/json" };
     if (C.publicKey) headers["X-Api-Key"] = C.publicKey;
     var url = String(C.apiBase).replace(/\/$/, "") + "/api/cookies";
@@ -831,10 +890,14 @@ let _userConfig = null;
         body: JSON.stringify({
           site_id: C.siteId,
           phase: phase || "",
-          cookies: nuevas.map(function (n) { return { name: n, domain: location.hostname }; })
+          cookies: nuevas.map(function (it) {
+            return { name: it.name, domain: location.hostname,
+                     kind: it.kind, party: it.party, page: location.pathname };
+          })
         })
       }).then(function () {
-        log("discovery", "Inventario enviado (" + phase + "): " + nuevas.join(", "));
+        log("discovery", "Inventario enviado (" + phase + "): " +
+            nuevas.map(function (it) { return it.kind + " " + it.name; }).join(", "));
       }).catch(function () { /* el inventario nunca debe romper el sitio */ });
     } catch (e) { /* idem */ }
   }
