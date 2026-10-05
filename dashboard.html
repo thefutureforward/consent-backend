@@ -814,6 +814,9 @@ var DICT = {
   "Izquierda": "Left",
   "Derecha": "Right",
   "Lado": "Side",
+  "Exportar audit (PDF)": "Export audit (PDF)",
+  "El navegador bloqueo la ventana. Permite las ventanas emergentes.": "The browser blocked the window. Allow pop-ups.",
+  "fila(s) en el informe.": "row(s) in the report.",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -3867,7 +3870,7 @@ function exportarAudit(){
       celda(f.provider || ""),
       celda(f.provider_domain || ""),
       celda(CAT_EN[cat] || cat || "Unclassified"),
-      celda(f.explicacion || ""),
+      celda(auditProposito(f)),
       celda((f.first_seen || "").replace("T", " ").replace("Z", "")),
       celda((f.last_seen || "").replace("T", " ").replace("Z", "")),
       celda(f.hits || 0),
@@ -3902,6 +3905,124 @@ function exportarAudit(){
   msg("ckmsg", filas.length + " fila(s) exportadas.");
 }
 
+
+/* ---- Cookie audit en PDF ------------------------------------------------
+   Se abre una ventana con el informe maquetado y se lanza la impresion: el
+   navegador ofrece "Guardar como PDF". Asi no hace falta ninguna libreria ni
+   que el backend, que hoy no tiene dependencias, empiece a tenerlas. */
+
+/* El catalogo del backend describe cada cookie en espanol. El informe va en
+   ingles, asi que el proposito se compone aqui a partir de dos datos que si
+   son neutros: quien la pone y para que categoria sirve. Mas pobre que la
+   frase original, pero coherente con el idioma del documento. */
+function auditProposito(f){
+  var cat = (f.category || f.sugerida || "").toLowerCase();
+  var base = {
+    esencial: "Required for the site to function (session, security or consent record).",
+    esenciales: "Required for the site to function (session, security or consent record).",
+    analitica: "Aggregated usage measurement.",
+    analytics: "Aggregated usage measurement.",
+    statistics: "Aggregated usage measurement.",
+    marketing: "Advertising, remarketing or campaign measurement.",
+    publicidad: "Advertising, remarketing or campaign measurement.",
+    preferencias: "Remembers interface preferences such as language.",
+    preferences: "Remembers interface preferences such as language."
+  }[cat] || "Purpose not yet classified.";
+  return f.provider ? ("Set by " + f.provider + ". " + base) : base;
+}
+
+function exportarAuditPDF(){
+  var filas = window._ckRows || [];
+  if(!filas.length){ msg("ckmsg", "No hay nada que exportar todavia.", true); return; }
+
+  var CAT_EN = {esencial:"Strictly necessary", esenciales:"Strictly necessary",
+                analitica:"Analytics", analytics:"Analytics", statistics:"Analytics",
+                marketing:"Marketing", publicidad:"Marketing",
+                preferencias:"Preferences", preferences:"Preferences"};
+  var KIND_EN = {cookie:"Cookie", localStorage:"Local storage",
+                 sessionStorage:"Session storage", host:"Third-party host"};
+  function e(v){ return esc(v === undefined || v === null ? "" : String(v)); }
+  function fecha(v){ return (v || "").replace("T", " ").slice(0, 16); }
+
+  var sitio = (_datosSitio || {}).site_id || current || "";
+  var dominios = ((_datosSitio || {}).domain || "").split(",").filter(Boolean).join(", ");
+  var hoy = new Date().toISOString().slice(0, 10);
+
+  // Resumen por categoria: es lo primero que mira quien revisa el informe.
+  var porCat = {};
+  filas.forEach(function(f){
+    var c = CAT_EN[f.category || f.sugerida] || (f.category || f.sugerida) || "Unclassified";
+    porCat[c] = (porCat[c] || 0) + 1;
+  });
+  var terceros = filas.filter(function(f){ return f.provider || f.party === "third"; }).length;
+  var pendientes = filas.filter(function(f){ return !f.category; }).length;
+
+  var resumen = Object.keys(porCat).sort().map(function(c){
+    return '<tr><td>' + e(c) + '</td><td class="n">' + porCat[c] + '</td></tr>';
+  }).join("");
+
+  var cuerpo = filas.map(function(f){
+    var cat = CAT_EN[f.category || f.sugerida] || (f.category || f.sugerida) || "Unclassified";
+    return '<tr>'+
+      '<td class="mono">' + e(f.name) + '</td>'+
+      '<td>' + e(KIND_EN[f.kind || "cookie"] || "Cookie") + '</td>'+
+      '<td>' + (f.provider || f.party === "third" ? "Third party" : "First party") + '</td>'+
+      '<td>' + e(f.provider || "\u2014") + '</td>'+
+      '<td>' + e(cat) + '</td>'+
+      '<td class="p">' + e(auditProposito(f)) + '</td>'+
+      '<td class="mono sm">' + e(fecha(f.first_seen)) + '</td>'+
+      '<td class="n">' + e(f.hits || 0) + '</td>'+
+    '</tr>';
+  }).join("");
+
+  var doc =
+  '<!doctype html><html lang="en"><head><meta charset="utf-8">'+
+  '<title>Cookie audit ' + e(dominios || sitio) + ' ' + hoy + '</title><style>'+
+  '@page{size:A4 landscape;margin:14mm}'+
+  'body{font:11px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;'+
+  'color:#14243D;margin:0}'+
+  'h1{font-size:19px;margin:0 0 2px}'+
+  '.meta{color:#6B7280;font-size:11px;margin-bottom:14px}'+
+  'h2{font-size:13px;margin:18px 0 6px;border-bottom:1px solid #E6E4DC;padding-bottom:4px}'+
+  'table{width:100%;border-collapse:collapse}'+
+  'th{text-align:left;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;'+
+  'color:#6B7280;border-bottom:1px solid #14243D;padding:5px 6px}'+
+  'td{padding:5px 6px;border-bottom:1px solid #EFEDE6;vertical-align:top}'+
+  'tr{break-inside:avoid}'+
+  '.mono{font-family:ui-monospace,Menlo,monospace;font-size:10px}'+
+  '.sm{font-size:9.5px;color:#6B7280}.n{text-align:right}'+
+  '.p{color:#5A6673;max-width:26em}'+
+  '.resumen{width:auto;min-width:220px}'+
+  '.alcance{margin-top:16px;font-size:10px;color:#6B7280;line-height:1.55;'+
+  'border-top:1px solid #E6E4DC;padding-top:8px}'+
+  '</style></head><body>'+
+  '<h1>Cookie audit</h1>'+
+  '<div class="meta">' + e(dominios || "\u2014") + ' &middot; site ' + e(sitio) +
+    ' &middot; generated ' + hoy + ' &middot; ' + filas.length + ' item(s), ' +
+    terceros + ' third party, ' + pendientes + ' pending review</div>'+
+  '<h2>Summary by category</h2>'+
+  '<table class="resumen"><tr><th>Category</th><th class="n">Items</th></tr>' + resumen + '</table>'+
+  '<h2>Detail</h2>'+
+  '<table><tr><th>Name</th><th>Type</th><th>Party</th><th>Provider</th><th>Category</th>'+
+  '<th>Purpose</th><th>First seen</th><th class="n">Seen</th></tr>' + cuerpo + '</table>'+
+  '<div class="alcance"><b>Scope.</b> Collected from the visitor\u2019s browser on the site '+
+  'itself. Not included: cookies set on other domains (the ones DevTools lists under '+
+  'google.com, vimeo.com and similar), which no script on the page is allowed to read, and '+
+  'HttpOnly cookies, which the browser hides from JavaScript. Where the provider is '+
+  'recognised by the cookie name, it is stated even if the cookie itself lives on this '+
+  'domain.</div>'+
+  '</body></html>';
+
+  var w = window.open("", "_blank");
+  if(!w){ msg("ckmsg", "El navegador bloqueo la ventana. Permite las ventanas emergentes.", true); return; }
+  w.document.write(doc);
+  w.document.close();
+  // Esperamos a que el documento este listo: imprimir antes saca una pagina vacia.
+  w.onload = function(){ w.focus(); w.print(); };
+  setTimeout(function(){ try{ w.focus(); w.print(); }catch(e){} }, 400);
+  msg("ckmsg", filas.length + " fila(s) en el informe.");
+}
+
 function viewCookies(d){
   var cats = (d.config && d.config.categories) || [];
   // Solo las categorias que el visitante puede denegar. Asignar una cookie a
@@ -3914,7 +4035,8 @@ function viewCookies(d){
         '<div><h2 style="margin:0">Cookies detectadas en el sitio</h2>'+
         '<p class="sub" style="margin:4px 0 0">Clasifica cada una. Las esenciales nunca se borran.</p></div>'+
         '<div class="row">'+
-          '<button class="btn ghost sm" onclick="exportarAudit()">Exportar audit (CSV)</button>'+
+          '<button class="btn ghost sm" onclick="exportarAuditPDF()">Exportar audit (PDF)</button>'+
+          '<button class="btn ghost sm" onclick="exportarAudit()">CSV</button>'+
           '<button class="btn ghost sm" onclick="aceptarSugerencias()">Aplicar sugerencias</button>'+
           '<button class="btn ghost sm" onclick="loadCookies()">Refrescar</button>'+
           '<button class="btn sm" id="ck-save" onclick="guardarCookies()">Guardar clasificacion</button>'+
