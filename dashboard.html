@@ -313,6 +313,24 @@
        background:var(--line-soft);color:var(--muted)}
   .cat.on{background:#e6f4ea;color:#1e6b36}
 
+  /* ---------- dominios: fichas y selector ---------- */
+  .dom-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+  .dom-chip{display:inline-flex;align-items:center;gap:6px;background:var(--paper);
+            border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 11px;
+            font-size:12.5px;font-weight:500;color:var(--ink)}
+  .dom-chip.redundante{opacity:.62;border-style:dashed}
+  .dom-chip button{border:0;background:transparent;cursor:pointer;color:var(--muted);
+                   font-size:15px;line-height:1;padding:0 3px;border-radius:50%}
+  .dom-chip button:hover{color:#B3261E;background:#F6E4E2}
+  .dom-vacio{font-size:12.5px;color:var(--muted)}
+  .dom-add{display:flex;gap:8px;align-items:center;flex-wrap:nowrap}
+  .dom-add input{flex:1 1 auto;min-width:0}
+  .dom-add button{flex:0 0 auto;white-space:nowrap}
+  .dom-add select.dom-sel{flex:0 0 auto;max-width:150px}
+  select.dom-sel{border:1px solid var(--line);border-radius:8px;padding:5px 8px;
+                 font-size:12.5px;font-weight:500;color:var(--ink);background:var(--white);
+                 max-width:200px}
+
   /* ---------- panel visual de apariencia ---------- */
   .modes{display:flex;gap:2px;background:var(--white);border:1px solid var(--line);
          border-radius:8px;padding:3px}
@@ -554,10 +572,25 @@ var DICT = {
   "Nombre": "Name",
   "Tienda del cliente": "Client store",
   "Dominios (separados por coma)": "Domains (comma separated)",
+  "Dominio principal": "Main domain",
+  "Los demas se anaden despues en Instalar, uno a uno.":
+    "You can add the rest later under Install, one at a time.",
   "Dominios autorizados": "Allowed domains",
   "Separados por coma. Solo desde estos dominios se aceptan registros.":
     "Comma separated. Records are only accepted from these domains.",
+  "Solo desde estos dominios se aceptan registros. Los subdominios entran solos, asi que con el dominio raiz ya cubres www y los demas.":
+    "Records are only accepted from these domains. Subdomains are included, so the root domain already covers www and the rest.",
+  "Sin dominios: se aceptan registros desde cualquier sitio.":
+    "No domains: records are accepted from anywhere.",
+  "Anadido. Dale a Guardar dominios para que surta efecto.":
+    "Added. Hit Save domains to apply.",
+  "Quitado. Dale a Guardar dominios para que surta efecto.":
+    "Removed. Hit Save domains to apply.",
+  "Ya estaba en la lista.": "Already in the list.",
+  "Escribe un dominio.": "Type a domain.",
+  "No parece un dominio: ": "That does not look like a domain: ",
   "Guardar dominios": "Save domains",
+  "Anadir": "Add",
   "Cancelar": "Cancel",
   "Si, borrar": "Yes, delete",
   "Borrar": "Delete",
@@ -1748,6 +1781,50 @@ var WIZ = { paso: 1, modo: "guided", devTab: "props" };
 var WIZ_NPROPS = 0;   // lo cuenta el render
 var _datosSitio = null;
 
+/* ---- dominios del sitio ----------------------------------------------
+   Se guardan en una sola columna separados por coma, porque asi los lee
+   origen_permitido en el backend. Pero todo lo que necesita UNO solo (abrir
+   el sitio, detectar el estilo, el fondo de la previsualizacion) tiene que
+   elegir cual: antes se usaba la cadena entera como si fuera una URL y con
+   dos dominios quedaba "https://cliente.com, www.cliente.com".          */
+function domLista(s){
+  if(s === undefined) s = (_datosSitio || {}).domain || "";
+  return String(s || "").split(",").map(function(x){ return x.trim(); })
+    .filter(function(x){ return !!x; });
+}
+var DOM_ACTIVO = "";   // el que han elegido los selectores; "" = el primero
+function domActivo(){
+  var L = domLista();
+  if(!L.length) return "";
+  return (DOM_ACTIVO && L.indexOf(DOM_ACTIVO) >= 0) ? DOM_ACTIVO : L[0];
+}
+function domUrl(d){
+  d = d || domActivo();
+  return d ? (/^https?:/i.test(d) ? d : "https://" + d) : "";
+}
+/* Un unico sitio activo para los tres sitios donde se usa, para que elegir en
+   uno no deje a los otros apuntando a otra parte. */
+function setDomActivo(v){
+  DOM_ACTIVO = v || "";
+  var u = el("wz-url");
+  if(u) u.value = domActivo();
+  var n = el("prev-nota");
+  if(n && PREV_FONDO === "site") n.textContent = "Vista en vivo · " + domActivo();
+  document.querySelectorAll("select.dom-sel").forEach(function(s){ s.value = domActivo(); });
+  if(PREV_FONDO === "site") refrescarPreview();
+}
+/* Con un solo dominio el selector no aporta nada y solo quita sitio. */
+function domSelect(extra){
+  var L = domLista();
+  if(L.length < 2) return "";
+  var act = domActivo();
+  return '<select class="dom-sel'+(extra ? " " + extra : "")+'" '+
+    'onchange="setDomActivo(this.value)" title="Dominio a usar">'+
+    L.map(function(d){
+      return '<option value="'+esc(d)+'"'+(d===act?' selected':'')+'>'+esc(d)+'</option>';
+    }).join("")+'</select>';
+}
+
 /* ---- color: luminancia, contraste y mezcla ---------------------------
    Mismas formulas que el prototipo (WCAG 2.x). Sirven para elegir texto
    legible sobre un fondo y para derivar el hover sin pedirlo.            */
@@ -1983,8 +2060,11 @@ function wPaso1(o,m){
 
     '<div class="wz-sunken">'+
       '<label class="wz-lab">Detectar desde tu sitio</label>'+
-      '<div class="row"><input class="wz-in" id="wz-url" placeholder="tusitio.com" '+
-        'value="'+esc((_datosSitio||{}).domain || "")+'" onkeydown="if(event.key===\'Enter\')wDetectar()">'+
+      /* Antes se precargaba la columna entera, asi que con dos dominios el
+         campo llevaba "a.com, b.com" y la peticion salia invalida. */
+      '<div class="row dom-add">'+ domSelect() +
+        '<input class="wz-in" id="wz-url" placeholder="tusitio.com" '+
+        'value="'+esc(domActivo())+'" onkeydown="if(event.key===\'Enter\')wDetectar()">'+
       '<button class="btn dark" id="wz-det" onclick="wDetectar()">Detectar</button></div>'+
       (WIZ_DET_CHIPS
         ? '<div class="wz-det-ok">'+
@@ -2439,6 +2519,7 @@ function temasHTML(o){
       '<button class="btn ghost sm" onclick="temaActivar()"'+(TEMA_EDIT===activo?' disabled':'')+
         '>Usar esta</button>'+
       '<button class="btn ghost sm" onclick="temaBorrar()">Borrar</button>' : '')+
+    domSelect() +
     '<button class="btn ghost sm" onclick="temaProbar()">Probar en mi sitio</button>'+
   '</div>';
 }
@@ -2482,10 +2563,8 @@ function temaBorrar(){
 /* Abre el sitio del cliente con el parametro puesto. A partir de ahi el bundle
    recuerda el modo en ese navegador y enseña su propio selector. */
 function temaProbar(){
-  var d = _datosSitio || {};
-  var dom = d.domain || "";
+  var dom = domUrl();
   if(!dom){ alert("Este sitio no tiene dominio configurado."); return; }
-  if(!/^https?:/.test(dom)) dom = "https://" + dom;
   window.open(dom + (dom.indexOf("?") >= 0 ? "&" : "?") + "consentTheme=" +
               encodeURIComponent(TEMA_EDIT || (temaBase()||{}).theme || ""), "_blank");
 }
@@ -2576,7 +2655,7 @@ function pintaEstado(){
 var PREV_FONDO = "blank";
 
 function setPrevFondo(f){
-  var dom = (_datosSitio || {}).domain || "";
+  var dom = domActivo();
   if(f === "site" && !dom){ msg("smsg", "Este sitio no tiene dominio configurado.", true); return; }
   PREV_FONDO = f;
   var a = el("pf-site"), b = el("pf-blank");
@@ -2588,9 +2667,8 @@ function setPrevFondo(f){
 }
 
 function fondoDelSitio(){
-  var dom = (_datosSitio || {}).domain || "";
+  var dom = domUrl();
   if(PREV_FONDO !== "site" || !dom) return "";
-  if(!/^https?:/.test(dom)) dom = "https://" + dom;
   return '<iframe class="sitio" src="' + dom.replace(/"/g, "&quot;") + '" ' +
          'style="position:absolute;inset:0;width:100%;height:100%;border:0" ' +
          'onload="this.setAttribute(\'data-ok\',\'1\')"></iframe>' +
@@ -2724,6 +2802,7 @@ function renderVisual(){
             '<button id="pf-site"  onclick="setPrevFondo(\'site\')">Tu sitio</button>'+
             '<button id="pf-blank" onclick="setPrevFondo(\'blank\')">Pagina neutra</button>'+
           '</div>'+
+          domSelect() +
           '<span class="prev-nota" id="prev-nota">Vista en vivo · pagina neutra</span>'+
         '</div>'+
         '<div class="lienzo"><iframe id="prev"'+
@@ -3816,13 +3895,16 @@ function convertirTrigger(){
 
 function dominioDelSitio(){
   var st = sites.filter(function(x){ return x.site_id === current; })[0];
-  var d = (st && st.domain ? String(st.domain).split(",")[0].trim() : "") || "tusitio.com";
-  return d.indexOf("http") === 0 ? d : "https://" + d;
+  // El elegido en los selectores manda; si no hay ninguno, el primero del sitio.
+  var L = domLista(st && st.domain);
+  var d = (DOM_ACTIVO && L.indexOf(DOM_ACTIVO) >= 0 ? DOM_ACTIVO : L[0]) || "tusitio.com";
+  return /^https?:/i.test(d) ? d : "https://" + d;
 }
 
 function viewInstalar(d){
   var snippet = buildSnippet(d);
   var rules = (d.config && d.config.autoBlock) || [];
+  DOMS = domLista(d.d && d.d.domain);
   el("tabbody").innerHTML =
     '<div class="cols">'+
       '<div class="card">'+
@@ -3843,8 +3925,13 @@ function viewInstalar(d){
       '<div>'+
         '<div class="card">'+
           '<h2>Dominios autorizados</h2>'+
-          '<p class="sub">Separados por coma. Solo desde estos dominios se aceptan registros.</p>'+
-          '<input type="text" id="dom" value="'+esc(d.d && d.d.domain || "")+'" placeholder="cliente.com, www.cliente.com" />'+
+          '<p class="sub">Solo desde estos dominios se aceptan registros. Los subdominios entran '+
+            'solos, asi que con el dominio raiz ya cubres www y los demas.</p>'+
+          '<div id="dom-chips" class="dom-chips"></div>'+
+          '<div class="row dom-add"><input type="text" id="dom-nuevo" placeholder="cliente.com" '+
+            'onkeydown="if(event.key===\'Enter\'){event.preventDefault();domAnadir()}" '+
+            'onpaste="domPegar(event)" />'+
+            '<button class="btn ghost sm" onclick="domAnadir()">Anadir</button></div>'+
           '<div class="row mt"><button class="btn ghost sm" onclick="guardarDominio()">Guardar dominios</button>'+
           '<span id="dmsg" class="msg"></span></div>'+
         '</div>'+
@@ -3861,6 +3948,7 @@ function viewInstalar(d){
         '</div>'+
       '</div>'+
     '</div>';
+  domPintaChips();
   pintarTrigger(d.config || {});
 }
 function copiarSnippet(){ copiarDe("snip","cmsg"); }
@@ -3878,9 +3966,78 @@ function copiarDe(idOrigen, idMsg){
     document.body.removeChild(ta);
   }
 }
+/* ---- editor de dominios -----------------------------------------------
+   Uno por ficha, con su aspa. La columna sigue guardandose separada por coma
+   (es lo que lee origen_permitido), pero escribir las comas a mano se prestaba
+   a dejar espacios, protocolos o rutas pegadas dentro del valor.          */
+var DOMS = [];
+
+/* Acepta lo que se pegue de la barra del navegador y deja solo el host. */
+function domNormaliza(v){
+  v = String(v || "").trim().toLowerCase();
+  v = v.replace(/^[a-z][a-z0-9+.-]*:\/\//, "");   // protocolo
+  v = v.replace(/^[^@\/]*@/, "");                 // usuario:clave@
+  v = v.split("/")[0].split("?")[0].split("#")[0];
+  v = v.replace(/\.+$/, "");
+  return v;
+}
+function domValido(v){
+  if(!v) return false;
+  if(/^localhost(:\d+)?$/.test(v)) return true;
+  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(:\d+)?$/.test(v);
+}
+function domPintaChips(){
+  var c = el("dom-chips"); if(!c) return;
+  c.innerHTML = DOMS.length
+    ? DOMS.map(function(d, i){
+        // Con el padre en la lista, el subdominio ya estaba cubierto.
+        var cubierto = DOMS.some(function(o, j){
+          return j !== i && o !== d && d.length > o.length && d.slice(-(o.length + 1)) === "." + o;
+        });
+        return '<span class="dom-chip'+(cubierto?' redundante':'')+'"'+
+          (cubierto ? ' title="Ya cubierto por un dominio de la lista"' : '')+'>'+
+          esc(d)+'<button type="button" onclick="domQuitar('+i+')" '+
+          'aria-label="Quitar '+esc(d)+'">×</button></span>';
+      }).join("")
+    : '<span class="dom-vacio">Sin dominios: se aceptan registros desde cualquier sitio.</span>';
+}
+function domAnadir(v){
+  var inp = el("dom-nuevo");
+  var crudo = (typeof v === "string" ? v : (inp ? inp.value : ""));
+  var nuevos = String(crudo).split(/[,\s]+/).map(domNormaliza).filter(function(x){ return !!x; });
+  if(!nuevos.length){ msg("dmsg", "Escribe un dominio.", true); return; }
+  var malos = nuevos.filter(function(x){ return !domValido(x); });
+  if(malos.length){ msg("dmsg", "No parece un dominio: " + malos.join(", "), true); return; }
+  var repes = nuevos.filter(function(x){ return DOMS.indexOf(x) >= 0; });
+  nuevos.forEach(function(x){ if(DOMS.indexOf(x) < 0) DOMS.push(x); });
+  if(inp){ inp.value = ""; inp.focus(); }
+  domPintaChips();
+  msg("dmsg", repes.length === nuevos.length
+    ? "Ya estaba en la lista."
+    : "Anadido. Dale a Guardar dominios para que surta efecto.", false);
+}
+// Pegar "a.com, b.com" de un tiron sigue funcionando: se parte en fichas.
+function domPegar(ev){
+  var t = (ev.clipboardData || window.clipboardData);
+  if(!t) return;
+  var txt = t.getData("text") || "";
+  if(!/[,\s]/.test(txt.trim())) return;    // uno solo: que lo escriba normal
+  ev.preventDefault();
+  domAnadir(txt);
+}
+function domQuitar(i){
+  DOMS.splice(i, 1); domPintaChips();
+  msg("dmsg", "Quitado. Dale a Guardar dominios para que surta efecto.", false);
+}
 function guardarDominio(){
-  j("POST","/dash/site/domain",{site_id:current,domain:val("dom")}).then(function(r){
-    if(r.ok) msg("dmsg","Guardado.",false); else msg("dmsg", r.d.error||"error", true);
+  var valor = DOMS.join(",");
+  j("POST","/dash/site/domain",{site_id:current,domain:valor}).then(function(r){
+    if(!r.ok){ msg("dmsg", r.d.error||"error", true); return; }
+    // El resto del panel lee de aqui: sin esto los selectores siguen con los viejos.
+    if(_datosSitio) _datosSitio.domain = r.d.domain !== undefined ? r.d.domain : valor;
+    sites.forEach(function(s){ if(s.site_id === current) s.domain = valor; });
+    if(DOM_ACTIVO && DOMS.indexOf(DOM_ACTIVO) < 0) DOM_ACTIVO = "";
+    msg("dmsg","Guardado.",false);
   });
 }
 
@@ -4401,7 +4558,8 @@ function modalNuevoSitio(){
     '<div class="modal-bg" onclick="if(event.target===this)cerrarModal()"><div class="modal">'+
       '<h3>Nuevo sitio</h3><p class="sub">Puedes cambiar los dominios mas tarde.</p>'+
       '<div class="field"><label>Nombre</label><input id="n-name" type="text" placeholder="Tienda del cliente" maxlength="80" /></div>'+
-      '<div class="field"><label>Dominios (separados por coma)</label><input id="n-dom" type="text" placeholder="cliente.com, pruebas.cliente.com" /></div>'+
+      '<div class="field"><label>Dominio principal</label><input id="n-dom" type="text" placeholder="cliente.com" />'+
+        '<span class="hint">Los demas se anaden despues en Instalar, uno a uno.</span></div>'+
       '<div class="row mt"><button class="btn" onclick="createSite()">Crear sitio</button>'+
       '<button class="btn ghost" onclick="cerrarModal()">Cancelar</button></div>'+
       '<p class="hint" id="n-msg"></p>'+
@@ -4411,7 +4569,9 @@ function modalNuevoSitio(){
 function createSite(){
   var name = val("n-name").trim();
   if(!name){ msg("n-msg","Pon un nombre para identificarlo.",true); return; }
-  j("POST","/dash/site/create",{name:name,domain:val("n-dom")}).then(function(r){
+  // Se limpia aqui tambien: pegar la barra del navegador es lo mas comodo.
+  var dom = domLista(val("n-dom")).map(domNormaliza).filter(domValido).join(",");
+  j("POST","/dash/site/create",{name:name,domain:dom}).then(function(r){
     if(r.ok){ current = r.d.site_id; cerrarModal(); tab = "instalar"; boot(); }
     else msg("n-msg", r.d.error||"No se pudo crear.", true);
   });
