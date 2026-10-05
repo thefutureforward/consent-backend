@@ -122,8 +122,12 @@ let _userConfig = null;
 
     // Medidas y espaciados del banner inferior.
     banner: {
+      layout: "bar",             // bar | card | centered
       position: "bottom",        // bottom | top
       align: "center",           // left | center | right
+      inset: "",                 // separacion al borde en card/centered
+      cardWidth: "420px",        // ancho de la tarjeta en layout card
+      centeredWidth: "520px",    // ancho de la tarjeta en layout centered
       maxWidth: "1172px",
       padding: "22px 26px",
       margin: "0 20px 20px",     // separacion respecto al borde de la ventana
@@ -139,6 +143,11 @@ let _userConfig = null;
 
     // Medidas del panel de preferencias.
     panel: {
+      placement: "center",   // center | side | bottom
+      side: "right",         // right | left, solo con placement side
+      sideWidth: "480px",    // ancho de la hoja lateral
+      sheetWidth: "100%",    // ancho de la hoja inferior
+      sheetHeight: "88vh",   // alto maximo de la hoja inferior
       footLayout: "row",     // row | stacked
       maxWidth: "560px",
       maxHeight: "92vh",
@@ -1031,6 +1040,58 @@ let _userConfig = null;
     return "\n/* CSS a medida */\n" + limpio;
   }
 
+  /* banner.layout: "bar" (por defecto, la barra de siempre) | "card" | "centered".
+     "card" es una tarjeta estrecha anclada a una esquina; "centered", una
+     tarjeta en mitad de la pantalla. En las dos el contenido pasa a columna,
+     porque a 420px el texto y tres botones en fila no caben. */
+  function bannerLayoutCss(C, BN) {
+    var modo = BN.layout || "bar";
+    if (modo !== "card" && modo !== "centered") return "";
+    var r = BN.radius || "12px";
+    var columna =
+      ".cb-inner{flex-direction:column;align-items:stretch;gap:" + (BN.gap || "20px") + "}" +
+      ".cb-copy{flex:0 0 auto}" +
+      ".cb-actions{justify-content:flex-start}";
+    if (modo === "centered") {
+      return ".cb-banner{top:0;right:0;bottom:0;left:0;align-items:center;justify-content:center;" +
+             "margin:0;padding:" + (BN.inset || "clamp(16px,3vw,32px)") + "}" +
+             ".cb-inner{max-width:" + (BN.centeredWidth || "520px") + ";border-radius:" + r + "}" +
+             columna;
+    }
+    // card: se ancla a la esquina que diga banner.position + banner.align.
+    var vert = BN.position === "top" ? "top:" : "bottom:";
+    var hor  = BN.align === "right" ? "right:" : "left:";
+    var hueco = BN.inset || "clamp(16px,3vw,32px)";
+    return ".cb-banner{top:auto;bottom:auto;left:auto;right:auto;" +
+           vert + hueco + ";" + hor + hueco + ";margin:0;padding:0;display:block;" +
+           "width:min(" + (BN.cardWidth || "420px") + ",calc(100vw - 2 * " + hueco + "))}" +
+           ".cb-inner{max-width:none;border-radius:" + r + "}" +
+           columna;
+  }
+
+  /* panel.placement: "center" (por defecto) | "side" | "bottom".
+     Las hojas van pegadas a su borde, sin margen del velo y sin radio en las
+     esquinas que tocan la pantalla. */
+  function panelPlacementCss(C, PN) {
+    var modo = PN.placement || "center";
+    if (modo !== "side" && modo !== "bottom") return "";
+    var r = PN.radius || "12px";
+    var anim = PN.animate === false ? "" :
+      ";animation:" + (modo === "side" ? "cb-slide-x" : "cb-slide-y") + " .24s cubic-bezier(.2,.6,.2,1)";
+    if (modo === "side") {
+      var lado = PN.side === "left" ? "flex-start" : "flex-end";
+      return ".cb-overlay{align-items:stretch;justify-content:" + lado + ";padding:0}" +
+             ".cb-panel{height:100%;max-height:100%;width:100%;max-width:" + (PN.sideWidth || "480px") + ";" +
+             "border-radius:0;animation:none" + anim + "}" +
+             ".cb-foot{border-radius:0}";
+    }
+    return ".cb-overlay{align-items:flex-end;justify-content:center;padding:0}" +
+           ".cb-panel{width:100%;max-width:" + (PN.sheetWidth || "100%") + ";" +
+           "max-height:" + (PN.sheetHeight || "88vh") + ";border-radius:" + r + " " + r + " 0 0;" +
+           "animation:none" + anim + "}" +
+           ".cb-foot{border-radius:0}";
+  }
+
   function css(C) {
     var K = C.colors, F = C.fonts;
     var BN = C.banner || {}, PN = C.panel || {}, BT = C.buttons || {}, CH = C.chip || {};
@@ -1104,9 +1165,16 @@ let _userConfig = null;
     // ---- Pill para reabrir. Sin punto: lo que se ve sale de chip.mode ----
     ".cb-chip{position:fixed;" + chipAnchor(C) + "z-index:2147482999;display:none;align-items:center;gap:" + (CH.gap || "7px") + ";background:" + (CH.background || pnBg) + ";color:" + (CH.color || K.body) + ";border:" + (CH.border || ("1px solid " + K.border)) + ";border-radius:" + (CH.radius || "999px") + ";padding:" + (CH.padding || "8px 13px") + ";" + typo(C, "chip") + "cursor:pointer;box-shadow:" + (CH.shadow || "0 2px 6px rgba(22,35,59,.07)") + "}" +
     ".cb-chip[data-on='1']{display:flex}" +
-    ".cb-chip img{display:block;width:" + (CH.imageSize || "18px") + ";height:" + (CH.imageSize || "18px") + ";object-fit:contain}" +
+    ".cb-chip img,.cb-chip svg{display:block;flex:0 0 auto;width:" + (CH.imageSize || "18px") + ";height:" + (CH.imageSize || "18px") + ";object-fit:contain}" +
     ".cb-chip:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}" +
+    /* Disposicion del banner y del panel. Van DESPUES de las reglas base a
+       proposito: son variantes que las pisan. Sin estas claves, el CSS que se
+       genera es exactamente el de siempre. */
+    bannerLayoutCss(C, BN) +
+    panelPlacementCss(C, PN) +
     "@keyframes cb-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}" +
+    "@keyframes cb-slide-x{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}" +
+    "@keyframes cb-slide-y{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}" +
     "@keyframes cb-fade{from{opacity:0}to{opacity:1}}" +
     "@media (max-width:720px){.cb-inner{flex-direction:column;align-items:stretch;gap:18px}.cb-copy{flex:0 0 auto}.cb-actions{justify-content:flex-start}.cb-row{padding:18px 20px}.cb-head{padding:24px 20px 18px}.cb-foot{padding:18px 20px 20px;align-items:stretch;flex-direction:column}.cb-foot-right{justify-content:space-between}}" +
     "@media (prefers-reduced-motion:reduce){.cb-inner,.cb-panel,.cb-overlay{animation:none}}";
@@ -1355,25 +1423,38 @@ let _userConfig = null;
     return overlay;
   }
 
+  /* Galleta de trazo, hereda el color del pill con currentColor. Va en linea
+     para no pedir una peticion de red ni tocar la CSP del sitio. */
+  var ICONO_PILL =
+    "<svg viewBox='0 0 24 24' fill='none' aria-hidden='true' focusable='false'>" +
+    "<path d='M12 3a9 9 0 1 0 9 9 4.5 4.5 0 0 1-4.5-4.5A4.5 4.5 0 0 1 12 3Z' " +
+    "stroke='currentColor' stroke-width='1.6' stroke-linejoin='round'/>" +
+    "<circle cx='9.2' cy='9.4' r='1.05' fill='currentColor'/>" +
+    "<circle cx='8.4' cy='14.8' r='1.05' fill='currentColor'/>" +
+    "<circle cx='13.9' cy='14.4' r='1.05' fill='currentColor'/></svg>";
+
   // El pill ya no lleva punto de color: su contenido lo decide chip.mode.
   //   text  -> solo la etiqueta de textos.chip
-  //   image -> solo la imagen de chip.image (con alt para lectores de pantalla)
-  //   both  -> imagen + etiqueta
+  //   image -> solo el icono (chip.image si lo hay, si no el incluido)
+  //   both  -> icono + etiqueta
   function buildChip(C) {
     var P = C.chip || {}, mode = P.mode || "text", label = t().chip, html = "";
+    /* Sin chip.image el modo imagen antes caia a texto, asi que las tres
+       opciones se veian igual. Con este icono incluido cada modo se distingue
+       sin pedir una URL; chip.image lo sigue pisando cuando lo hay. */
     var img = P.image
       ? "<img src='" + String(P.image).replace(/'/g, "&#39;") +
         "' alt='" + String(P.imageAlt || "").replace(/'/g, "&#39;") + "'>"
-      : "";
-    if (mode === "image" && img)      html = img;
-    else if (mode === "both" && img)  html = img + "<span>" + label + "</span>";
-    else                              html = "<span>" + label + "</span>";
+      : ICONO_PILL;
+    if (mode === "image")      html = img;
+    else if (mode === "both")  html = img + "<span>" + label + "</span>";
+    else                       html = "<span>" + label + "</span>";
     var el = document.createElement("button");
     el.className = "cb-chip";
     el.type = "button";
     el.innerHTML = html;
     // Con solo imagen el boton se queda sin texto accesible: se etiqueta aparte.
-    if (mode === "image" && img) el.setAttribute("aria-label", P.imageAlt || label);
+    if (mode === "image") el.setAttribute("aria-label", P.imageAlt || label);
     el.onclick = function () { openPanel(C); };
     return el;
   }

@@ -52,6 +52,18 @@
            border-radius:0 0 var(--radius) var(--radius)}
   .wz-intro h2{margin:0 0 6px;font-size:16px;font-weight:700}
   .wz-intro p{margin:0;font-size:13.5px;line-height:1.55;color:var(--muted)}
+  /* Fila de confirmacion del detector: lo encontrado, en chips, y el deshacer. */
+  .wz-det-ok{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
+  .wz-det-n{font-size:12px;font-weight:600;color:var(--ok)}
+  .wz-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;
+           background:var(--ok-bg);color:var(--ok-fg);font-size:12px}
+  .wz-chip i{width:10px;height:10px;border-radius:2px;display:inline-block;
+             border:1px solid rgba(20,36,61,.18)}
+  .wz-deshacer{margin-left:auto;background:none;border:0;padding:0;cursor:pointer;
+               font-size:12px;font-weight:600;color:var(--accent);text-decoration:underline}
+  /* Aviso de cumplimiento dentro del asistente: ambar, como en el rediseno. */
+  .wz-aviso{margin:10px 0 0;padding:10px 12px;background:#FDF4E3;border-radius:8px;
+            font-size:12.5px;line-height:1.55;color:#7A5B16}
   .wz-sunken{display:flex;flex-direction:column;gap:10px;padding:14px;
              background:var(--paper);border-radius:10px}
   .wz-field{display:flex;flex-direction:column;gap:8px}
@@ -711,6 +723,9 @@ var DICT = {
   "Leeria la portada y algunas paginas enlazadas para sacar tipografia, color, fondo y radios. Todavia no esta disponible.": "It would read the home page and a few linked pages for font, color, background and radius. Not available yet.",
   "Tipografia": "Typeface",
   "Las de Google las descarga el widget y crean una conexion con un tercero, que el visitante vera en tu politica de privacidad.": "Google fonts are loaded by the widget and create a third-party connection, which visitors see in your privacy policy.",
+  "La tomamos de tu sitio sin descargar nada: ": "Taken from your site, nothing downloaded: ",
+  "Si la tienes alojada en tu servidor, aqui al lado veras una sustituta, pero en tu sitio el banner la usara, porque la carga tu pagina.": "If you self-host it, the preview on the right shows a stand-in, but on your site the banner will use it, because your page loads it.",
+  "El pill usa el <b>icono incluido</b>. Pon una URL en <code>chip.image</code> si quieres el tuyo.": "The pill uses the <b>built-in icon</b>. Put a URL in <code>chip.image</code> to use your own.",
   "Color de accion": "Action color",
   "boton aceptar y enlaces": "Accept button and links",
   "Por debajo de 4.5:1 el texto del boton cuesta de leer.": "Below 4.5:1 the button text is hard to read.",
@@ -723,6 +738,22 @@ var DICT = {
   "Suaves": "Soft",
   "Redondeadas": "Rounded",
   "Donde y como aparece": "Where and how it appears",
+  "Estas son las opciones de": "These are the options for",
+  "el banner": "the banner",
+  "el panel": "the panel",
+  "la pestana": "the tab",
+  "el enlace del pie": "the footer link",
+  "Cambia de componente en la vista previa para ver las suyas.":
+    "Switch component in the preview to see its own.",
+  "Con la CCPA/CPRA y las normas de Colorado y Connecticut, empujar al visitante hacia aceptar puede contar como patron oscuro. \"Mismo peso\" es la opcion segura.":
+    "Under CCPA/CPRA and Colorado/Connecticut rules, steering visitors toward accepting can count as a dark pattern. \"Equal weight\" is the safer choice.",
+  "Que abre el enlace": "What the link opens",
+  "El panel de preferencias": "The preferences panel",
+  "El aviso completo": "The full notice",
+  "Ahora mismo la reapertura va por el enlace del pie, asi que la pestana no se muestra. Cambia el control de arriba para configurarla.":
+    "Reopening currently goes through the footer link, so the tab is hidden. Change the control above to configure it.",
+  "Ahora mismo la reapertura va por la pestana de la esquina. Cambia el control de arriba para configurar el enlace del pie.":
+    "Reopening currently goes through the corner tab. Change the control above to configure the footer link.",
   "Las opciones siguen al componente elegido en la vista previa: banner, panel o pestana.": "Options follow the component selected in the preview: banner, panel or tab.",
   "Posicion del banner": "Banner position",
   "Barra inferior": "Bottom bar",
@@ -800,6 +831,20 @@ var DICT = {
   "Pagina neutra": "Blank page",
   "Este sitio no tiene dominio configurado.": "This site has no domain configured.",
   "Detectar de nuevo": "Detect again",
+  "La de tu sitio": "Your site’s",
+  "Pega un enlace o un boton con": "Put a link or a button with",
+  "en tu pie, o uno que apunte a": "in your footer, or one pointing to",
+  "valores aplicados": "values applied",
+  "Deshacer": "Undo",
+  "Fondo oscuro": "Dark background",
+  "Fondo claro": "Light background",
+  "Esquinas rectas": "Square corners",
+  "Esquinas suaves": "Soft corners",
+  "Esquinas redondeadas": "Rounded corners",
+  "Revisa y ajusta lo que no encaje.": "Review and adjust anything that does not fit.",
+  "Deshecho. La apariencia vuelve a como estaba.": "Undone. Appearance is back to how it was.",
+  "Leemos la portada y sus hojas de estilo para sacar tipografia, color, fondo y radios. Reglas simples, sin IA. Se aplica al banner, al panel y a la pestana.":
+    "We read the home page and its stylesheets for font, color, background and radius. Rule-based, no AI. It applies to the banner, the panel and the tab.",
   "Leyendo...": "Reading...",
   "Escribe la direccion de tu sitio.": "Type your site address.",
   "No se pudo leer el sitio.": "Could not read the site.",
@@ -1742,6 +1787,9 @@ function wSobre(bg){
    pisa al recalcular. */
 var WIZ_FUENTE_SITIO = null;   // {fam, nombre}
 var WIZ_DET_MSG = "";
+var WIZ_DET_CHIPS = null;   // [[etiqueta, color|null], ...] de lo ultimo detectado
+var WIZ_DET_PREVIA = null;  // la marca de antes, para el deshacer
+var WIZ_DET_TIMER = null;
 
 var WIZ_FUENTES = [
   ["plex",   "Instrument Sans · Google Fonts", "'Instrument Sans', sans-serif", true],
@@ -1782,7 +1830,11 @@ function wMarca(o){
    escribirlos. Sirve para dos cosas: aplicarlos, y saber en el modo
    desarrollador que campos el cliente ha puesto a mano. */
 function wDerivar(m){
-  var fuente = wListaFuentes().filter(function(f){ return f[0] === m.fuente; })[0] || WIZ_FUENTES[0];
+  /* La familia detectada se resuelve desde la propia decision, no desde la
+     lista: asi no depende de que la opcion "site" siga construida en memoria. */
+  var fuente = (m.fuente === "site" && m.fuenteFam)
+    ? ["site", "La de tu sitio", m.fuenteFam, false]
+    : (wListaFuentes().filter(function(f){ return f[0] === m.fuente; })[0] || WIZ_FUENTES[0]);
   var color  = /^#[0-9a-fA-F]{6}$/.test(m.color) ? m.color.toUpperCase() : "#2F7E6C";
   var rad    = { rectas:[0,0,0,0], suaves:[6,6,10,4], redondeadas:[999,16,20,999] }[m.esquinas];
   var oscuro = m.fondo === "dark", marca = m.fondo === "brand";
@@ -1811,6 +1863,22 @@ function wDerivar(m){
   d["panel.radius"] = rad[2] + "px";
   d["switchStyle.radius"] = rad[3] + "px";
   d["switchStyle.on"] = acentoClaro;
+  d["switchStyle.off"] = "#FFFFFF";
+  d["switchStyle.border"] = "1px solid " + acentoClaro;
+  d["switchStyle.onBorder"] = acentoClaro;
+  // El panel se queda sobre fondo claro aunque el banner sea oscuro: es una
+  // superficie de lectura, no una franja de marca.
+  d["panel.background"] = "#FFFFFF";
+  d["panel.overlay"] = wMezcla(bnBg === "#FFFFFF" ? "#14243D" : bnBg, "#000000", .35) + "8C";
+  d["colors.panelBg"] = "#FFFFFF";
+  d["colors.border"] = wMezcla(acentoClaro, "#FFFFFF", .72);
+  // Y la pestana de reapertura, que hasta ahora no derivaba nada y se quedaba
+  // con los colores de fabrica, desentonando en cuanto la marca no era verde.
+  d["chip.background"] = acepBg;
+  d["chip.color"] = acepFg;
+  d["chip.radius"] = rad[0] + "px";
+  d["chip.border"] = "0";
+  d["chip.shadow"] = (m.esquinas === "rectas" ? "none" : "0 2px 6px rgba(22,35,59,.10)");
   return d;
 }
 
@@ -1869,9 +1937,23 @@ function wizardHTML(o){
 }
 
 function wListaFuentes(){
-  if(!WIZ_FUENTE_SITIO) return WIZ_FUENTES;
-  return [["site", "La de tu sitio \u00b7 " + WIZ_FUENTE_SITIO.nombre,
-           WIZ_FUENTE_SITIO.fam, false]].concat(WIZ_FUENTES);
+  var f = WIZ_FUENTE_SITIO;
+  /* Al recargar la pagina esta variable se pierde, pero la familia quedo
+     guardada en brand. Sin rehidratarla, "site" no estaria en la lista y
+     wDerivar caeria al primer preset: el siguiente cambio de color o de
+     esquinas pisaba la tipografia detectada con Instrument Sans. */
+  if(!f){
+    var o = wCfg(), b = (o && o.brand) || null;
+    if(b && b.fuente === "site" && b.fuenteFam)
+      f = WIZ_FUENTE_SITIO = { fam: b.fuenteFam, nombre: b.fuenteNombre || wNombreFam(b.fuenteFam) };
+  }
+  if(!f) return WIZ_FUENTES;
+  return [["site", "La de tu sitio \u00b7 " + f.nombre, f.fam, false]].concat(WIZ_FUENTES);
+}
+
+// Primera familia de una pila CSS, sin comillas: "'Soehne', Arial" -> Soehne
+function wNombreFam(fam){
+  return String(fam || "").split(",")[0].replace(/['"]/g, "").trim();
 }
 
 function wPaso1(o,m){
@@ -1904,15 +1986,33 @@ function wPaso1(o,m){
       '<div class="row"><input class="wz-in" id="wz-url" placeholder="tusitio.com" '+
         'value="'+esc((_datosSitio||{}).domain || "")+'" onkeydown="if(event.key===\'Enter\')wDetectar()">'+
       '<button class="btn dark" id="wz-det" onclick="wDetectar()">Detectar</button></div>'+
+      (WIZ_DET_CHIPS
+        ? '<div class="wz-det-ok">'+
+            '<span class="wz-det-n">\u2713 '+WIZ_DET_CHIPS.length+' valores aplicados</span>'+
+            WIZ_DET_CHIPS.map(function(c){
+              return '<span class="wz-chip">'+
+                (c[1] ? '<i style="background:'+esc(c[1])+'"></i>' : '')+ esc(c[0]) +'</span>';
+            }).join('')+
+            (WIZ_DET_PREVIA ? '<button class="wz-deshacer" onclick="wDetDeshacer()">Deshacer</button>' : '')+
+          '</div>'
+        : '')+
       '<span class="wz-help" id="wz-det-msg">'+ (WIZ_DET_MSG ? esc(WIZ_DET_MSG) :
         'Leemos la portada y sus hojas de estilo para sacar tipografia, color, fondo y '+
-        'radios. Reglas simples, sin IA.') +'</span>'+
+        'radios. Reglas simples, sin IA. Se aplica al banner, al panel y a la pestana.') +'</span>'+
     '</div>'+
 
     '<div class="wz-field"><label class="wz-lab">Tipografia</label>'+
       '<select class="wz-in" onchange="wAplicarMarca({fuente:this.value})">'+fuentes+'</select>'+
-      '<span class="wz-help">Las de Google las descarga el widget y crean una conexion con un '+
-      'tercero, que el visitante vera en tu politica de privacidad.</span></div>'+
+      (m.fuente === "site"
+        /* La previsualizacion no puede descargar una fuente alojada en el sitio
+           del cliente, pero el banner si la usa: el @font-face del documento
+           alcanza el Shadow DOM. Mas vale decirlo que dejar pensar que falla. */
+        ? '<span class="wz-help">La tomamos de tu sitio sin descargar nada: <b>'+
+          esc((WIZ_FUENTE_SITIO||{}).nombre || "")+'</b>. '+
+          'Si la tienes alojada en tu servidor, aqui al lado veras una sustituta, pero en tu '+
+          'sitio el banner la usara, porque la carga tu pagina.</span>'
+        : '<span class="wz-help">Las de Google las descarga el widget y crean una conexion con un '+
+          'tercero, que el visitante vera en tu politica de privacidad.</span>')+'</div>'+
 
     '<div class="wz-field"><label class="wz-lab">Color de accion '+
       '<span class="wz-sub">· boton aceptar y enlaces</span></label>'+
@@ -1944,24 +2044,26 @@ function wIrA(n){
    todas: asi el asistente refleja el rediseño completo y el dia que core.js
    las entienda ya estan puestas. Las que hoy no hacen nada se marcan. */
 var WIZ_POS = [
-  ["bar",   "Barra inferior", "bottom", true],
-  ["card",  "Tarjeta",        "card",   false],
-  ["modal", "Centrado",       "modal",  false]
+  ["bar",      "Barra inferior", "bar",      true],
+  ["card",     "Tarjeta",        "card",     true],
+  ["centered", "Centrado",       "centered", true]
 ];
 var WIZ_PANEL = [
-  ["center","Centrado",     true],
-  ["side",  "Lateral",      false],
-  ["bottom","Inferior",     false]
+  ["center","Centrado", true],
+  ["side",  "Lateral",  true],
+  ["bottom","Inferior", true]
 ];
 
 function wLayout(o){
   var bn = o.banner || {}, bt = o.buttons || {}, pn = o.panel || {}, tr = o.trigger || {}, ch = o.chip || {};
-  var pos = bn.position === "card" || bn.position === "modal" ? bn.position : "bar";
+  var pos = bn.layout === "card" || bn.layout === "centered" ? bn.layout : "bar";
+  var comp = (typeof prevEstado === "string" ? prevEstado : "banner");
   var peso = bt.equalWeight ? "equal" : "highlight";
   var pan  = pn.placement || "center";
   var reab = tr.mode === "link" ? "footer" : "tab";
   var esq  = ch.position || "bottom-left";
   var cont = ch.mode === "image" ? "icon" : (ch.mode === "text" ? "text" : "both");
+  var abre = tr.opens === "banner" ? "banner" : "panel";
 
   function tarjetas(lista, actual, fn, ancho){
     return '<div class="wz-grid'+(ancho||3)+'">'+ lista.map(function(x){
@@ -1971,12 +2073,14 @@ function wLayout(o){
     }).join("") +'</div>';
   }
 
-  return '<div class="wz-intro"><h2>Donde y como aparece</h2>'+
-      '<p>Las opciones siguen al componente elegido en la vista previa: banner, panel o pestana.</p></div>'+
+  /* Un grupo por componente. El texto de arriba dice que las opciones siguen a
+     la vista previa, asi que tienen que seguirla de verdad: antes se pintaban
+     los cuatro grupos a la vez y los tabs solo movian el preview. */
+  var grupos = {};
 
+  grupos.banner =
     '<div class="wz-field"><label class="wz-lab">Posicion del banner</label>'+
       tarjetas(WIZ_POS, pos, "wSetPos") + '</div>'+
-
     '<div class="wz-field"><label class="wz-lab">Jerarquia de los botones</label>'+
       '<div class="wz-grid2">'+
         ['<button class="wz-pick'+(peso==="equal"?" on":"")+'" onclick="wSetPeso(\'equal\')">'+
@@ -1986,12 +2090,16 @@ function wLayout(o){
            '<span class="wz-pick-l">Aceptar destacado</span>'+
            '<span class="wz-help">Rechazar con un borde mas suave.</span></button>'].join("")+
       '</div>'+
-      (peso==="highlight" ? '<span class="wz-help">La CPRA pide que rechazar no cueste mas que aceptar.</span>' : '')+
-    '</div>'+
+      (peso==="highlight" ? '<p class="wz-aviso">Con la CCPA/CPRA y las normas de Colorado y '+
+         'Connecticut, empujar al visitante hacia aceptar puede contar como patron oscuro. '+
+         '"Mismo peso" es la opcion segura.</p>' : '')+
+    '</div>';
 
+  grupos.panel =
     '<div class="wz-field"><label class="wz-lab">Colocacion del panel</label>'+
-      tarjetas(WIZ_PANEL, pan, "wSetPanel") + '</div>'+
+      tarjetas(WIZ_PANEL, pan, "wSetPanel") + '</div>';
 
+  var reabrir =
     '<div class="wz-field"><label class="wz-lab">Control de reapertura</label>'+
       '<div class="wz-grid2">'+
         ['<button class="wz-pick'+(reab==="tab"?" on":"")+'" onclick="wSetReab(\'tab\')">'+
@@ -2000,19 +2108,41 @@ function wLayout(o){
            '<span class="wz-pick-l">Enlace en el pie</span></button>'].join("")+
       '</div>'+
       '<span class="wz-help">Siempre presente. La CCPA/CPRA exige una via facil para cambiar de '+
-      'opinion en cualquier momento.</span>'+
-      (reab==="tab" ?
-        '<div class="wz-sub2"><label class="wz-lab">Esquina</label>'+
+      'opinion en cualquier momento.</span></div>';
+
+  grupos.chip = reabrir +
+    (reab==="tab"
+      ? '<div class="wz-field"><label class="wz-lab">Esquina</label>'+
           tarjetas([["bottom-left","Abajo izq."],["bottom-right","Abajo der."],
-                    ["top-left","Arriba izq."],["top-right","Arriba der."]], esq, "wSetEsq", 2)+
-         '<label class="wz-lab">Contenido</label>'+
-          tarjetas([["both","Icono y texto"],["icon","Solo icono"],["text","Solo texto"]], cont, "wSetCont")+
-        '</div>' : '')+
-    '</div>';
+                    ["top-left","Arriba izq."],["top-right","Arriba der."]], esq, "wSetEsq", 2)+'</div>'+
+        '<div class="wz-field"><label class="wz-lab">Contenido</label>'+
+          tarjetas([["both","Icono y texto"],["icon","Solo icono"],["text","Solo texto"]], cont, "wSetCont")+'</div>'
+      : '<p class="wz-aviso">Ahora mismo la reapertura va por el enlace del pie, asi que la '+
+        'pestana no se muestra. Cambia el control de arriba para configurarla.</p>');
+
+  grupos.enlace = reabrir +
+    (reab==="footer"
+      ? '<div class="wz-field"><label class="wz-lab">Que abre el enlace</label>'+
+          tarjetas([["panel","El panel de preferencias"],["banner","El aviso completo"]],
+                   abre, "wSetAbre", 2)+
+          '<span class="wz-help">Pega un enlace o un boton con <code>data-consent-open</code> en tu pie, '+
+          'o uno que apunte a <code>#'+esc(tr.hash || "cookies")+'</code>.</span></div>'
+      : '<p class="wz-aviso">Ahora mismo la reapertura va por la pestana de la esquina. Cambia el '+
+        'control de arriba para configurar el enlace del pie.</p>');
+
+  var titulos = {banner:"el banner", panel:"el panel", chip:"la pestana", enlace:"el enlace del pie"};
+  return '<div class="wz-intro"><h2>Donde y como aparece</h2>'+
+      '<p>Estas son las opciones de <strong>'+(titulos[comp]||"el banner")+'</strong>. '+
+      'Cambia de componente en la vista previa para ver las suyas.</p></div>'+
+    (grupos[comp] || grupos.banner);
 }
 
 function wSetPos(v){ var o=wCfg(); if(!o) return; o.banner=o.banner||{};
-  o.banner.position = v==="bar" ? "bottom" : v; wGuardar(o); }
+  o.banner.layout = v;                     // bar | card | centered
+  if(v === "bar") o.banner.position = "bottom";
+  wGuardar(o); }
+function wSetAbre(v){ var o=wCfg(); if(!o) return; o.trigger=o.trigger||{};
+  o.trigger.opens = v==="banner" ? "banner" : ""; wGuardar(o); }
 function wSetPeso(v){ var o=wCfg(); if(!o) return; o.buttons=o.buttons||{};
   o.buttons.equalWeight = (v==="equal"); wGuardar(o); }
 function wSetPanel(v){ var o=wCfg(); if(!o) return; o.panel=o.panel||{};
@@ -2485,22 +2615,70 @@ function wDetectar(){
       if(m) m.textContent = r.d.error || "No se pudo leer el sitio.";
       return;
     }
-    var d = r.d, cambio = {}, dicho = [];
+    var d = r.d, cambio = {}, dicho = [], chips = [];
+    // La marca de antes, para poder volver. Se guarda ANTES de tocar nada.
+    var _o = wCfg();
+    WIZ_DET_PREVIA = _o ? wFoto(_o) : null;
     if(d.fontFamily){
       // Se guarda como opcion del desplegable; es suya, no se descarga nada.
-      var corto = d.fontFamily.split(",")[0].replace(/['"]/g, "").trim();
+      var corto = wNombreFam(d.fontFamily);
       WIZ_FUENTE_SITIO = { fam: d.fontFamily, nombre: corto };
+      // La familia viaja dentro de brand para sobrevivir a una recarga.
       cambio.fuente = "site";
-      dicho.push("tipografia");
+      cambio.fuenteFam = d.fontFamily;
+      cambio.fuenteNombre = corto;
+      dicho.push("tipografia"); chips.push([corto, null]);
     }
-    if(d.accent){ cambio.color = d.accent; dicho.push("color"); }
-    if(d.surface){ cambio.fondo = d.surface === "dark" ? "dark" : "light"; dicho.push("fondo"); }
-    if(d.radius){ cambio.esquinas = d.radius; dicho.push("esquinas"); }
-    WIZ_DET_MSG = dicho.length
-      ? "Aplicado: " + dicho.join(", ") + ". Revisa y ajusta lo que no encaje."
-      : "No se pudo deducir nada de ese sitio.";
-    if(Object.keys(cambio).length) wAplicarMarca(cambio); else renderVisual();
+    if(d.accent){ cambio.color = d.accent; dicho.push("color"); chips.push([d.accent, d.accent]); }
+    if(d.surface){ cambio.fondo = d.surface === "dark" ? "dark" : "light"; dicho.push("fondo");
+      chips.push([d.surface === "dark" ? "Fondo oscuro" : "Fondo claro", null]); }
+    if(d.radius){ cambio.esquinas = d.radius; dicho.push("esquinas");
+      chips.push([{rectas:"Esquinas rectas",suaves:"Esquinas suaves",redondeadas:"Esquinas redondeadas"}[d.radius] || d.radius, null]); }
+    if(!dicho.length){
+      WIZ_DET_CHIPS = null; WIZ_DET_PREVIA = null;
+      WIZ_DET_MSG = "No se pudo deducir nada de ese sitio.";
+      renderVisual(); return;
+    }
+    WIZ_DET_CHIPS = chips;
+    WIZ_DET_MSG = "Revisa y ajusta lo que no encaje.";
+    // El deshacer caduca: dejarlo para siempre haria que un \"Deshacer\" de hace
+    // media hora revirtiera ajustes hechos despues a mano.
+    if(WIZ_DET_TIMER) clearTimeout(WIZ_DET_TIMER);
+    WIZ_DET_TIMER = setTimeout(function(){
+      WIZ_DET_PREVIA = null;
+      if(WIZ.modo !== "dev" && WIZ.paso === 1) renderVisual();
+    }, 20000);
+    wAplicarMarca(cambio);
   });
+}
+
+/* Foto de lo que el detector va a pisar: la marca, y el valor anterior de
+   cada propiedad derivada. Hace falta guardar tambien las que NO existian
+   (como undefined), porque restaurar la marca de antes y volver a derivar no
+   es lo mismo: una propiedad que nunca se habia derivado volveria con un
+   valor, no vacia, y el pill cambiaria de aspecto al deshacer. */
+function wFoto(o){
+  var m = JSON.parse(JSON.stringify(wMarca(o)));
+  var antes = {}, d = wDerivar(m);
+  for(var ruta in d) antes[ruta] = getPath(o, ruta);
+  return { marca: m, antes: antes };
+}
+
+function wDetDeshacer(){
+  if(!WIZ_DET_PREVIA) return;
+  var o = wCfg(); if(!o) return;
+  var foto = WIZ_DET_PREVIA;
+  WIZ_DET_PREVIA = null; WIZ_DET_CHIPS = null;
+  WIZ_DET_MSG = "Deshecho. La apariencia vuelve a como estaba.";
+  if(WIZ_DET_TIMER){ clearTimeout(WIZ_DET_TIMER); WIZ_DET_TIMER = null; }
+  o.brand = foto.marca;
+  // borrarPath para las que no existian, y asi no dejar {"chip":{}} detras;
+  // setPath para las que si tenian valor.
+  for(var ruta in foto.antes){
+    if(foto.antes[ruta] === undefined) borrarPath(o, ruta);
+    else setPath(o, ruta, foto.antes[ruta]);
+  }
+  wGuardar(o);
 }
 
 function renderVisual(){
@@ -3107,7 +3285,9 @@ function setPrevDisp(d){
   refrescarPreview();
 }
 
+var _repintando = false;
 function setPreview(modo){
+  var cambio = (prevEstado !== modo);
   prevEstado = modo;
   ["banner","panel","chip","enlace"].forEach(function(m){
     var b = el("pv-"+m); if(b) b.className = (m===modo ? "on" : "");
@@ -3115,7 +3295,14 @@ function setPreview(modo){
   // El panel es mas alto que el banner: con el lienzo corto salia recortado y
   // con barra de desplazamiento, que no es como se ve en el sitio.
   var f = el("prev"); if(f) f.classList.toggle("alto", modo === "panel");
-  refrescarPreview();
+  // El paso 2 depende del componente elegido, asi que hay que repintarlo. La
+  // guarda es necesaria porque renderVisual acaba llamando a setPreview para
+  // dejar marcado el tab: sin ella, las dos se llaman en bucle.
+  if(_repintando){ refrescarPreview(); return; }
+  if(WIZ.modo !== "dev" && WIZ.paso === 2 && cambio){
+    _repintando = true;
+    try { renderVisual(); } finally { _repintando = false; }
+  } else refrescarPreview();
 }
 
 /* La previa monta el bundle real con la config del editor, sin guardar nada.
@@ -3424,7 +3611,7 @@ function avisosApariencia(o, res){
   if(cs !== null && cs < 11) res.push({s:"warn", t:"<b>Descripcion de categorias</b> a "+cs+"px: demasiado pequeno para un texto legal."});
   if(H.enabled === false) res.push({s:"warn", t:"<b>Pill desactivado</b>: sin el, el visitante no puede reabrir el panel para cambiar de opinion."});
   if((H.mode === "image" || H.mode === "both") && !H.image)
-    res.push({s:"warn", t:"El pill esta en modo imagen pero <b>chip.image esta vacio</b>: se mostrara solo el texto."});
+    res.push({s:"pass", t:"El pill usa el <b>icono incluido</b>. Pon una URL en <code>chip.image</code> si quieres el tuyo."});
   if(H.mode === "image" && H.image && !H.imageAlt)
     res.push({s:"warn", t:"Pill con solo imagen y <b>sin texto alternativo</b>: un lector de pantalla no sabra que es."});
 }

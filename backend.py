@@ -384,18 +384,49 @@ def _color_valido(c):
         return "#%02X%02X%02X" % (r, g, b)
     return None
 
+def _resuelve_var(fam, todo, saltos=3):
+    """Devuelve la familia lista para usar, o "" si no sirve.
+
+    Sustituye var(--x) por el valor de --x declarado en cualquier parte del CSS,
+    hasta tres saltos para las cadenas tipo --font: var(--font-sans). Si queda
+    algun var() sin resolver, se descarta: una familia a medias es peor que
+    ninguna, porque el banner acabaria con texto "var(--algo)" en el CSS.
+    """
+    for _ in range(saltos):
+        if "var(" not in fam:
+            break
+        def _uno(m):
+            nom = re.escape(m.group(1))
+            d = re.search(r"--" + nom + r"\s*:\s*([^;}]+)", todo, re.I)
+            # var(--x, fallback): si no hay declaracion, vale el respaldo.
+            return (d.group(1).strip() if d else (m.group(2) or "")).strip()
+        fam = re.sub(r"var\(\s*--([A-Za-z0-9_-]+)\s*(?:,([^()]*))?\)", _uno, fam).strip()
+    fam = re.sub(r"\s+", " ", fam).strip().strip(",").strip()
+    if not fam or "var(" in fam:
+        return ""
+    return fam
+
+
 def det_analiza(html, css):
     todo = css + "\n" + html
     out = {}
 
     # Tipografia: la primera font-family de body o :root, que es la del sitio.
-    m = re.search(r"(?:^|[},])\s*(?:body|html|:root)[^{}]*\{[^{}]*font-family\s*:\s*([^;}]+)", todo, re.I)
-    if not m:
-        m = re.search(r"font-family\s*:\s*([^;}]+)", todo, re.I)
-    if m:
-        fam = re.sub(r"\s+", " ", m.group(1)).strip().rstrip(";")
-        if fam and "var(" not in fam:
-            out["fontFamily"] = fam
+    # Se prueban varias fuentes por orden y se acepta la primera que de una
+    # familia utilizable. Antes bastaba que la de body fuera un var() para que
+    # no se detectara nada, y eso es justo lo que escribe media web moderna.
+    pistas = [
+        r"(?:^|[},])\s*(?:body|html|:root)[^{}]*\{[^{}]*font-family\s*:\s*([^;}]+)",
+        r"font-family\s*:\s*([^;}]+)",
+    ]
+    for pista in pistas:
+        for m in re.finditer(pista, todo, re.I):
+            fam = _resuelve_var(re.sub(r"\s+", " ", m.group(1)).strip().rstrip(";"), todo)
+            if fam:
+                out["fontFamily"] = fam
+                break
+        if "fontFamily" in out:
+            break
 
     # Color de accion: el color de fondo mas repetido entre botones y enlaces,
     # descartando blancos y negros, que no dicen nada de la marca.
