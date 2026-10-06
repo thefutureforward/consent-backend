@@ -318,6 +318,41 @@ PROVEEDORES = [
 ]
 
 
+
+# Claves de extensiones del navegador. El bundle nuevo ya no las manda, pero
+# un sitio con el bundle viejo si, y una fila sucia en la base se queda para
+# siempre. Doble puerta, a proposito.
+EXTENSIONES_NAVEGADOR = (
+    "__darkreader__", "walletlink", "eip6963", "__coupert", "__ext_app_",
+    "microsoftapplicationstelemetry", "rc_mfe_", "__cb_resourcesearch",
+    "_bettercampus", "__metamask", "__phantom", "grammarly", "__honey",
+    "__react_devtools", "__vue_devtools", "loom-", "__pocket", "adblock",
+)
+
+def es_de_extension(nombre):
+    n = (nombre or "").strip().lower()
+    return any(n.startswith(p) for p in EXTENSIONES_NAVEGADOR)
+
+
+# Otros gestores de consentimiento. No se filtran: que aparezcan significa que
+# el sitio tiene o tuvo otro banner, y eso hay que mirarlo antes de limpiar.
+OTROS_CMP = (
+    ("optanon", "OneTrust"), ("onetrust", "OneTrust"),
+    ("cookieyes", "CookieYes"), ("cky-", "CookieYes"),
+    ("cmplz_", "Complianz"), ("cookielawinfo", "CookieLawInfo"),
+    ("cookieconsent", "Cookie Consent"), ("cookie_notice_accepted", "Cookie Notice"),
+    ("cookie_policy_accepted", "generico"), ("borlabs", "Borlabs"),
+    ("_iub_", "iubenda"), ("euconsent", "IAB TCF"), ("didomi", "Didomi"),
+    ("usercentrics", "Usercentrics"), ("axeptio", "Axeptio"),
+)
+
+def cmp_de(nombre):
+    n = (nombre or "").strip().lower()
+    for pref, quien in OTROS_CMP:
+        if n.startswith(pref) or pref in n:
+            return quien
+    return None
+
 def proveedor_de(nombre):
     """(proveedor, dominio) del que pone la cookie, o (None, None) si es propia.
 
@@ -808,6 +843,8 @@ class H(BaseHTTPRequestHandler):
             return self.dash_site_domain()
         if p == "/dash/site/cookies/classify":
             return self.dash_cookies_classify()
+        if p == "/dash/site/cookies/clear":
+            return self.dash_cookies_clear()
         if p == "/dash/site/cookies/apply":
             return self.dash_cookies_apply()
         self._send(404, {"error": "not found"})
@@ -1151,6 +1188,20 @@ class H(BaseHTTPRequestHandler):
         r = det_detectar((q.get("url") or [""])[0])
         return self._send(400 if r.get("error") else 200, r)
 
+    def dash_cookies_clear(self):
+        """Vacia el inventario de un sitio. Util cuando viene contaminado de
+        pruebas: el filtro nuevo evita ensuciar mas, pero no limpia lo viejo."""
+        u = self._user()
+        d = self._body()
+        site_id = (d.get("site_id") or "").strip()
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        c = db()
+        n = c.execute("SELECT COUNT(*) n FROM cookies_found WHERE site_id=?", (site_id,)).fetchone()["n"]
+        c.execute("DELETE FROM cookies_found WHERE site_id=?", (site_id,))
+        c.commit(); c.close()
+        self._send(200, {"ok": True, "borradas": n})
+
     def dash_site_get(self, q):
         u = self._user(); site_id = (q.get("site_id") or [""])[0]
         if not u or not self._owns(u, site_id):
@@ -1300,6 +1351,8 @@ class H(BaseHTTPRequestHandler):
                 page = str(item.get("page") or "")[:200]
             if kind not in ("cookie", "localStorage", "sessionStorage", "host"):
                 kind = "cookie"
+            if es_de_extension(nombre):
+                continue                      # extension del navegador, no del sitio
             ya = c.execute("SELECT hits FROM cookies_found WHERE site_id=? AND name=?",
                            (site_id, nombre)).fetchone()
             if ya:
@@ -1335,6 +1388,7 @@ class H(BaseHTTPRequestHandler):
             d["explicacion"] = expl or ""
             # Quien la pone. Si hay proveedor conocido, es de un tercero aunque
             # la cookie viva en el dominio del cliente.
+            d["cmp"] = cmp_de(d["name"]) or ""
             prov, pdom = proveedor_de(d["name"])
             d["provider"] = prov or ""
             d["provider_domain"] = pdom or ""

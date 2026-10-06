@@ -145,6 +145,8 @@ let _userConfig = null;
       // Asi apagarlo no obliga a borrar el color que el cliente eligio.
       backdropOn: false,
       backdrop: "rgba(0,0,0,.5)",
+      // Un color propio gana sobre el elegido en la lista.
+      backdropCustom: "",
       backdropLock: false,
       animate: true,   // false quita la subida del banner
       background: "",            // vacio = usa colors.ink
@@ -866,21 +868,38 @@ let _userConfig = null;
     return out;
   }
 
+
+  /* Claves que escriben las EXTENSIONES del navegador de quien navega, no el
+     sitio. Dark Reader, carteras de cripto y demas usan el localStorage del
+     origen visitado, asi que aparecen como si fueran del cliente y ensucian el
+     informe. La lista es explicita a proposito: un patron generico tipo "todo
+     lo que empiece por doble guion bajo" se llevaria por delante cookies
+     legitimas como __hstc o __cf_bm. */
+  var EXTENSIONES = [
+    "__darkreader__", "walletlink", "EIP6963", "__coupert", "__EXT_APP_",
+    "MicrosoftApplicationsTelemetry", "RC_MFE_", "__cb_resourcesearch",
+    "_bettercampus", "__metamask", "__phantom", "grammarly", "__honey",
+    "__REACT_DEVTOOLS", "__VUE_DEVTOOLS", "loom-", "__pocket", "adblock"
+  ];
+  function esDeExtension(nombre) {
+    var n = String(nombre || "").toLowerCase();
+    for (var i = 0; i < EXTENSIONES.length; i++) {
+      if (n.indexOf(EXTENSIONES[i].toLowerCase()) === 0) return true;
+    }
+    return false;
+  }
+
   /* Todo lo observable, con su tipo y si es propio o de un tercero. */
   function inventario() {
     var items = [];
-    cookieNames().forEach(function (n) {
-      items.push({ name: n, kind: "cookie", party: "first" });
-    });
-    _clavesAlmacen("local").forEach(function (n) {
-      items.push({ name: n, kind: "localStorage", party: "first" });
-    });
-    _clavesAlmacen("session").forEach(function (n) {
-      items.push({ name: n, kind: "sessionStorage", party: "first" });
-    });
-    _tercerosObservados().forEach(function (h) {
-      items.push({ name: h, kind: "host", party: "third" });
-    });
+    function anotar(n, kind, party) {
+      if (esDeExtension(n)) return;      // no es del sitio: no se reporta
+      items.push({ name: n, kind: kind, party: party });
+    }
+    cookieNames().forEach(function (n) { anotar(n, "cookie", "first"); });
+    _clavesAlmacen("local").forEach(function (n) { anotar(n, "localStorage", "first"); });
+    _clavesAlmacen("session").forEach(function (n) { anotar(n, "sessionStorage", "first"); });
+    _tercerosObservados().forEach(function (h) { anotar(h, "host", "third"); });
     return items;
   }
 
@@ -1176,9 +1195,9 @@ let _userConfig = null;
     ":host{all:initial}" +
     "*{box-sizing:border-box;font-family:" + F.body + "}" +
     // ---- Banner: tarjeta flotante sobre ink, no barra a sangre ----
-    (BN.backdropOn && BN.backdrop ?
+    (BN.backdropOn && (BN.backdropCustom || BN.backdrop) ?
       ".cb-bdrop{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147482999;background:" +
-      BN.backdrop + (BN.animate === false ? "" : ";animation:cb-fade .2s ease") + "}" : "") +
+      (BN.backdropCustom || BN.backdrop) + (BN.animate === false ? "" : ";animation:cb-fade .2s ease") + "}" : "") +
     ".cb-banner{position:fixed;left:0;right:0;" + vert + "z-index:2147483000;display:flex;justify-content:" + justify + ";padding:0;margin:" + (BN.margin || "0 20px 20px") + "}" +
     ".cb-inner{width:100%;max-width:" + (BN.maxWidth || "1172px") + ";background:" + bnBg + ";color:" + bnFg + ";border:" + (BN.border || "1px solid rgba(255,255,255,.14)") + ";border-radius:" + (BN.radius || "12px") + ";box-shadow:" + (BN.shadow || "0 10px 40px rgba(15,24,38,.28)") + ";padding:" + (BN.padding || "22px 26px") + ";display:flex;flex-wrap:wrap;gap:" + (BN.gap || "28px") + ";align-items:center;justify-content:space-between" + (BN.animate === false ? "" : ";animation:cb-rise .26s cubic-bezier(.2,.6,.2,1)") + "}" +
     ".cb-copy{flex:1 1 380px;display:flex;flex-direction:column;gap:" + (BN.copyGap || "8px") + ";min-width:0}" +
@@ -1542,7 +1561,7 @@ let _userConfig = null;
      layout (barra, tarjeta o centrado) sin tener que meterlo dentro. */
   function showBackdrop(C) {
     var BN = C.banner || {};
-    if (!BN.backdropOn || !BN.backdrop) return;
+    if (!BN.backdropOn || !(BN.backdropCustom || BN.backdrop)) return;
     if (!bdropEl) {
       bdropEl = document.createElement("div");
       bdropEl.className = "cb-bdrop";

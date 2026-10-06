@@ -154,6 +154,9 @@
   .ck-kind{display:inline-block;font-size:10.5px;font-weight:600;padding:1px 6px;border-radius:4px;
            background:var(--line);color:var(--muted);vertical-align:middle}
   .ck-kind.third{background:#FDECEB;color:#A5342A}
+  .ck-kind.cmp{background:#FFF4E5;color:#8A5A00}
+  .ck-info{font-size:12px;color:var(--muted);font-style:italic}
+
   .banner-info.alcance{background:var(--paper);border-color:var(--line);color:var(--muted)}
   .ck-name .ck-kind{margin-left:4px}
   .btn.sm{padding:6px 10px;font-size:12px}
@@ -826,6 +829,25 @@ var DICT = {
   "Nombre de la apariencia nueva (sin espacios):": "Name for the new appearance (no spaces):",
   "Quitar la categoria?": "Remove the category?",
   "Velo: color": "Backdrop: colour",
+  "Administrador (todos los sitios)": "Administrator (all sites)",
+  "Superadministrador (y aprueba registros)": "Super admin (also approves sign-ups)",
+  "Negro 50%": "Black 50%",
+  "Negro 30%": "Black 30%",
+  "Negro 70%": "Black 70%",
+  "Negro 85%": "Black 85%",
+  "Tinta 50%": "Ink 50%",
+  "Tinta 75%": "Ink 75%",
+  "Blanco 60%": "White 60%",
+  "Blanco 80%": "White 80%",
+  "Velo: color a medida": "Backdrop: custom colour",
+  "Borrar todo lo detectado en este sitio? Volvera a llenarse con las visitas.": "Delete everything detected on this site? It will fill up again with visits.",
+  "fila(s) borradas.": "row(s) deleted.",
+  "No se pudo vaciar.": "Could not clear.",
+  "Vaciar inventario": "Clear inventory",
+  "Solo para el informe": "Report only",
+  "no se borra desde el banner": "not deletable from the banner",
+  "otro gestor": "other CMP",
+  "veces": "times",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -1320,7 +1342,10 @@ function boot(){
     if(!r.ok){ show("login"); return; }
     show("app");
     window._usuario = r.d.username;
-    esAdmin = (r.d.role === "admin");
+    // "super" tambien administra: al anadir ese rol, comparar solo con "admin"
+    // dejaba al superadministrador sin su propia pestaña de usuarios.
+    esAdmin = (r.d.role === "admin" || r.d.role === "super");
+    esSuper = (r.d.role === "super");
     el("who").textContent = r.d.username;
     sites = r.d.sites || [];
     var existe = sites.filter(function(s){ return s.site_id===current; }).length;
@@ -1383,6 +1408,7 @@ var TABS = [
 // Lo rellena /dash/me. Ocultar la pestana es comodidad, no seguridad: quien
 // llame al endpoint a mano recibe un 403 del backend igualmente.
 var esAdmin = false;
+var esSuper = false;   // solo el super aprueba solicitudes de registro
 function renderTabs(){
   var lista = TABS.filter(function(t){ return !t.admin || esAdmin; });
   el("tabbar").innerHTML = lista.map(function(t){
@@ -1543,7 +1569,16 @@ var UI_GROUPS = [
     /* Interruptor aparte del color: un campo de texto con un ejemplo dentro no
        deja claro si el velo esta puesto o es solo el marcador. */
     {p:"banner.backdropOn", k:"bool", l:"Velo detras del banner", def:false},
-    {p:"banner.backdrop",  k:"text",   l:"Velo: color", ph:"rgba(0,0,0,.5)"},
+    {p:"banner.backdrop",  k:"select", l:"Velo: color", opts:[
+      ["rgba(0,0,0,.5)",  "Negro 50%"],
+      ["rgba(0,0,0,.3)",  "Negro 30%"],
+      ["rgba(0,0,0,.7)",  "Negro 70%"],
+      ["rgba(0,0,0,.85)", "Negro 85%"],
+      ["rgba(22,35,59,.5)",  "Tinta 50%"],
+      ["rgba(22,35,59,.75)", "Tinta 75%"],
+      ["rgba(255,255,255,.6)", "Blanco 60%"],
+      ["rgba(255,255,255,.8)", "Blanco 80%"]]},
+    {p:"banner.backdropCustom", k:"text", l:"Velo: color a medida", ph:"rgba(0,0,0,.5)"},
     {p:"banner.backdropLock", k:"bool", l:"Velo: bloquear desplazamiento", def:false},
     {p:"banner.background",k:"color",  l:"Fondo"},
     {p:"banner.color",     k:"color",  l:"Texto"}
@@ -4037,6 +4072,18 @@ function exportarAuditPDF(){
   msg("ckmsg", filas.length + " fila(s) en el informe.");
 }
 
+
+/* Vacia lo detectado. Hace falta porque el filtro de extensiones solo evita
+   ensuciar de ahora en adelante: lo ya guardado se queda. */
+function vaciarInventario(){
+  if(!confirm(frase("Borrar todo lo detectado en este sitio? Volvera a llenarse con las visitas."))) return;
+  j("POST", "/dash/site/cookies/clear", {site_id: current}).then(function(r){
+    if(!r.ok){ msg("ckmsg", r.d.error || "No se pudo vaciar.", true); return; }
+    msg("ckmsg", r.d.borradas + " " + frase("fila(s) borradas."));
+    loadCookies();
+  });
+}
+
 function viewCookies(d){
   var cats = (d.config && d.config.categories) || [];
   // Solo las categorias que el visitante puede denegar. Asignar una cookie a
@@ -4049,6 +4096,7 @@ function viewCookies(d){
         '<div><h2 style="margin:0">Cookies detectadas en el sitio</h2>'+
         '<p class="sub" style="margin:4px 0 0">Clasifica cada una. Las esenciales nunca se borran.</p></div>'+
         '<div class="row">'+
+          '<button class="btn ghost sm" onclick="vaciarInventario()">Vaciar inventario</button>'+
           '<button class="btn ghost sm" onclick="exportarAuditPDF()">Exportar audit (PDF)</button>'+
           '<button class="btn ghost sm" onclick="exportarAudit()">CSV</button>'+
           '<button class="btn ghost sm" onclick="aceptarSugerencias()">Aplicar sugerencias</button>'+
@@ -4080,8 +4128,17 @@ function loadCookies(){
 /* Etiqueta corta del tipo. Los hallazgos de tercero son para el informe: se
    anota que existen, pero no se ofrecen para borrar, porque borrar no es algo
    que podamos hacer sobre un dominio ajeno. */
+/* El almacenamiento local no se borra ni se bloquea desde el banner:
+   autoBlock bloquea scripts y cookiePatterns borra cookies. Se informa, pero
+   no se ofrece clasificar, que seria prometer algo que no va a pasar. */
+function ckAccionable(f){
+  var k = f.kind || "cookie";
+  return k === "cookie";
+}
+
 function ckEtiqueta(f){
   var k = f.kind || "cookie", out = "";
+  if(f.cmp) out += '<span class="ck-kind cmp" title="'+esc(f.cmp)+'">otro gestor: '+esc(f.cmp)+'</span>';
   // El proveedor es lo util: una cookie en tu dominio puesta por Google sigue
   // siendo de un tercero a efectos del informe.
   if(f.provider) out += '<span class="ck-kind third" title="La pone '+esc(f.provider)+
@@ -4090,6 +4147,7 @@ function ckEtiqueta(f){
   if(k === "localStorage")   out += '<span class="ck-kind">localStorage</span>';
   if(k === "sessionStorage") out += '<span class="ck-kind">sessionStorage</span>';
   if(k === "host")           out += '<span class="ck-kind">host</span>';
+  if(!ckAccionable(f))       out += '<span class="ck-kind">no se borra desde el banner</span>';
   return out;
 }
 
@@ -4151,6 +4209,17 @@ function filaCookie(x, tipos){
   var clase = "ck-sel" + (esNecesaria ? " es-nec" : (esNoNecesaria ? " no-nec" : " sin-dec"));
   var nombreSeguro = esc(x.name).replace(/'/g,"");
 
+  // Sin desplegable para lo que el banner no puede borrar: clasificarlo no
+  // tendria efecto y solo generaria falsas expectativas.
+  if(!ckAccionable(x)){
+    return '<tr id="row_'+id+'">'+
+      '<td><div class="ck-name">'+esc(x.name)+' '+ckEtiqueta(x)+'</div></td>'+
+      '<td><div class="ck-desc">'+esc(desc)+'</div></td>'+
+      '<td><span class="ck-info">Solo para el informe</span></td>'+
+      '<td class="ck-seen">'+esc((x.last_seen||"").replace("T"," ").slice(0,16))+
+        '<div class="sub">'+esc(String(x.hits||0))+' '+frase("veces")+'</div></td>'+
+    '</tr>';
+  }
   return '<tr'+(sinDecidir?' class="sin-decidir"':'')+' id="row_'+id+'">'+
     '<td><div class="ck-name">'+esc(x.name)+' '+ckEtiqueta(x)+'</div>'+sug+'</td>'+
     '<td><div class="ck-desc">'+esc(desc)+'</div></td>'+
@@ -4315,7 +4384,9 @@ function pintarUsuarios(){
 }
 
 function filaUsuario(u){
-  var id = cssId(u.username), admin = (u.role === "admin");
+  // "super" tambien llega a todo: tratarlo como usuario normal le pintaba la
+  // lista de sitios como si tuviera acceso restringido.
+  var id = cssId(u.username), admin = (u.role === "admin" || u.role === "super");
   // Un admin llega a todos los sitios por definicion, asi que asignarle
   // sitios uno a uno no significaria nada.
   var sitios = admin
@@ -4367,7 +4438,9 @@ function modalNuevoUsuario(){
       '<div class="field"><label>Contrasena</label><input id="nu-pass" type="password" placeholder="Minimo 8 caracteres" /></div>'+
       '<div class="field"><label>Rol</label><select id="nu-role" class="ck-sel" style="width:100%">'+
         '<option value="user">Usuario (solo sus sitios)</option>'+
-        '<option value="admin">Administrador (todo)</option></select></div>'+
+        '<option value="admin">Administrador (todos los sitios)</option>'+
+        (esSuper ? '<option value="super">Superadministrador (y aprueba registros)</option>' : '')+
+        '</select></div>'+
       '<div class="field"><label>Sitios</label><div class="u-sitios">'+checks+'</div></div>'+
       '<p class="hint" id="nu-msg"></p>'+
       '<div class="row mt"><button class="btn" onclick="crearUsuario()">Crear usuario</button>'+
