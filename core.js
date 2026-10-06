@@ -136,6 +136,13 @@ let _userConfig = null;
       copyGap: "8px",            // entre eyebrow, titulo y cuerpo
       border: "1px solid rgba(255,255,255,.14)",
       shadow: "0 10px 40px rgba(15,24,38,.28)",
+      // Velo detras del banner, como en algunas tiendas: oscurece la pagina
+      // hasta que el visitante decide. "" lo apaga. OJO: si ademas se bloquea
+      // el desplazamiento, el sitio deja de poder usarse sin decidir, y eso en
+      // la UE se considera un muro de cookies. En EE.UU. (CCPA/CPRA) no esta
+      // prohibido, pero conviene saber lo que se activa.
+      backdrop: "",
+      backdropLock: false,
       animate: true,   // false quita la subida del banner
       background: "",            // vacio = usa colors.ink
       color: ""                  // vacio = usa colors.text
@@ -1166,6 +1173,9 @@ let _userConfig = null;
     ":host{all:initial}" +
     "*{box-sizing:border-box;font-family:" + F.body + "}" +
     // ---- Banner: tarjeta flotante sobre ink, no barra a sangre ----
+    (BN.backdrop ?
+      ".cb-bdrop{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147482999;background:" +
+      BN.backdrop + (BN.animate === false ? "" : ";animation:cb-fade .2s ease") + "}" : "") +
     ".cb-banner{position:fixed;left:0;right:0;" + vert + "z-index:2147483000;display:flex;justify-content:" + justify + ";padding:0;margin:" + (BN.margin || "0 20px 20px") + "}" +
     ".cb-inner{width:100%;max-width:" + (BN.maxWidth || "1172px") + ";background:" + bnBg + ";color:" + bnFg + ";border:" + (BN.border || "1px solid rgba(255,255,255,.14)") + ";border-radius:" + (BN.radius || "12px") + ";box-shadow:" + (BN.shadow || "0 10px 40px rgba(15,24,38,.28)") + ";padding:" + (BN.padding || "22px 26px") + ";display:flex;flex-wrap:wrap;gap:" + (BN.gap || "28px") + ";align-items:center;justify-content:space-between" + (BN.animate === false ? "" : ";animation:cb-rise .26s cubic-bezier(.2,.6,.2,1)") + "}" +
     ".cb-copy{flex:1 1 380px;display:flex;flex-direction:column;gap:" + (BN.copyGap || "8px") + ";min-width:0}" +
@@ -1523,8 +1533,35 @@ let _userConfig = null;
   }
 
   // ---- Mostrar / ocultar ----------------------------------------------------
-  function showBanner(C) { ensureRoot(C); if (!bannerEl) { bannerEl = buildBanner(C); root.appendChild(bannerEl); } bannerEl.style.display = ""; }
-  function hideBanner() { if (bannerEl) bannerEl.style.display = "none"; }
+  var bdropEl = null;
+
+  /* El velo es un elemento aparte del banner: asi el banner conserva su propio
+     layout (barra, tarjeta o centrado) sin tener que meterlo dentro. */
+  function showBackdrop(C) {
+    var BN = C.banner || {};
+    if (!BN.backdrop) return;
+    if (!bdropEl) {
+      bdropEl = document.createElement("div");
+      bdropEl.className = "cb-bdrop";
+      root.insertBefore(bdropEl, root.firstChild);
+    }
+    bdropEl.style.display = "";
+    if (BN.backdropLock) {
+      try { document.documentElement.style.overflow = "hidden"; } catch (e) {}
+    }
+  }
+  function hideBackdrop() {
+    if (bdropEl) bdropEl.style.display = "none";
+    try { document.documentElement.style.overflow = ""; } catch (e) {}
+  }
+
+  function showBanner(C) {
+    ensureRoot(C);
+    if (!bannerEl) { bannerEl = buildBanner(C); root.appendChild(bannerEl); }
+    bannerEl.style.display = "";
+    showBackdrop(C);
+  }
+  function hideBanner() { if (bannerEl) bannerEl.style.display = "none"; hideBackdrop(); }
   function openPanel(C) { ensureRoot(C); panelEl = buildPanel(C); root.appendChild(panelEl); }
 
   /* Lo que abre el disparador del sitio. Por defecto el panel, que es lo que
