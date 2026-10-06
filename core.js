@@ -141,7 +141,10 @@ let _userConfig = null;
       // el desplazamiento, el sitio deja de poder usarse sin decidir, y eso en
       // la UE se considera un muro de cookies. En EE.UU. (CCPA/CPRA) no esta
       // prohibido, pero conviene saber lo que se activa.
-      backdrop: "",
+      // El velo se enciende con backdropOn; backdrop solo dice de que color.
+      // Asi apagarlo no obliga a borrar el color que el cliente eligio.
+      backdropOn: false,
+      backdrop: "rgba(0,0,0,.5)",
       backdropLock: false,
       animate: true,   // false quita la subida del banner
       background: "",            // vacio = usa colors.ink
@@ -1173,7 +1176,7 @@ let _userConfig = null;
     ":host{all:initial}" +
     "*{box-sizing:border-box;font-family:" + F.body + "}" +
     // ---- Banner: tarjeta flotante sobre ink, no barra a sangre ----
-    (BN.backdrop ?
+    (BN.backdropOn && BN.backdrop ?
       ".cb-bdrop{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147482999;background:" +
       BN.backdrop + (BN.animate === false ? "" : ";animation:cb-fade .2s ease") + "}" : "") +
     ".cb-banner{position:fixed;left:0;right:0;" + vert + "z-index:2147483000;display:flex;justify-content:" + justify + ";padding:0;margin:" + (BN.margin || "0 20px 20px") + "}" +
@@ -1539,7 +1542,7 @@ let _userConfig = null;
      layout (barra, tarjeta o centrado) sin tener que meterlo dentro. */
   function showBackdrop(C) {
     var BN = C.banner || {};
-    if (!BN.backdrop) return;
+    if (!BN.backdropOn || !BN.backdrop) return;
     if (!bdropEl) {
       bdropEl = document.createElement("div");
       bdropEl.className = "cb-bdrop";

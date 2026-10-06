@@ -819,6 +819,13 @@ var DICT = {
   "fila(s) en el informe.": "row(s) in the report.",
   "Velo detras del banner": "Backdrop behind the banner",
   "Velo: bloquear desplazamiento": "Backdrop: block scrolling",
+  "Borrar la apariencia": "Delete the appearance",
+  "La categoria bloqueada no se puede quitar.": "The locked category cannot be removed.",
+  "Ya existe una apariencia con ese nombre.": "An appearance with that name already exists.",
+  "Tu sitio no deja incrustarse aqui (X-Frame-Options).": "Your site does not allow embedding here (X-Frame-Options).",
+  "Nombre de la apariencia nueva (sin espacios):": "Name for the new appearance (no spaces):",
+  "Quitar la categoria?": "Remove the category?",
+  "Velo: color": "Backdrop: colour",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -1533,7 +1540,10 @@ var UI_GROUPS = [
     {p:"banner.margin",    k:"text",   l:"Margen exterior", ph:"0 20px 20px"},
     {p:"banner.radius",    k:"text",   l:"Radio", ph:"12px"},
     {p:"banner.gap",       k:"text",   l:"Separacion", ph:"28px"},
-    {p:"banner.backdrop",  k:"text",   l:"Velo detras del banner", ph:"rgba(0,0,0,.5)"},
+    /* Interruptor aparte del color: un campo de texto con un ejemplo dentro no
+       deja claro si el velo esta puesto o es solo el marcador. */
+    {p:"banner.backdropOn", k:"bool", l:"Velo detras del banner", def:false},
+    {p:"banner.backdrop",  k:"text",   l:"Velo: color", ph:"rgba(0,0,0,.5)"},
     {p:"banner.backdropLock", k:"bool", l:"Velo: bloquear desplazamiento", def:false},
     {p:"banner.background",k:"color",  l:"Fondo"},
     {p:"banner.color",     k:"color",  l:"Texto"}
@@ -2356,12 +2366,12 @@ function temaEditar(n){ TEMA_EDIT = n; renderVisual(); refrescarPreview(); }
 
 function temaNuevo(){
   var b = temaBase(); if(!b) return;
-  var n = prompt("Nombre de la apariencia nueva (sin espacios):", "");
+  var n = prompt(frase("Nombre de la apariencia nueva (sin espacios):"), "");
   if(!n) return;
   n = String(n).trim().toLowerCase().replace(/\s+/g, "-");
   if(!n) return;
   b.themes = b.themes || {};
-  if(b.themes[n]){ alert("Ya existe una apariencia con ese nombre."); return; }
+  if(b.themes[n]){ alert(frase("Ya existe una apariencia con ese nombre.")); return; }
   // Nace como copia de la que se esta viendo: cambiar dos colores es mas
   // comodo que partir de cero.
   b.themes[n] = TEMA_EDIT && b.themes[TEMA_EDIT]
@@ -2380,7 +2390,7 @@ function temaActivar(){
 
 function temaBorrar(){
   var b = temaBase(); if(!b || !TEMA_EDIT) return;
-  if(!confirm('Borrar la apariencia "'+TEMA_EDIT+'"?')) return;
+  if(!confirm(frase("Borrar la apariencia")+' "'+TEMA_EDIT+'"?')) return;
   delete b.themes[TEMA_EDIT];
   if(b.theme === TEMA_EDIT) b.theme = "";
   el("cfg").value = JSON.stringify(b, null, 2);
@@ -2503,7 +2513,7 @@ function fondoDelSitio(){
   return '<iframe class="sitio" src="' + dom.replace(/"/g, "&quot;") + '" ' +
          'style="position:absolute;inset:0;width:100%;height:100%;border:0" ' +
          'onload="this.setAttribute(\'data-ok\',\'1\')"></iframe>' +
-         '<div class="bloqueado">Tu sitio no deja incrustarse aqui (X-Frame-Options).</div>';
+         '<div class="bloqueado">'+frase("Tu sitio no deja incrustarse aqui (X-Frame-Options).")+'</div>';
 }
 
 
@@ -2792,12 +2802,12 @@ function catAnadir(){
 function catQuitar(i){
   var o = catLista(); if(!o || !o.categories[i]) return;
   var c = o.categories[i];
-  if(c.locked){ alert("La categoria bloqueada no se puede quitar."); return; }
+  if(c.locked){ alert(frase("La categoria bloqueada no se puede quitar.")); return; }
   var usos = 0;
   (o.autoBlock||[]).forEach(function(r){ if(r && r.category===c.id) usos++; });
   (o.cookiePatterns||[]).forEach(function(r){ if(r && r.category===c.id) usos++; });
   var aviso = usos ? "Quedaran "+usos+" regla(s) apuntando a \""+c.id+"\". " : "";
-  if(!confirm(aviso+"Quitar la categoria?")) return;
+  if(!confirm(aviso+frase("Quitar la categoria?"))) return;
   o.categories.splice(i,1);
   catGuardar(o);
 }
