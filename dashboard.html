@@ -848,6 +848,8 @@ var DICT = {
   "no se borra desde el banner": "not deletable from the banner",
   "otro gestor": "other CMP",
   "veces": "times",
+  "Altura": "Height",
+  "Centro": "Center",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -1559,7 +1561,7 @@ var UI_GROUPS = [
     {p:"texts.en.chip", k:"text", l:"Texto del pill", ph:"por defecto"}
   ]},
   { t:"Banner", open:true, items:[
-    {p:"banner.position",  k:"select", l:"Posicion", opts:[["bottom","Abajo"],["top","Arriba"]]},
+    {p:"banner.position",  k:"select", l:"Posicion", opts:[["bottom","Abajo"],["center","Centro"],["top","Arriba"]]},
     {p:"banner.align",     k:"select", l:"Alineacion", opts:[["left","Izquierda"],["center","Centrado"],["right","Derecha"]]},
     {p:"banner.maxWidth",  k:"text",   l:"Ancho maximo", ph:"1172px"},
     {p:"banner.padding",   k:"text",   l:"Padding", ph:"22px 26px"},
@@ -2033,17 +2035,25 @@ function wLayout(o){
     '<div class="wz-field"><label class="wz-lab">Posicion del banner</label>'+
       tarjetas(WIZ_POS, pos, "wSetPos") +
       (pos === "card" ?
-        '<div class="wz-sub2"><label class="wz-lab">Esquina de la tarjeta</label>'+
-          tarjetas([["bottom","Abajo"],["top","Arriba"]], (bn.position==="top"?"top":"bottom"),
-                   "wSetBannerVert", 2)+
-          tarjetas([["left","Izquierda"],["right","Derecha"]], (bn.align==="right"?"right":"left"),
-                   "wSetBannerHor", 2)+
+        '<div class="wz-sub2"><label class="wz-lab">Altura</label>'+
+          tarjetas([["top","Arriba"],["bottom","Abajo"]],
+                   (bn.position==="top"?"top":"bottom"), "wSetBannerVert", 2)+
+         '<label class="wz-lab">Lado</label>'+
+          tarjetas([["left","Izquierda"],["center","Centro"],["right","Derecha"]],
+                   (bn.align==="right"?"right":(bn.align==="center"?"center":"left")),
+                   "wSetBannerHor")+
+        '</div>'
+        : (pos === "centered" ?
+        '<div class="wz-sub2"><label class="wz-lab">Altura</label>'+
+          tarjetas([["top","Arriba"],["center","Centro"],["bottom","Abajo"]],
+                   (bn.position==="top"?"top":(bn.position==="bottom"?"bottom":"center")),
+                   "wSetBannerVert")+
         '</div>'
         : (pos === "bar" ?
         '<div class="wz-sub2">'+
-          tarjetas([["bottom","Abajo"],["top","Arriba"]], (bn.position==="top"?"top":"bottom"),
-                   "wSetBannerVert", 2)+
-        '</div>' : ''))+
+          tarjetas([["top","Arriba"],["bottom","Abajo"]],
+                   (bn.position==="top"?"top":"bottom"), "wSetBannerVert", 2)+
+        '</div>' : '')))+
     '</div>'+
 
     '<div class="wz-field"><label class="wz-lab">Jerarquia de los botones</label>'+

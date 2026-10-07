@@ -1144,18 +1144,28 @@ let _userConfig = null;
       ".cb-inner{flex-direction:column;align-items:stretch;gap:" + (BN.gap || "20px") + "}" +
       ".cb-copy{flex:0 0 auto}" +
       ".cb-actions{justify-content:flex-start}";
+    var hueco = BN.inset || "clamp(16px,3vw,32px)";
+
     if (modo === "centered") {
-      return ".cb-banner{top:0;right:0;bottom:0;left:0;align-items:center;justify-content:center;" +
-             "margin:0;padding:" + (BN.inset || "clamp(16px,3vw,32px)") + "}" +
+      // banner.position decide la altura: arriba, en medio o abajo. Antes
+      // "centered" se quedaba siempre en el medio y la posicion se ignoraba.
+      var alto = BN.position === "top" ? "flex-start"
+               : (BN.position === "bottom" ? "flex-end" : "center");
+      return ".cb-banner{top:0;right:0;bottom:0;left:0;align-items:" + alto +
+             ";justify-content:center;margin:0;padding:" + hueco + "}" +
              ".cb-inner{max-width:" + (BN.centeredWidth || "520px") + ";border-radius:" + r + "}" +
              columna;
     }
-    // card: se ancla a la esquina que diga banner.position + banner.align.
+
+    // card: la altura sale de banner.position y el lado de banner.align.
+    // align "center" la centra en horizontal, que antes no se podia.
     var vert = BN.position === "top" ? "top:" : "bottom:";
-    var hor  = BN.align === "right" ? "right:" : "left:";
-    var hueco = BN.inset || "clamp(16px,3vw,32px)";
+    var centrada = BN.align === "center";
+    var hor = centrada
+      ? "left:50%;transform:translateX(-50%);"
+      : ((BN.align === "right" ? "right:" : "left:") + hueco + ";");
     return ".cb-banner{top:auto;bottom:auto;left:auto;right:auto;" +
-           vert + hueco + ";" + hor + hueco + ";margin:0;padding:0;display:block;" +
+           vert + hueco + ";" + hor + "margin:0;padding:0;display:block;" +
            "width:min(" + (BN.cardWidth || "420px") + ",calc(100vw - 2 * " + hueco + "))}" +
            ".cb-inner{max-width:none;border-radius:" + r + "}" +
            columna;
