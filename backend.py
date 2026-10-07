@@ -88,6 +88,9 @@ DEFAULT_CONFIG = {
 }
 
 # ---------------------------------------------------------------- base de datos
+# Registro publico. Apagado: las cuentas las crea un administrador.
+REGISTRO_ABIERTO = os.environ.get("REGISTRO_ABIERTO") == "1"
+
 def db():
     c = sqlite3.connect(DB)
     c.row_factory = sqlite3.Row
@@ -817,7 +820,11 @@ class H(BaseHTTPRequestHandler):
             return self.api_cookies()
         if p == "/dash/login":
             return self.dash_login()
-        if p == "/dash/register":
+        # Registro abierto: desactivado a peticion del cliente. Las cuentas se
+        # crean desde la pestaña Users y punto. El endpoint era publico, asi que
+        # cualquiera podia dejar solicitudes que nadie iba a mirar. El codigo del
+        # flujo se conserva intacto por si algun dia se quiere abrir.
+        if p == "/dash/register" and REGISTRO_ABIERTO:
             return self.dash_register()
         if p == "/dash/pending/resolve":
             return self.dash_pending_resolve()

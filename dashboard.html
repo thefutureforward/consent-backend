@@ -105,6 +105,18 @@
            align-items:center;justify-content:space-between;gap:12px}
   .wz-full-t{display:block;font-size:13px;font-weight:600;color:var(--ink)}
   .wz-link{background:none;border:0;color:var(--accent);font-size:12.5px;font-weight:600;cursor:pointer;padding:0}
+  .sub-bar{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+  .sub-t{border:1px solid var(--line);background:var(--white);border-radius:7px;
+         padding:5px 10px;font-size:12px;font-weight:600;color:var(--muted);
+         cursor:pointer;font-family:inherit}
+  .sub-t.on{background:var(--ink);color:#F7F6F2;border-color:var(--ink)}
+  .sub-t em{font-style:normal;font-weight:400;opacity:.7;margin-left:3px}
+  .wz-conm{align-self:stretch;padding:3px}
+  .wz-conm button{flex:1;padding:8px 14px;font-size:13px}
+  .wz-filtros{margin:10px 0 4px}
+  .wz-filtros .modes button{padding:5px 12px;font-size:12px}
+  .wz-link.rojo{color:var(--danger);text-decoration:underline;text-underline-offset:3px}
+  .wz-link:disabled{opacity:.4;cursor:not-allowed;text-decoration:none}
   .wz-ovbar{align-items:center}
   .wz .ctl .wz-revert{display:none;flex:0 0 auto;width:28px;height:28px;border-radius:50%;
        border:1px solid var(--line);background:var(--white);color:var(--accent);
@@ -167,6 +179,69 @@
   .preview .lienzo iframe{transition:max-width .2s}
   .btn.dark{background:var(--ink);color:#F7F6F2;border-color:var(--ink)}
 
+  /* ---------- resumen del sitio ---------- */
+  .rs-cab{padding:24px 24px 0}
+  .rs-cab h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-.01em;display:inline-block}
+  .rs-id{margin-left:10px;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted)}
+  .rs-cols{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;padding:16px 24px 40px;
+           align-items:start}
+  @media (max-width:1050px){ .rs-cols{grid-template-columns:1fr} }
+  .rs-fila{display:flex;align-items:flex-start;gap:12px;padding:14px 0;
+           border-bottom:1px solid var(--line-soft)}
+  .rs-fila:last-child{border-bottom:0}
+  .rs-fila.avisa{background:#FDF8EC;margin:0 -20px;padding-left:20px;padding-right:20px}
+  .rs-ic{flex:0 0 22px;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;
+         justify-content:center;font-size:11px;font-weight:700;color:#fff;margin-top:1px}
+  .rs-ic.ok{background:var(--accent)}
+  .rs-ic.aviso{background:#E8B931;color:#5A4300}
+  .rs-ic.codigo{background:var(--line);color:var(--muted);font-size:9px}
+  .rs-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .rs-txt b{font-size:13.5px;font-weight:600}
+  .rs-txt span{font-size:12.5px;color:var(--muted);line-height:1.5}
+  .rs-link{background:none;border:0;color:var(--accent);font-size:12.5px;font-weight:600;
+           cursor:pointer;padding:0;white-space:nowrap;text-decoration:underline;
+           text-underline-offset:3px;font-family:inherit}
+  .rs-mini{background:var(--canvas);border-radius:10px;padding:10px;margin-bottom:8px}
+  .rs-mini{overflow:hidden}
+  .rs-mini .lupa{width:100%;height:234px;overflow:hidden;border-radius:6px;background:#fff}
+  .rs-mini iframe{width:166.7%;height:400px;border:0;display:block;background:#fff;
+                  transform:scale(.6);transform-origin:0 0}
+  .rs-atajo{display:block;width:100%;text-align:left;background:var(--white);
+            border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-bottom:8px;
+            cursor:pointer;font-size:13.5px;color:var(--ink);font-family:inherit}
+  .rs-atajo:hover{border-color:var(--ink);background:var(--paper)}
+  .rs-atajo:last-child{margin-bottom:0}
+  /* ---------- navegacion lateral (propuesta de UX) ---------- */
+  .marco{display:grid;grid-template-columns:230px minmax(0,1fr);align-items:start}
+  .nav{position:sticky;top:56px;align-self:start;padding:18px 14px 40px;
+       border-right:1px solid var(--line);min-height:calc(100vh - 56px)}
+  .nav-tit{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
+           color:var(--muted);padding:0 10px;margin:14px 0 6px}
+  .nav-tit:first-child{margin-top:0}
+  .nav button{display:flex;align-items:center;justify-content:space-between;gap:8px;
+              width:100%;border:0;background:none;text-align:left;cursor:pointer;
+              padding:9px 10px;border-radius:8px;font-size:13.5px;color:var(--ink);
+              font-family:inherit}
+  .nav button:hover{background:var(--paper)}
+  .nav button.on{background:var(--accent-bg);font-weight:600}
+  .nav-n{font-style:normal;font-size:11.5px;color:var(--muted);
+         font-variant-numeric:tabular-nums}
+  /* El estado de publicacion sustituye a la pildora de version */
+  .pub-estado{font-size:12.5px;color:rgba(247,246,242,.75);margin-right:4px;
+              display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .pub-estado b{font-weight:600;color:#F7F6F2}
+  .pub-estado .pt2{width:7px;height:7px;border-radius:50%;background:#8FD3C2;flex:0 0 7px}
+  .pub-estado.sucio .pt2{background:#E8B931}
+  .topbar .btn.sm{padding:7px 12px;font-size:12.5px}
+  .topbar .btn.ghost{background:transparent;color:#F7F6F2;border-color:rgba(255,255,255,.3)}
+  .topbar .btn.ghost:hover{border-color:rgba(255,255,255,.6)}
+  @media (max-width:900px){
+    .marco{grid-template-columns:1fr}
+    .nav{position:static;min-height:0;border-right:0;border-bottom:1px solid var(--line);
+         display:flex;flex-wrap:wrap;gap:4px;padding:10px 14px}
+    .nav-tit{display:none}
+    .nav button{width:auto}
+  }
   /* ---------- barra superior ---------- */
   .topbar{background:var(--ink);color:#fff;padding:8px 24px;display:flex;align-items:center;
           gap:6px 18px;min-height:56px;position:sticky;top:0;z-index:20;flex-wrap:wrap}
@@ -359,6 +434,19 @@
   .preview iframe.alto{height:720px}
   .preview iframe{
                   border:1px solid var(--line);border-radius:8px}
+  /* ---------- cookies y scripts: pestañas ---------- */
+  .ck-marco{padding:24px}
+  .ck-cab h1{margin:0 0 4px;font-size:24px;font-weight:700;letter-spacing:-.01em}
+  .ck-cab .sub{max-width:70ch;margin-bottom:16px}
+  .ck-tabs{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  .ck-t{border:1px solid var(--line);background:var(--white);border-radius:999px;
+        padding:7px 14px;font-size:12.5px;font-weight:600;color:var(--muted);
+        cursor:pointer;font-family:inherit}
+  .ck-t:hover{border-color:var(--ink);color:var(--ink)}
+  .ck-t.on{background:var(--ink);color:#F7F6F2;border-color:var(--ink)}
+  .ck-t em{font-style:normal;font-weight:400;opacity:.65;margin-left:4px}
+  .ck-pend{margin-left:auto;font-size:12px;font-weight:600;color:#8A5A00;
+           background:#FFF4E5;border-radius:999px;padding:5px 11px}
   /* ---------- cookies detectadas ---------- */
   .ck-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
            flex-wrap:wrap;margin-bottom:14px}
@@ -454,15 +542,19 @@
   <div class="topbar" id="topbar">
     <div class="brand">Consent Banner<span>Dashboard</span></div>
     <div class="site-picker" id="picker"></div>
-    <div class="tabbar" id="tabbar"></div>
     <div class="spacer"></div>
-    <span class="ver-pill" id="ver-pill"></span>
+    <span class="pub-estado" id="pub-estado"></span>
+    <button class="btn ghost sm" onclick="temaProbar()">Probar en mi sitio</button>
+    <button class="btn sm" id="btn-publicar" onclick="saveCfg()">Publicar</button>
     <span class="who" id="who"></span>
     <div class="modes lang-sw" id="lang-sw"></div>
     <button class="icon-btn" onclick="logout()">Salir</button>
   </div>
-  <div class="shell">
-    <div id="tabbody"></div>
+  <div class="marco">
+    <nav class="nav" id="tabbar"></nav>
+    <div class="shell">
+      <div id="tabbody"></div>
+    </div>
   </div>
 </div>
 
@@ -470,7 +562,7 @@
 
 <script>
 var API = location.origin;
-var current = null, tab = "config", sites = [], menuOpen = false;
+var current = null, tab = "resumen", sites = [], menuOpen = false;
 
 /* ---------------- utilidades ---------------- */
 function j(method, path, body){
@@ -850,6 +942,69 @@ var DICT = {
   "veces": "times",
   "Altura": "Height",
   "Centro": "Center",
+  "Este sitio": "This site",
+  "Cuenta": "Account",
+  "Apariencia": "Appearance",
+  "Textos e idiomas": "Texts & languages",
+  "Cookies y scripts": "Cookies & scripts",
+  "Mi cuenta": "My account",
+  "Publicado": "Published",
+  "con cambios sin publicar": "pending changes",
+  "sin cambios pendientes": "no pending changes",
+  "Publicar": "Publish",
+  "Tienes cambios sin publicar. Si sales se perderan. Continuar?": "You have unpublished changes. They will be lost if you leave. Continue?",
+  "Resumen": "Overview",
+  "Estado del sitio": "Site status",
+  "Lo que esta listo y lo que pide atencion.": "What is ready and what needs your attention.",
+  "Editar apariencia": "Edit appearance",
+  "Publicacion": "Publishing",
+  "publicada. El sitio la recoge al recargar.": "is published. The site picks it up on reload.",
+  "Ver vista previa": "View preview",
+  "Reapertura": "Reopening the panel",
+  "El pill flotante esta activo.": "The floating pill is on.",
+  "El pill esta apagado, asi que el enlace del pie es la unica via. Comprueba que aparece en todas las paginas.": "The pill is off, so the footer link is the only way. Check that it shows on every page.",
+  "Ver el enlace": "View reopen link",
+  "Ver apariencia": "View appearance",
+  "Instalacion": "Install",
+  "Dominios": "Allowed domains",
+  "Ver codigo": "View code",
+  "Registros de consentimiento": "Consent records",
+  "Ver registros": "View records",
+  "Como se ve hoy": "How it looks today",
+  "Atajos": "Shortcuts",
+  "Copiar codigo de instalacion": "Copy install code",
+  "Exportar cookie audit": "Export cookie audit",
+  "apariencias": "appearances",
+  "propiedades a mano": "properties overridden",
+  "La deteccion esta apagada, asi que no sabemos que cookies pone el sitio.": "Detection is off, so we do not know which cookies the site sets.",
+  "detectadas antes de apagarla.": "detected before it was turned off.",
+  "Revisar cookies": "Review cookies",
+  "detectadas": "detected",
+  "sin decidir": "undecided",
+  "necesarias": "necessary",
+  "no necesarias": "not necessary",
+  "Cada registro es la prueba de una decision: cuando, que acepto y con que version del texto.": "Each record is the proof of one decision: when, what was accepted and with which version of the text.",
+  "Todavia no hay registros. Cada uno sera la prueba de una decision concreta.": "No records yet. Each one will be the proof of one specific decision.",
+  "de": "of",
+  "Dejaran de aceptarse registros desde ahi.": "Records will no longer be accepted from there.",
+  "El id": "The id",
+  "lo usan": "is used by",
+  "regla(s). Se actualizaran tambien. Continuar?": "rule(s). They will be updated too. Continue?",
+  "Lo que dice el banner, en cada idioma. Vacio significa que se usa el texto de serie, que esta revisado legalmente.": "What the banner says, in each language. Empty means the default text is used, which is legally vetted.",
+  "Buscar propiedades": "Search properties",
+  "Todas": "All",
+  "Solo sobrescritas": "Overridden only",
+  "Ningun ajuste coincide con la busqueda.": "No setting matches the search.",
+  "color, radio, padding...": "colour, radius, padding...",
+  "Guiado": "Guided",
+  "Avanzado": "Advanced",
+  "Aceptar": "Accept",
+  "Rechazar": "Reject",
+  "Personalizar": "Customize",
+  "Guardar": "Save",
+  "Deteccion": "Detection",
+  "Cookies y scripts": "Cookies & scripts",
+  "Que cookies y scripts hay en el sitio, a que categoria pertenecen y que pasa cuando un visitante los rechaza.": "Which cookies and scripts are on the site, which category they belong to, and what happens when a visitor rejects them.",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -1399,26 +1554,52 @@ function pickSite(id){
 }
 
 /* ---------------- pestanas ---------------- */
+/* Navegacion lateral, en dos bloques: lo que es de este sitio y lo que es de
+   la cuenta. El contador se calcula al vuelo cuando hay dato que mostrar. */
 var TABS = [
-  {id:"config",    label:"Configuracion"},
-  {id:"instalar",  label:"Instalar"},
-  {id:"cookies",   label:"Cookies detectadas"},
-  {id:"registros", label:"Registros"},
-  {id:"cuenta",    label:"Cuenta"},
-  {id:"usuarios",  label:"Usuarios", admin:true}
+  {id:"resumen",   label:"Resumen",           grupo:"sitio"},
+  {id:"config",    label:"Apariencia",        grupo:"sitio"},
+  {id:"textos",    label:"Textos e idiomas",  grupo:"sitio"},
+  {id:"cookies",   label:"Cookies y scripts", grupo:"sitio", cuenta:"cookies"},
+  {id:"instalar",  label:"Instalar",          grupo:"sitio"},
+  {id:"registros", label:"Registros",         grupo:"sitio", cuenta:"registros"},
+  {id:"cuenta",    label:"Mi cuenta",         grupo:"cuenta"},
+  {id:"usuarios",  label:"Usuarios",          grupo:"cuenta", admin:true}
 ];
+var CONTADORES = {};   // lo rellenan las pestañas al cargar sus datos
 // Lo rellena /dash/me. Ocultar la pestana es comodidad, no seguridad: quien
 // llame al endpoint a mano recibe un 403 del backend igualmente.
 var esAdmin = false;
 var esSuper = false;   // solo el super aprueba solicitudes de registro
 function renderTabs(){
-  var lista = TABS.filter(function(t){ return !t.admin || esAdmin; });
-  el("tabbar").innerHTML = lista.map(function(t){
-    return '<button class="'+(t.id===tab?'on':'')+'" onclick="openTab(\''+t.id+'\')">'+t.label+'</button>';
-  }).join('');
+  var lista = TABS.filter(function(t){ return (!t.admin || esAdmin) && !t.oculta; });
+  function bloque(g, titulo){
+    var items = lista.filter(function(t){ return t.grupo === g; });
+    if(!items.length) return "";
+    return '<div class="nav-tit">'+titulo+'</div>'+
+      items.map(function(t){
+        var n = t.cuenta ? CONTADORES[t.cuenta] : null;
+        return '<button class="'+(t.id===tab?'on':'')+'" onclick="openTab(\''+t.id+'\')">'+
+          '<span>'+t.label+'</span>'+
+          (n !== null && n !== undefined ? '<em class="nav-n">'+n+'</em>' : '')+
+        '</button>';
+      }).join('');
+  }
+  el("tabbar").innerHTML = bloque("sitio", "Este sitio") + bloque("cuenta", "Cuenta");
 }
 function openTab(id){
+  // El editor solo vive en Apariencia: al salir, lo no publicado se pierde.
+  // Antes el aviso de la barra seguia diciendo "cambios pendientes" sobre algo
+  // que ya no existia, y el boton Publicar no hacia nada.
+  // Textos tiene el mismo editor, asi que al salir pierde igual lo no publicado.
+  if((tab === "config" || tab === "textos" || tab === "cookies") && id !== tab && haycambios()){
+    if(!confirm(frase("Tienes cambios sin publicar. Si sales se perderan. Continuar?"))){
+      renderTabs(); return;
+    }
+    _ultimoPublicado = null;     // se fueron: el estado deja de prometerlos
+  }
   tab = id; renderTabs();
+  if(id !== "config") pintaEstado();
   if(id==="cuenta") return viewCuenta();
   if(id==="usuarios") return viewUsuarios();
   if(!current){
@@ -1431,11 +1612,277 @@ function openTab(id){
       return;
     }
     window._cfgActual = r.d.config || {};
+    if(id==="resumen")   viewResumen(r.d);
+    if(id==="textos")    viewTextos(r.d);
     if(id==="config")    viewConfig(r.d);
     if(id==="instalar")  viewInstalar(r.d);
     if(id==="registros") viewRegistros(r.d);
     if(id==="cookies")   viewCookies(r.d);
   });
+}
+
+
+/* ===================== RESUMEN DEL SITIO =====================
+   La portada: que esta listo y que pide atencion. Cada punto se calcula de
+   datos reales; si algo no se puede comprobar de verdad, no se pinta, porque
+   un estado en verde que nadie ha verificado es peor que no decir nada.     */
+
+function rsPunto(estado, titulo, texto, accion, pestana){
+  var ic = estado === "ok" ? "&#10003;" : (estado === "aviso" ? "!" : "&lt;/&gt;");
+  return '<div class="rs-fila'+(estado === "aviso" ? " avisa" : "")+'">'+
+    '<span class="rs-ic '+estado+'">'+ic+'</span>'+
+    '<div class="rs-txt"><b>'+titulo+'</b><span>'+texto+'</span></div>'+
+    (accion ? '<button class="rs-link" onclick="openTab(\''+pestana+'\')">'+accion+'</button>' : '')+
+  '</div>';
+}
+
+function viewResumen(d){
+  var cfg = d.config || {};
+  var nom = (sites.filter(function(s){ return s.site_id === current; })[0] || {}).name || "";
+  var doms = (d.domain || "").split(",").filter(Boolean);
+
+  // Apariencia: cuantas propiedades se han tocado a mano sobre lo derivado.
+  var nProps = UI_GROUPS.filter(function(g){ return !g.seccion; })
+                        .reduce(function(n,g){ return n + g.items.length; }, 0);
+  var nOv = 0;
+  try{ nOv = wSobrescritas(cfg).length; }catch(e){}
+  var temas = Object.keys(cfg.themes || {}).length;
+  var apar = (cfg.theme ? '"'+esc(cfg.theme)+'"' : frase("Base")) +
+             (temas ? ' \u00b7 ' + temas + ' ' + frase("apariencias") : '') +
+             ' \u00b7 ' + nOv + ' ' + frase("de") + ' ' + nProps + ' ' + frase("propiedades a mano");
+
+  // Reapertura: el visitante tiene que poder cambiar de opinion. Si el pill
+  // esta apagado, el enlace del pie es la unica via y hay que comprobarlo a
+  // mano: desde aqui no se puede saber si el cliente lo pego.
+  var pill = !(cfg.chip && cfg.chip.enabled === false);
+  var reab = pill
+    ? rsPunto("ok", frase("Reapertura"), frase("El pill flotante esta activo."),
+              frase("Ver apariencia"), "config")
+    : rsPunto("aviso", frase("Reapertura"),
+              frase("El pill esta apagado, asi que el enlace del pie es la unica via. "+
+                    "Comprueba que aparece en todas las paginas."),
+              frase("Ver el enlace"), "instalar");
+
+  el("tabbody").innerHTML =
+    '<div class="rs-cab"><h1>'+esc(nom)+'</h1><span class="rs-id">'+esc(current||"")+'</span></div>'+
+    '<div class="rs-cols">'+
+      '<div>'+
+        '<div class="card">'+
+          '<h2>Estado del sitio</h2>'+
+          '<p class="sub">Lo que esta listo y lo que pide atencion.</p>'+
+          '<div id="rs-estado">'+
+            rsPunto("ok", frase("Apariencia"), apar, frase("Editar apariencia"), "config")+
+            rsPunto("ok", frase("Publicacion"),
+                    frase("Version")+' '+d.version+' '+frase("publicada. El sitio la recoge al recargar."),
+                    frase("Ver vista previa"), "config")+
+            '<div id="rs-cookies"></div>'+
+            reab+
+            rsPunto("codigo", frase("Instalacion"),
+                    doms.length ? frase("Dominios")+': '+esc(doms.join(", "))
+                                : frase("Sin dominios: se aceptan registros desde cualquier sitio."),
+                    frase("Ver codigo"), "instalar")+
+          '</div>'+
+        '</div>'+
+        '<div class="card">'+
+          '<div class="ck-head"><h2 style="margin:0">Registros de consentimiento</h2>'+
+            '<button class="rs-link" onclick="openTab(\'registros\')">'+frase("Ver registros")+'</button></div>'+
+          '<div class="stats" id="rs-logs"><div class="empty">'+frase("Cargando...")+'</div></div>'+
+          '<p class="hint" id="rs-logs-pie"></p>'+
+        '</div>'+
+      '</div>'+
+      '<div>'+
+        '<div class="card">'+
+          '<h2>Como se ve hoy</h2>'+
+          '<div class="rs-mini"><div class="lupa"><iframe id="rs-prev"></iframe></div></div>'+
+          '<p class="hint" id="rs-mini-pie"></p>'+
+        '</div>'+
+        '<div class="card">'+
+          '<h2>Atajos</h2>'+
+          '<button class="rs-atajo" onclick="temaProbar()">'+frase("Probar en mi sitio")+'</button>'+
+          '<button class="rs-atajo" onclick="rsCopiarCodigo()">'+frase("Copiar codigo de instalacion")+'</button>'+
+          '<button class="rs-atajo" onclick="rsExportar()">'+frase("Exportar cookie audit")+'</button>'+
+          '<p class="hint" id="rs-atajo-msg"></p>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+
+  _datosSitio = d;
+  WIZ_PUBLICADA = d.version;
+  marcarPublicado(cfg);        // la barra necesita la version y el estado
+  rsMiniatura(cfg, d);
+  rsCookies();
+  rsLogs();
+}
+
+
+/* Los atajos hacen lo que dicen. Antes solo abrian la pestaña, y un boton que
+   promete "copiar" o "exportar" y se limita a navegar engaña al que lo pulsa. */
+function rsCopiarCodigo(){
+  var d = _datosSitio;
+  if(!d || !d.site_id){ msg("rs-atajo-msg", "No se pudo copiar.", true); return; }
+  var txt = buildSnippet(d);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(
+      function(){ msg("rs-atajo-msg", "Copiado."); },
+      function(){ msg("rs-atajo-msg", "No se pudo copiar.", true); });
+  } else {
+    var ta = document.createElement("textarea");
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); msg("rs-atajo-msg", "Copiado."); }
+    catch(e){ msg("rs-atajo-msg", "No se pudo copiar.", true); }
+    document.body.removeChild(ta);
+  }
+}
+
+/* El informe necesita las filas, que viven en la pestaña de cookies. Se piden
+   aqui para no obligar a pasar por ella antes de exportar. */
+function rsExportar(){
+  if((window._ckRows || []).length){ exportarAuditPDF(); return; }
+  msg("rs-atajo-msg", "Cargando...");
+  j("GET","/dash/site/cookies?site_id="+encodeURIComponent(current)).then(function(r){
+    window._ckRows = (r.ok && r.d.rows) ? r.d.rows : [];
+    if(!window._ckRows.length){
+      msg("rs-atajo-msg", "No hay nada que exportar todavia.", true);
+      return;
+    }
+    msg("rs-atajo-msg", "");
+    exportarAuditPDF();
+  });
+}
+
+/* La miniatura monta el bundle real, igual que la vista previa, pero sin
+   guion: se ve el banner tal cual lo encuentra un visitante que llega. */
+function rsMiniatura(cfg, d){
+  var fr = el("rs-prev"); if(!fr) return;
+  var c = JSON.parse(JSON.stringify(cfg));
+  delete c.endpoint; delete c.siteId; delete c.apiBase; delete c.publicKey;
+  delete c.themes; delete c.theme;
+  c.consentVersion = "preview-" + Date.now();
+  c.activeDeletion = false; c.cookieDiscovery = false;
+  fr.srcdoc =
+    '<!doctype html><html><head><meta charset="utf-8">'+
+    '<style>html,body{margin:0;height:100%;background:#EDEBE4}</style></head><body>'+
+    '<script>window.__consentConfig='+JSON.stringify(c)+';<\/script>'+
+    '<script src="'+API+'/consent-banner.js"><\/script></body></html>';
+  var pie = el("rs-mini-pie");
+  if(pie) pie.textContent = (cfg.theme || frase("Base")) + " \u00b7 v" + d.version;
+}
+
+/* Cookies: el punto de estado solo puede decir la verdad cuando la deteccion
+   esta encendida. Apagada, se dice eso y no se finge un recuento. */
+function rsCookies(){
+  j("GET","/dash/site/cookies?site_id="+encodeURIComponent(current)).then(function(r){
+    var host = el("rs-cookies"); if(!host) return;
+    var activa = window._cfgActual && window._cfgActual.cookieDiscovery === true;
+    if(!r.ok){ host.innerHTML = ""; return; }
+    var rows = r.d.rows || [];
+    var pend = rows.filter(function(x){ return !x.category; }).length;
+    var nec  = rows.filter(function(x){ return x.category === "esencial"; }).length;
+    var no   = rows.filter(function(x){ return x.category && x.category !== "esencial"; }).length;
+    CONTADORES.cookies = pend || null;
+    renderTabs();
+    if(!activa){
+      host.innerHTML = rsPunto("aviso", frase("Cookies"),
+        frase("La deteccion esta apagada, asi que no sabemos que cookies pone el sitio.") +
+        (rows.length ? " " + rows.length + " " + frase("detectadas antes de apagarla.") : ""),
+        frase("Revisar cookies"), "cookies");
+      return;
+    }
+    host.innerHTML = rsPunto(pend ? "aviso" : "ok", frase("Cookies"),
+      rows.length + " " + frase("detectadas") + " \u00b7 " + pend + " " + frase("sin decidir") +
+      " \u00b7 " + nec + " " + frase("necesarias") + " \u00b7 " + no + " " + frase("no necesarias"),
+      frase("Revisar cookies"), "cookies");
+  });
+}
+
+function rsLogs(){
+  j("GET","/dash/site/logs?site_id="+encodeURIComponent(current)).then(function(r){
+    var host = el("rs-logs"); if(!host) return;
+    if(!r.ok){ host.innerHTML = '<div class="empty">'+frase("No se pudieron cargar.")+'</div>'; return; }
+    var c = r.d.counts || {}, t = r.d.total || 0;
+    CONTADORES.registros = t || null;
+    renderTabs();
+    host.innerHTML =
+      '<div class="stat"><div class="n">'+t+'</div><div class="l">Total</div></div>'+
+      '<div class="stat acc"><div class="n">'+(c.all||0)+'</div><div class="l">Aceptan todo</div></div>'+
+      '<div class="stat cus"><div class="n">'+(c.custom||0)+'</div><div class="l">Personalizan</div></div>'+
+      '<div class="stat rej"><div class="n">'+(c.none||0)+'</div><div class="l">Rechazan</div></div>';
+    var pie = el("rs-logs-pie");
+    if(pie) pie.textContent = t
+      ? frase("Cada registro es la prueba de una decision: cuando, que acepto y con que version del texto.")
+      : frase("Todavia no hay registros. Cada uno sera la prueba de una decision concreta.");
+  });
+}
+
+
+/* ===================== TEXTOS E IDIOMAS =====================
+   Sale de Apariencia porque es otra cosa: alli se decide como se ve, aqui que
+   dice. Mismos controles de siempre, misma vista previa, y el editor JSON
+   vive aqui igual que alla, para que Publicar funcione desde las dos. */
+
+function viewTextos(d){
+  el("tabbody").innerHTML =
+    '<div class="plano">'+
+      '<div id="tx-pane"></div>'+
+      '<div class="hide"><div class="editor-wrap" id="ed-wrap">'+
+        '<textarea id="cfg" spellcheck="false"></textarea></div></div>'+
+      '<div class="editor-foot"><span id="smsg" class="msg"></span></div>'+
+      '<div class="checks" id="checks"></div>'+
+    '</div>';
+  WIZ_PUBLICADA = d.version;
+  _datosSitio = d;
+  el("cfg").value = JSON.stringify(d.config, null, 2);
+  el("cfg").addEventListener("input", function(){ validarCfg(); });
+  marcarPublicado(d.config);
+  renderTextos();
+  if(_trasRecargar){ msg("smsg", _trasRecargar, false); _trasRecargar = ""; }
+}
+
+function renderTextos(){
+  if(!(el("cfg") && el("cfg").value || "").trim()) return;
+  var obj = objVista();
+  if(!obj){
+    el("tx-pane").innerHTML = '<div class="empty">'+
+      frase("El JSON tiene errores. Corrigelo en la pestana JSON para volver aqui.")+'</div>';
+    return;
+  }
+  var grupos = UI_GROUPS.filter(function(g){ return g.seccion === "textos"; }).map(function(g){
+    return '<details class="group" open><summary>'+esc(g.t)+'</summary><div class="body">'+
+      g.items.map(function(it){ return control(obj, it); }).join('')+
+    '</div></details>';
+  }).join('');
+
+  el("tx-pane").innerHTML =
+    '<div class="vis">'+
+      '<div class="wz">'+
+        '<div class="wz-head"><div class="row between">'+
+          '<div><h1 class="wz-h1">Textos e idiomas</h1>'+
+            '<span class="wz-sub3">Lo que dice el banner, en cada idioma. '+
+            'Vacio significa que se usa el texto de serie, que esta revisado legalmente.</span></div>'+
+        '</div></div>'+
+        '<div class="wz-body"><div id="tx-grupos"></div></div>'+
+        wPie('<span></span>')+
+      '</div>'+
+      '<div class="preview">'+
+        '<div class="bar">'+
+          '<div class="modes prev-modes">'+
+            '<button id="pv-banner" onclick="setPreview(\'banner\')">Banner</button>'+
+            '<button id="pv-panel"  onclick="setPreview(\'panel\')">Panel</button>'+
+            '<button id="pv-chip"   onclick="setPreview(\'chip\')">Pill</button>'+
+            '<button id="pv-enlace" onclick="setPreview(\'enlace\')">Enlace</button>'+
+          '</div>'+
+          '<div class="modes prev-modes" style="margin-left:8px">'+
+            '<button id="pl-es" onclick="setPrevLang(\'es\')">ES</button>'+
+            '<button id="pl-en" onclick="setPrevLang(\'en\')">EN</button>'+
+          '</div>'+
+          '<span class="prev-nota">'+frase("Vista en vivo \u00b7 pagina neutra")+'</span>'+
+        '</div>'+
+        '<div class="lienzo"><iframe id="prev"></iframe></div>'+
+      '</div>'+
+    '</div>';
+  el("tx-grupos").innerHTML = grupos;
+  setPreview(prevEstado);
+  marcarLang();
 }
 
 /* ---------------- CONFIGURACION ---------------- */
@@ -1482,20 +1929,20 @@ function setCfgMode(m){
    edita (kind) y que texto lleva. Anadir una opcion nueva es anadir una
    fila aqui; no hay que tocar el render. */
 var UI_GROUPS = [
-  { t:"Categorias", open:true, items:[
+  { t:"Categorias", open:true, seccion:"cookies", items:[
     {p:"categories", k:"cats", l:""}
   ]},
-  { t:"Idioma", open:true, items:[
+  { t:"Idioma", open:true, seccion:"textos", items:[
     {p:"autoDetectLanguage", k:"bool",   l:"Detectar el idioma del navegador", def:true},
     {p:"defaultLanguage",    k:"select", l:"Idioma de respaldo", opts:[["es","Espanol"],["en","Ingles"]]}
   ]},
-  { t:"Bloqueo de scripts", open:true, items:[
+  { t:"Bloqueo de scripts", open:true, seccion:"cookies", items:[
     {p:"autoBlock", k:"bloqueo", l:""}
   ]},
-  { t:"Cookies que se borran", items:[
+  { t:"Cookies que se borran", seccion:"cookies", items:[
     {p:"cookiePatterns", k:"patrones", l:""}
   ]},
-  { t:"Politica de privacidad", open:true, items:[
+  { t:"Politica de privacidad", open:true, seccion:"textos", items:[
     {p:"policyUrl.es", k:"text", l:"URL en espanol", ph:"https://ejemplo.com/politica-de-cookies"},
     {p:"policyUrl.en", k:"text", l:"URL en ingles",  ph:"https://example.com/cookie-policy"},
     {p:"policyNewTab", k:"bool", l:"Abrir en otra pestana", def:true}
@@ -1530,7 +1977,7 @@ var UI_GROUPS = [
       ["always","Siempre"]
     ]}
   ]},
-  { t:"Textos en espanol", items:[
+  { t:"Textos en espanol", seccion:"textos", items:[
     {p:"texts.es.eyebrow", k:"text", l:"Etiqueta pequena", ph:"por defecto"},
     {p:"texts.es.body", k:"area", l:"Texto del banner", ph:"por defecto"},
     {p:"texts.es.policy", k:"text", l:"Enlace a la politica", ph:"por defecto"},
@@ -1545,7 +1992,7 @@ var UI_GROUPS = [
     {p:"texts.es.save", k:"text", l:"Boton guardar", ph:"por defecto"},
     {p:"texts.es.chip", k:"text", l:"Texto del pill", ph:"por defecto"}
   ]},
-  { t:"Textos en ingles", items:[
+  { t:"Textos en ingles", seccion:"textos", items:[
     {p:"texts.en.eyebrow", k:"text", l:"Etiqueta pequena", ph:"por defecto"},
     {p:"texts.en.body", k:"area", l:"Texto del banner", ph:"por defecto"},
     {p:"texts.en.policy", k:"text", l:"Enlace a la politica", ph:"por defecto"},
@@ -1689,7 +2136,7 @@ var UI_GROUPS = [
     {p:"chip.color",     k:"color",  l:"Texto"},
     {p:"chip.border",    k:"text",   l:"Borde", ph:"1px solid ..."}
   ]},
-  { t:"Deteccion de cookies", items:[
+  { t:"Deteccion de cookies", seccion:"cookies", items:[
     {p:"cookieDiscovery",   k:"bool", l:"Detectar cookies", def:false},
     {p:"discoverySeconds",  k:"num",  l:"Segundos de escucha", ph:"15"}
   ]},
@@ -1755,7 +2202,7 @@ function borrarPath(o, path){
    velo). Lo derivado se escribe en la config igual que si se hubiera
    puesto a mano, asi que el bundle no necesita saber nada de esto.        */
 
-var WIZ = { paso: 1, modo: "guided", devTab: "props" };
+var WIZ = { paso: 1, modo: "guided", devTab: "props", busca: "", soloOv: false };
 var WIZ_NPROPS = 0;   // lo cuenta el render
 var _datosSitio = null;
 
@@ -1903,17 +2350,13 @@ function wizardHTML(o){
 
   return '<div class="wz">'+
     '<div class="wz-head">'+
+      wConmutador()+
       '<div class="row between"><h1 class="wz-h1">Apariencia</h1>'+
         '<span class="wz-num">Paso '+WIZ.paso+' de 3</span></div>'+
       '<div class="wz-bar"><i style="width:'+(WIZ.paso*33.4)+'%"></i></div>'+
       '<div class="wz-steps">'+pasos+'</div>'+
     '</div>'+
     '<div class="wz-body">'+ (WIZ.paso === 1 ? wPaso1(o,m) : WIZ.paso === 2 ? wLayout(o) : wCopy(o)) +'</div>'+
-    '<div class="wz-full">'+
-      '<div><span class="wz-full-t">Necesitas control total?</span>'+
-        '<span class="wz-help">Categorias, bloqueo de scripts, textos y cada propiedad suelta, mas el JSON.</span></div>'+
-      '<button class="btn ghost sm" onclick="wModo(\'dev\')">&lt;/&gt; Editor de desarrollador</button>'+
-    '</div>'+
     (WIZ.paso < 3
       ? '<div class="wz-foot">'+
           '<button class="btn ghost" onclick="wIrA('+(WIZ.paso-1)+')"'+
@@ -2192,7 +2635,7 @@ function wEsContenido(ruta){
    En el segundo caso revertir significa vaciarla, no escribir nada. */
 function wSobrescritas(o){
   var d = wDerivar(wMarca(o)), fuera = [];
-  UI_GROUPS.forEach(function(g){
+  UI_GROUPS.filter(function(g){ return !g.seccion; }).forEach(function(g){
     g.items.forEach(function(it){
       var ruta = it.p;
       if(wEsContenido(ruta)) return;
@@ -2210,15 +2653,16 @@ function wSobrescritas(o){
 
 function devHTML(o){
   var ov = wSobrescritas(o);
-  if(!WIZ_NPROPS) WIZ_NPROPS = UI_GROUPS.reduce(function(n,g){ return n + g.items.length; }, 0);
+  if(!WIZ_NPROPS) WIZ_NPROPS = UI_GROUPS.filter(function(g){ return !g.seccion; })
+      .reduce(function(n,g){ return n + g.items.length; }, 0);
   var props = WIZ.devTab !== "json";
   return '<div class="wz">'+
     '<div class="wz-head">'+
+      wConmutador()+
       '<div class="row between">'+
-        '<div><h1 class="wz-h1">Editor de desarrollador</h1>'+
+        '<div><h1 class="wz-h1">Apariencia</h1>'+
           '<span class="wz-sub3">'+WIZ_NPROPS+' <span>propiedades</span> &middot; '+
              ov.length+' <span>sobrescritas</span></span></div>'+
-        '<button class="btn ghost sm" onclick="wModo(\'guided\')">&larr; Modo guiado</button>'+
       '</div>'+
       '<div class="modes wz-langs">'+
         '<button class="'+(props?'on':'')+'" onclick="wDevTab(\'props\')">Propiedades</button>'+
@@ -2228,14 +2672,27 @@ function devHTML(o){
     '</div>'+
     '<div class="wz-body">'+
       (props ? '<p class="wz-explica">Cada valor sale del modo guiado. Escribe para sobrescribirlo; '+
-                 '&#8634; lo devuelve al valor derivado.'+
-               '</p><div id="wz-grupos"></div>'
+                 '&#8634; lo devuelve al valor derivado.</p>'+
+               /* Buscador y filtro: con 169 propiedades, recorrer catorce
+                  desplegables para encontrar una es el trabajo real. */
+               '<div class="wz-field"><label class="wz-lab">Buscar propiedades</label>'+
+                 '<input class="wz-in" id="wz-busca" placeholder="color, radio, padding..." '+
+                 'value="'+esc(WIZ.busca || "")+'" oninput="wBuscar(this.value)"></div>'+
+               '<div class="row between wz-filtros">'+
+                 '<div class="modes">'+
+                   '<button class="'+(WIZ.soloOv?'':'on')+'" onclick="wSoloOv(false)">Todas</button>'+
+                   '<button class="'+(WIZ.soloOv?'on':'')+'" onclick="wSoloOv(true)">Solo sobrescritas</button>'+
+                 '</div>'+
+                 '<button class="wz-link rojo" onclick="wResetTodo()"'+(ov.length?'':' disabled')+
+                   '>Devolver todo a lo derivado</button>'+
+               '</div>'+
+               '<p class="wz-help" id="wz-nores" style="display:none"></p>'+
+               '<div id="wz-grupos"></div>'
              : '<div class="wz-help" style="margin-bottom:8px">La configuracion completa. '+
                'Los cambios se validan al escribir.</div>'+
                '<div id="wz-json-host"></div>')+
     '</div>'+
-    wPie('<button class="btn ghost" onclick="wResetTodo()"'+(ov.length?'':' disabled')+
-         '>Devolver todo a lo derivado</button>')+
+    wPie('<span></span>')+
   '</div>';
 }
 
@@ -2284,16 +2741,25 @@ function wMarcarCampos(o){
   }
 }
 
+/* Antes de escribir nada derivado hay que FIJAR la decision en o.brand.
+   Si no, wMarca vuelve a deducirla del resultado y se contradice: el derivado
+   de "fondo oscuro" es #16233B, que al releerlo se interpreta como "color de
+   marca", cambian todos los derivados y todo queda marcado a mano otra vez. */
+function wFijarMarca(o){
+  if(!(o.brand && o.brand.fuente)) o.brand = wMarca(o);
+  return o.brand;
+}
+
 function wRevertir(ruta){
   var o = wCfg(); if(!o) return;
-  var d = wDerivar(wMarca(o));
+  var d = wDerivar(wFijarMarca(o));
   if(d[ruta] !== undefined) setPath(o, ruta, d[ruta]);
   else borrarPath(o, ruta);          // sin derivada: vuelve al valor de serie
   wGuardar(o);
 }
 function wResetTodo(){
   var o = wCfg(); if(!o) return;
-  var d = wDerivar(wMarca(o));
+  var d = wDerivar(wFijarMarca(o));
   wSobrescritas(o).forEach(function(ruta){
     if(d[ruta] !== undefined) setPath(o, ruta, d[ruta]);
     else borrarPath(o, ruta);
@@ -2311,10 +2777,127 @@ function wRefrescarDev(){
   wMarcarCampos(o);
   wContarGrupos();
   var n = wSobrescritas(o).length;
-  var txt = document.querySelector(".wz-ovbar .wz-help");
-  if(txt) txt.textContent = n + " propiedad(es) puestas a mano sobre lo derivado";
-  var btn = document.querySelector(".wz-ovbar .btn");
+  // El recuento de la cabecera: "169 propiedades · 12 sobrescritas".
+  var sub = document.querySelector(".wz-sub3");
+  if(sub) sub.innerHTML = WIZ_NPROPS + ' <span>' + frase("propiedades") + '</span> \u00b7 ' +
+                          n + ' <span>' + frase("sobrescritas") + '</span>';
+  var btn = document.querySelector(".wz-filtros .wz-link");
   if(btn) btn.disabled = !n;
+  if(WIZ.soloOv) wAplicarFiltro();   // el filtro deja de cuadrar si cambia el numero
+}
+
+
+
+/* ---- Subgrupos ---------------------------------------------------------
+   Botones tiene 28 campos y los de cada boton van mezclados. Las rutas ya
+   dicen a cual pertenecen (buttons.accept.*), asi que se parte por ahi. */
+var SUBGRUPOS = {
+  "Botones": [
+    ["general",   "General",     function(r){ return /^buttons\.(radius|padding)$/.test(r) ||
+                                                      r === "panel.footLayout"; }],
+    ["accept",    "Aceptar",     function(r){ return r.indexOf("buttons.accept.") === 0; }],
+    ["reject",    "Rechazar",    function(r){ return r.indexOf("buttons.reject.") === 0; }],
+    ["customize", "Personalizar",function(r){ return r.indexOf("buttons.customize.") === 0; }],
+    ["save",      "Guardar",     function(r){ return r.indexOf("buttons.save.") === 0; }]
+  ]
+};
+var SUB_ACTIVO = {};   // grupo -> id del subgrupo abierto
+
+function cuerpoGrupo(obj, g){
+  var subs = SUBGRUPOS[g.t];
+  if(!subs) return g.items.map(function(it){ return control(obj, it); }).join('');
+
+  var act = SUB_ACTIVO[g.t] || subs[0][0];
+  var pest = subs.map(function(sg){
+    var n = g.items.filter(function(it){ return sg[2](it.p); }).length;
+    return '<button class="sub-t'+(sg[0]===act?' on':'')+'" '+
+      'onclick="subIr(\''+g.t.replace(/'/g,"")+'\',\''+sg[0]+'\')">'+
+      sg[1]+' <em>'+n+'</em></button>';
+  }).join('');
+
+  var sel = subs.filter(function(sg){ return sg[0] === act; })[0] || subs[0];
+  var dentro = g.items.filter(function(it){ return sel[2](it.p); });
+  // Lo que no case con ningun subgrupo iria al primero, para que no se pierda
+  // ningun campo al reorganizar.
+  if(sel[0] === subs[0][0]){
+    g.items.forEach(function(it){
+      var casa = subs.some(function(sg){ return sg[2](it.p); });
+      if(!casa) dentro.push(it);
+    });
+  }
+  return '<div class="sub-bar">'+pest+'</div>'+
+         dentro.map(function(it){ return control(obj, it); }).join('');
+}
+
+function subIr(grupo, id){
+  SUB_ACTIVO[grupo] = id;
+  renderVisual();
+}
+
+/* ---- Buscador y filtro del modo desarrollador --------------------------
+   Se filtra sobre el DOM ya pintado, no repintando: repintar perderia el
+   foco del propio buscador en cada tecla. */
+function wBuscar(txt){
+  WIZ.busca = txt || "";
+  wAplicarFiltro();
+}
+function wSoloOv(v){
+  WIZ.soloOv = !!v;
+  var ms = document.querySelectorAll(".wz-filtros .modes button");
+  if(ms.length === 2){
+    ms[0].className = v ? "" : "on";
+    ms[1].className = v ? "on" : "";
+  }
+  wAplicarFiltro();
+}
+
+function wAplicarFiltro(){
+  var host = el("wz-grupos"); if(!host) return;
+  var q = (WIZ.busca || "").trim().toLowerCase();
+  var solo = WIZ.soloOv, total = 0;
+
+  host.querySelectorAll("details.group").forEach(function(det){
+    var vistos = 0;
+    det.querySelectorAll(".ctl[data-p]").forEach(function(c){
+      var ruta = (c.getAttribute("data-p") || "").toLowerCase();
+      var lab  = (c.querySelector("label") ? c.querySelector("label").textContent : "").toLowerCase();
+      // Se busca por la ruta y por la etiqueta: quien conoce el JSON escribe
+      // "radius" y quien no, escribe "radio".
+      var casa = !q || ruta.indexOf(q) !== -1 || lab.indexOf(q) !== -1;
+      if(solo && !c.classList.contains("wz-ov")) casa = false;
+      c.style.display = casa ? "" : "none";
+      if(casa) vistos++;
+    });
+    // Los editores con interfaz propia no tienen ruta buscable: se ocultan en
+    // cuanto hay busqueda o filtro, para no dejar cajas sueltas sin relacion.
+    det.querySelectorAll(".ctl-full, .ctl-wide").forEach(function(c){
+      if(c.hasAttribute("data-p")) return;
+      var ver = !q && !solo;
+      c.style.display = ver ? "" : "none";
+      if(ver) vistos++;
+    });
+    det.style.display = vistos ? "" : "none";
+    if(vistos && (q || solo)) det.open = true;
+    total += vistos;
+  });
+
+  var nr = el("wz-nores");
+  if(nr){
+    nr.style.display = total ? "none" : "";
+    nr.textContent = frase("Ningun ajuste coincide con la busqueda.");
+  }
+}
+
+
+/* Conmutador guiado / avanzado, arriba y en los dos modos. Antes el paso al
+   modo avanzado era un enlace al pie y la vuelta una flecha en la cabecera:
+   dos sitios distintos para la misma decision. */
+function wConmutador(){
+  var g = WIZ.modo !== "dev";
+  return '<div class="modes wz-conm">'+
+    '<button class="'+(g?'on':'')+'" onclick="wModo(\'guided\')">Guiado</button>'+
+    '<button class="'+(g?'':'on')+'" onclick="wModo(\'dev\')">Avanzado</button>'+
+  '</div>';
 }
 
 function wModo(m){ WIZ.modo = m; renderVisual(); }
@@ -2448,7 +3031,7 @@ function temaBorrar(){
 function temaProbar(){
   var d = _datosSitio || {};
   var dom = d.domain || "";
-  if(!dom){ alert("Este sitio no tiene dominio configurado."); return; }
+  if(!dom){ alert(frase("Este sitio no tiene dominio configurado.")); return; }
   if(!/^https?:/.test(dom)) dom = "https://" + dom;
   window.open(dom + (dom.indexOf("?") >= 0 ? "&" : "?") + "consentTheme=" +
               encodeURIComponent(TEMA_EDIT || (temaBase()||{}).theme || ""), "_blank");
@@ -2523,13 +3106,29 @@ function haycambios(){
 }
 
 function pintaEstado(){
-  var sucio = haycambios();
+  // Sin editor en pantalla no hay nada que publicar, por mucho que antes
+  // hubiera cambios: se perdieron al cambiar de pestaña.
+  var sucio = !!el("cfg") && haycambios();
   var pt = el("pt-estado");
   if(pt) pt.className = "pt" + (sucio ? " sucio" : " ok");
+  // El chip del sitio muestra el dominio, no el estado: eso ya esta en la barra
+  // y repetirlo en dos sitios solo ocupa espacio.
   var id = el("sitio-estado");
-  if(id) id.textContent = sucio ? "sin publicar" : "publicado";
-  var vp = el("ver-pill");
-  if(vp && WIZ_PUBLICADA) vp.textContent = (sucio ? "borrador \u00b7 " : "") + "v" + WIZ_PUBLICADA;
+  if(id){
+    var d = ((_datosSitio || {}).domain || "").split(",")[0].trim();
+    id.textContent = d || (_datosSitio || {}).site_id || "";
+  }
+  // En la barra, el estado en palabras: version publicada y si hay cambios
+  // sin publicar. Sustituye a la pildora, que no decia si faltaba algo.
+  var pe = el("pub-estado");
+  if(pe){
+    pe.className = "pub-estado" + (sucio ? " sucio" : "");
+    pe.innerHTML = '<span class="pt2"></span>' +
+      (WIZ_PUBLICADA ? '<b>' + frase("Publicado") + '</b> \u00b7 v' + WIZ_PUBLICADA : '') +
+      ' \u00b7 ' + frase(sucio ? "con cambios sin publicar" : "sin cambios pendientes");
+  }
+  var bp = el("btn-publicar");
+  if(bp) bp.disabled = !sucio;
 }
 
 
@@ -2643,7 +3242,8 @@ function anadirDominio(){
 function quitarDominio(i){
   var ds = domsActuales();
   if(i < 0 || i >= ds.length) return;
-  if(!confirm('Quitar "'+ds[i]+'"? Dejaran de aceptarse registros desde ahi.')) return;
+  if(!confirm(frase("Quitar")+' "'+ds[i]+'"? '+
+              frase("Dejaran de aceptarse registros desde ahi."))) return;
   ds.splice(i, 1);
   guardaDominios(ds, "Dominio quitado.");
 }
@@ -2661,10 +3261,10 @@ function renderVisual(){
       '<div class="empty">El JSON tiene errores. Corrigelo en la pestana JSON para volver aqui.</div>';
     return;
   }
-  var groups = UI_GROUPS.map(function(g){
+  var groups = UI_GROUPS.filter(function(g){ return !g.seccion; }).map(function(g){
     var hg = ' onmouseenter="hlPorGrupo(\''+g.t.replace(/'/g,"")+'\')" onmouseleave="hlFuera()"';
     return '<details class="group"'+(g.open?' open':'')+hg+'><summary>'+esc(g.t)+'</summary><div class="body">'+
-      g.items.map(function(it){ return control(obj, it); }).join('')+
+      cuerpoGrupo(obj, g)+
     '</div></details>';
   }).join('');
   el("pane-visual").innerHTML =
@@ -2704,7 +3304,7 @@ function renderVisual(){
     '</div>';
   var _g = el("wz-grupos");
   if(_g){ _g.innerHTML = groups;
-          if(WIZ.modo === "dev"){ wMarcarCampos(obj); wContarGrupos(); } }
+          if(WIZ.modo === "dev"){ wMarcarCampos(obj); wContarGrupos(); wAplicarFiltro(); } }
   // El editor JSON es el mismo nodo de siempre: se mueve, no se duplica, para
   // no perder el contenido ni los avisos enganchados a el.
   var _jh = el("wz-json-host"), _ed = el("ed-wrap");
@@ -2808,7 +3408,7 @@ function catLista(){
 }
 function catGuardar(o){
   el("cfg").value = JSON.stringify(o, null, 2);
-  validarCfg(); renderVisual();
+  validarCfg(); pintaEstado(); repintarEditores();
 }
 function catSet(i, campo, valor){
   var o = catLista(); if(!o || !o.categories[i]) return;
@@ -2822,7 +3422,7 @@ function catSetTxt(i, campo, idioma, valor){
   if(!c[campo] || typeof c[campo] !== "object") c[campo] = {};
   c[campo][idioma] = valor;
   el("cfg").value = JSON.stringify(o, null, 2);
-  validarCfg();
+  validarCfg(); pintaEstado();
 }
 function catSetId(i, valor){
   var o = catLista(); if(!o || !o.categories[i]) return;
@@ -2831,8 +3431,9 @@ function catSetId(i, valor){
   var usos = 0;
   (o.autoBlock||[]).forEach(function(r){ if(r && r.category===viejo) usos++; });
   (o.cookiePatterns||[]).forEach(function(r){ if(r && r.category===viejo) usos++; });
-  if(usos && !confirm("El id \""+viejo+"\" lo usan "+usos+" regla(s). Se actualizaran tambien. Continuar?")){
-    renderVisual(); return;
+  if(usos && !confirm(frase("El id")+' "'+viejo+'" '+
+       frase("lo usan")+' '+usos+' '+frase("regla(s). Se actualizaran tambien. Continuar?"))){
+    repintarEditores(); return;
   }
   (o.autoBlock||[]).forEach(function(r){ if(r && r.category===viejo) r.category = valor; });
   (o.cookiePatterns||[]).forEach(function(r){ if(r && r.category===viejo) r.category = valor; });
@@ -2969,7 +3570,7 @@ function cpSet(i, campo, valor){
   if(campo === "category" && !valor) delete o.cookiePatterns[i].category;
   else o.cookiePatterns[i][campo] = valor;
   el("cfg").value = JSON.stringify(o, null, 2);
-  validarCfg();
+  validarCfg(); pintaEstado();
 }
 
 function cpAnadir(){
@@ -3085,8 +3686,16 @@ function cargarDetectadas(){
   window._ckDetectadas = null;
   j("GET","/dash/site/cookies?site_id="+encodeURIComponent(current)).then(function(r){
     window._ckDetectadas = (r.ok && r.d.rows) ? r.d.rows : [];
-    if(el("cfg") && cfgMode === "visual") renderVisual();
+    repintarEditores();
   });
+}
+
+/* Repinta donde toque. Los editores de categorias, bloqueo y patrones viven
+   ahora en dos sitios, y llamar a renderVisual desde Cookies no pintaba nada
+   porque alli no existe el panel de Apariencia. */
+function repintarEditores(){
+  if(tab === "cookies") pintarCkSeccion();
+  else if(tab === "config" && el("cfg") && cfgMode === "visual") renderVisual();
 }
 
 function catsDelSitio(){
@@ -3107,16 +3716,17 @@ function abLista(){
 
 function abGuardar(o){
   el("cfg").value = JSON.stringify(o, null, 2);
-  validarCfg();
-  renderVisual();
+  validarCfg(); pintaEstado(); repintarEditores();
 }
 
 function abSet(i, campo, valor){
   var o = abLista(); if(!o || !o.autoBlock[i]) return;
   o.autoBlock[i][campo] = valor;
   // Aqui no repintamos: reescribir la fila mientras se teclea perderia el foco.
+  // Pero si avisamos del cambio, o la barra diria "sin cambios" sobre algo
+  // recien escrito y Publicar seguiria apagado.
   el("cfg").value = JSON.stringify(o, null, 2);
-  validarCfg();
+  validarCfg(); pintaEstado();
 }
 
 function abAnadir(){
@@ -3585,7 +4195,8 @@ function saveCfg(){
       WIZ_PUBLICADA = r.d.version;
       marcarPublicado(cfg);
       _trasRecargar = "Guardado. Version " + r.d.version + ".";
-      openTab("config");
+      // Volver siempre a Apariencia sacaba al cliente de donde estaba.
+      openTab(tab === "textos" || tab === "cookies" ? tab : "config");
     }
     else msg("smsg", r.d.error||"No se pudo guardar.", true);
   });
@@ -3858,6 +4469,8 @@ function loadLogs(){
       '<div class="stat acc"><div class="n">'+(c.all||0)+'</div><div class="l">Aceptan todo</div></div>'+
       '<div class="stat cus"><div class="n">'+(c.custom||0)+'</div><div class="l">Personalizan</div></div>'+
       '<div class="stat rej"><div class="n">'+(c.none||0)+'</div><div class="l">Rechazan</div></div>';
+    CONTADORES.registros = (c.total || r.d.rows.length) || null;
+    renderTabs();
     var tb = document.querySelector("#logs tbody"); tb.innerHTML="";
     if(!r.d.rows.length){
       tb.innerHTML = '<tr><td colspan="6"><div class="empty">Todavia no hay registros.</div></td></tr>';
@@ -4094,36 +4707,118 @@ function vaciarInventario(){
   });
 }
 
+/* ===================== COOKIES Y SCRIPTS =====================
+   Antes esto estaba repartido: las categorias, el bloqueo y el borrado vivian
+   dentro de Apariencia, y las detectadas en su propia pestaña. Son el mismo
+   trabajo, asi que ahora son una pantalla con pestañas. */
+
+var CK_TAB = "detectadas";
+
+function ckPestanas(){
+  var rows = window._ckRows;
+  // Del editor, no de la config del servidor: si no, el numero no sube hasta
+  // publicar y recargar.
+  var cfg = objActual() || window._cfgActual || {};
+  var pend = rows ? rows.filter(function(x){ return !x.category; }).length : null;
+  var lista = [
+    ["categorias", frase("Categorias"),        (cfg.categories||[]).length],
+    ["detectadas", frase("Cookies detectadas"), rows ? rows.length : null],
+    ["bloqueo",    frase("Bloqueo de scripts"), (cfg.autoBlock||[]).length],
+    ["borrado",    frase("Cookies que se borran"), (cfg.cookiePatterns||[]).length],
+    ["deteccion",  frase("Deteccion"),          null]
+  ];
+  return '<div class="ck-tabs">'+ lista.map(function(x){
+    return '<button class="ck-t'+(CK_TAB===x[0]?' on':'')+'" onclick="ckIr(\''+x[0]+'\')">'+
+      x[1] + (x[2] ? ' <em>'+x[2]+'</em>' : '') + '</button>';
+  }).join('') +
+  (pend ? '<span class="ck-pend">'+pend+' '+frase("sin decidir")+'</span>' : '')+
+  '</div>';
+}
+
+function ckIr(t){ CK_TAB = t; pintarCkSeccion(); }
+
 function viewCookies(d){
   var cats = (d.config && d.config.categories) || [];
   // Solo las categorias que el visitante puede denegar. Asignar una cookie a
   // una categoria bloqueada no tendria efecto: nunca se deniega, luego nunca
   // se borraria, que es justo lo que significa "esencial".
   window._ckCats = cats.filter(function(c){ return !c.locked; }).map(function(c){ return c.id; });
+  _datosSitio = d;
+  WIZ_PUBLICADA = d.version;
   el("tabbody").innerHTML =
-    '<div class="card">'+
-      '<div class="ck-head">'+
-        '<div><h2 style="margin:0">Cookies detectadas en el sitio</h2>'+
-        '<p class="sub" style="margin:4px 0 0">Clasifica cada una. Las esenciales nunca se borran.</p></div>'+
-        '<div class="row">'+
-          '<button class="btn ghost sm" onclick="vaciarInventario()">Vaciar inventario</button>'+
-          '<button class="btn ghost sm" onclick="exportarAuditPDF()">Exportar audit (PDF)</button>'+
-          '<button class="btn ghost sm" onclick="exportarAudit()">CSV</button>'+
-          '<button class="btn ghost sm" onclick="aceptarSugerencias()">Aplicar sugerencias</button>'+
-          '<button class="btn ghost sm" onclick="loadCookies()">Refrescar</button>'+
-          '<button class="btn sm" id="ck-save" onclick="guardarCookies()">Guardar clasificacion</button>'+
-        '</div>'+
-      '</div>'+
-      '<div id="ck-aviso"></div>'+
-      '<div class="banner-nota">Aqui solo aparecen las cookies de <b>tu propio dominio</b>. '+
-      'Las de terceros (<code>.google.com</code>, <code>.vimeo.com</code>) y las marcadas '+
-      '<code>HttpOnly</code> no son visibles desde JavaScript, asi que ningun banner puede '+
-      'detectarlas ni borrarlas. Para el informe de auditoria hay que anotarlas a mano desde '+
-      'DevTools &rarr; Application &rarr; Cookies.</div>'+
-      '<div id="ck-body"><div class="empty">Cargando...</div></div>'+
-      '<div class="row mt"><span id="ck-msg" class="msg"></span></div>'+
-    '</div>';
+    '<div class="plano"><div class="ck-marco">'+
+      '<div class="ck-cab"><h1>Cookies y scripts</h1>'+
+        '<p class="sub">Que cookies y scripts hay en el sitio, a que categoria pertenecen y '+
+        'que pasa cuando un visitante los rechaza.</p></div>'+
+      '<div id="ck-pest"></div>'+
+      '<div id="ck-sec"></div>'+
+      // El editor vive aqui tambien: los editores de categorias, bloqueo y
+      // patrones leen y escriben sobre el, igual que en Apariencia.
+      '<div class="hide"><div class="editor-wrap" id="ed-wrap">'+
+        '<textarea id="cfg" spellcheck="false"></textarea></div></div>'+
+      '<div class="editor-foot"><span id="smsg" class="msg"></span></div>'+
+      '<div class="checks" id="checks"></div>'+
+    '</div></div>';
+  el("cfg").value = JSON.stringify(d.config, null, 2);
+  el("cfg").addEventListener("input", function(){ validarCfg(); });
+  marcarPublicado(d.config);
+  pintarCkSeccion();
   loadCookies();
+  if(_trasRecargar){ msg("smsg", _trasRecargar, false); _trasRecargar = ""; }
+}
+
+/* Pinta la pestaña activa. Las de configuracion reusan los mismos editores
+   que ya existian; la de detectadas, su tabla de siempre. */
+function pintarCkSeccion(){
+  var host = el("ck-sec"), pest = el("ck-pest");
+  if(!host || !pest) return;      // ya no estamos en esta pestaña
+  pest.innerHTML = ckPestanas();
+
+  if(CK_TAB === "detectadas"){
+    host.innerHTML =
+      '<div class="card">'+
+        '<div class="ck-head">'+
+          '<div><h2 style="margin:0">Cookies detectadas en el sitio</h2>'+
+          '<p class="sub" style="margin:4px 0 0">Clasifica cada una. Las esenciales nunca se borran.</p></div>'+
+          '<div class="row">'+
+            '<button class="btn ghost sm" onclick="vaciarInventario()">Vaciar inventario</button>'+
+            '<button class="btn ghost sm" onclick="exportarAuditPDF()">Exportar audit (PDF)</button>'+
+            '<button class="btn ghost sm" onclick="exportarAudit()">CSV</button>'+
+            '<button class="btn ghost sm" onclick="aceptarSugerencias()">Aplicar sugerencias</button>'+
+            '<button class="btn ghost sm" onclick="loadCookies()">Refrescar</button>'+
+            '<button class="btn sm" id="ck-save" onclick="guardarCookies()">Guardar clasificacion</button>'+
+          '</div>'+
+        '</div>'+
+        '<div id="ck-aviso"></div>'+
+        '<div class="banner-nota">Aqui solo aparecen las cookies de <b>tu propio dominio</b>. '+
+        'Las de terceros (<code>.google.com</code>, <code>.vimeo.com</code>) y las marcadas '+
+        '<code>HttpOnly</code> no son visibles desde JavaScript, asi que ningun banner puede '+
+        'detectarlas ni borrarlas. Para el informe de auditoria hay que anotarlas a mano desde '+
+        'DevTools &rarr; Application &rarr; Cookies.</div>'+
+        '<div id="ck-body"><div class="empty">Cargando...</div></div>'+
+        '<div class="row mt"><span id="ck-msg" class="msg"></span></div>'+
+      '</div>';
+    if(window._ckRows) pintarCookies();
+    return;
+  }
+
+  var obj = objVista();
+  if(!obj){
+    host.innerHTML = '<div class="card"><div class="empty">'+
+      frase("El JSON tiene errores. Corrigelo en la pestana JSON para volver aqui.")+'</div></div>';
+    return;
+  }
+  var titulos = {categorias:"Categorias", bloqueo:"Bloqueo de scripts",
+                 borrado:"Cookies que se borran", deteccion:"Deteccion de cookies"};
+  var g = UI_GROUPS.filter(function(x){ return x.t === titulos[CK_TAB]; })[0];
+  if(!g){ host.innerHTML = ""; return; }
+  host.innerHTML = '<div class="card"><h2>'+esc(g.t)+'</h2>'+
+    '<div id="ck-grupo"></div>'+
+    '<div class="row mt"><span class="wz-pub">'+
+      (WIZ_PUBLICADA ? '&#10003; '+frase("Publicado como v")+WIZ_PUBLICADA : '')+'</span>'+
+      '<button class="btn" onclick="saveCfg()">Publicar en el sitio</button></div>'+
+  '</div>';
+  el("ck-grupo").innerHTML = g.items.map(function(it){ return control(obj, it); }).join('');
 }
 
 function loadCookies(){
@@ -4131,7 +4826,14 @@ function loadCookies(){
   j("GET","/dash/site/cookies?site_id="+encodeURIComponent(current)).then(function(r){
     if(!r.ok){ el("ck-body").innerHTML = '<div class="empty">No se pudieron cargar.</div>'; return; }
     window._ckRows = r.d.rows || [];
-    pintarCookies();
+    // El contador del lateral muestra lo que pide atencion: lo sin clasificar.
+    var pend = window._ckRows.filter(function(f){ return !f.category; }).length;
+    CONTADORES.cookies = pend || null;
+    renderTabs();
+    // Las pestañas llevan el recuento, y se pintaron antes de que llegaran
+    // los datos: hay que refrescarlas o se quedan sin numero.
+    if(el("ck-pest")) el("ck-pest").innerHTML = ckPestanas();
+    if(el("ck-body")) pintarCookies();
   });
 }
 
@@ -4163,6 +4865,7 @@ function ckEtiqueta(f){
 
 function pintarCookies(){
   var rows = window._ckRows || [], cats = window._ckCats || [];
+  if(!el("ck-body")) return;     // la pestaña de detectadas no esta en pantalla
   el("ck-aviso").innerHTML = avisoDeteccion(rows.length);
   if(!rows.length){
     el("ck-body").innerHTML = '<div class="empty">Todavia no se ha detectado ninguna cookie.</div>';
