@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Consent Banner. Dashboard</title>
+<title>Optward. Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap">
 <style>
@@ -251,8 +251,13 @@
   .pt.sucio{background:#E8B931}
   .ver-pill{padding:3px 8px;border:1px solid rgba(255,255,255,.18);border-radius:999px;
             font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.85}
-  .brand{font-weight:700;letter-spacing:.01em;font-size:15px;white-space:nowrap}
-  .brand span{opacity:.5;font-weight:400;margin-left:6px}
+  /* La marca es ahora una imagen: el alto manda y el ancho se deduce del
+     aspecto del PNG, asi no hay que tocar nada si cambia el archivo. En la
+     barra oscura va la version reversed; en el login, la normal. */
+  .brand{font-weight:700;letter-spacing:.01em;font-size:15px;white-space:nowrap;
+         display:flex;align-items:center}
+  .brand .logo{height:22px;width:auto;display:block}
+  .brand span{opacity:.5;font-weight:400;margin-left:8px}
   .topbar .spacer{flex:1}
   .topbar .who{font-size:13px;opacity:.8}
   .icon-btn{background:transparent;border:1px solid rgba(255,255,255,.28);color:#fff;
@@ -512,7 +517,8 @@
   /* ---------- login ---------- */
   #login{max-width:360px;margin:14vh auto;padding:0 20px}
   #login .card{padding:30px}
-  #login h1{font-size:18px;margin:0 0 4px;text-align:center}
+  #login h1{font-size:18px;margin:0 0 10px;text-align:center}
+  #login h1 .logo{height:30px;width:auto;display:inline-block;vertical-align:middle}
   #login .sub{text-align:center}
 
   /* ---------- modal ---------- */
@@ -528,7 +534,7 @@
 <!-- ============ LOGIN ============ -->
 <div id="login">
   <div class="card">
-    <h1>Consent Banner</h1>
+    <h1><img class="logo" src="/optward-logo-4x.png" alt="Optward" /></h1>
     <p class="sub">Entra para gestionar tus sitios.</p>
     <div class="field"><label>Usuario</label><input id="u" type="text" value="admin" /></div>
     <div class="field"><label>Contrasena</label><input id="p" type="password" value="admin" /></div>
@@ -540,7 +546,7 @@
 <!-- ============ APP ============ -->
 <div id="app" class="hide">
   <div class="topbar" id="topbar">
-    <div class="brand">Consent Banner<span>Dashboard</span></div>
+    <div class="brand"><img class="logo" src="/optward-logo-reversed-4x.png" alt="Optward" /><span>Dashboard</span></div>
     <div class="site-picker" id="picker"></div>
     <div class="spacer"></div>
     <span class="pub-estado" id="pub-estado"></span>
@@ -586,6 +592,12 @@ function el(id){ return document.getElementById(id); }
 var DICT = {
   /* --- barra, pestanas, login --- */
   "Entra para gestionar tus sitios.": "Sign in to manage your sites.",
+  /* Errores del login. Llegan del backend en espanol dentro de r.d.error y se
+     pintan con msg(), que pasa por frase(): basta con tenerlos aqui. */
+  "credenciales invalidas": "Invalid username or password.",
+  "No se pudo entrar.": "Could not sign in.",
+  "demasiados intentos, espera unos minutos": "Too many attempts. Please wait a few minutes.",
+  "tu cuenta todavia esta pendiente de aprobacion": "Your account is still awaiting approval.",
   "Usuario": "Username",
   "Contrasena actual": "Current password",
   "Contrasena nueva": "New password",
@@ -1014,29 +1026,6 @@ var DICT = {
   "Mayusculas": "Uppercase",
   "Familia": "Family",
   "General": "General",
-  "Respetar la senal GPC del navegador": "Respect the browser's GPC signal",
-  "Global Privacy Control": "Global Privacy Control",
-  "Algunos navegadores envian una senal de \u201cno vendas ni compartas mis datos\u201d. Desde enero de 2026 es exigible en una docena de estados de EEUU. Con esto activado, a esos visitantes no se les pregunta: se deniega todo lo que se puede denegar y queda registrado como prueba. Pueden cambiarlo luego desde el pill o el enlace del pie.": "Some browsers send a \u201cdo not sell or share my data\u201d signal. Since January 2026 it is enforceable in a dozen US states. With this on, those visitors are not asked: everything that can be denied is denied, and it is recorded as proof. They can change it later from the pill or the footer link.",
-  "Si ya habia decidido antes": "If they had already decided",
-  "La senal manda: se revoca": "The signal wins: revoke",
-  "Preguntar de nuevo": "Ask again",
-  "Mantener su decision anterior": "Keep their earlier choice",
-  "El segundo ajuste solo entra cuando alguien ya habia decidido en este sitio": "The second setting only applies when someone had already decided on this site",
-  "de activar la senal en su navegador: dos instrucciones suyas que se contradicen. Revocar es lo mas defendible; preguntar es lo mas respetuoso; mantener es lo que menos analitica te hace perder.": "before turning the signal on in their browser: two instructions from the same person that contradict each other. Revoking is the most defensible; asking is the most respectful; keeping loses the least analytics.",
-  "Bloqueo endurecido": "Hard blocking",
-  "Bloquear tambien iframes, pixeles y peticiones": "Also block iframes, pixels and requests",
-  "El bloqueo de serie solo frena etiquetas &lt;script&gt;. Un tercero tiene otras cuatro vias: un iframe, un pixel de imagen, fetch o XHR, y sendBeacon. Esto las cierra todas y ademas impide que se escriba la cookie, en vez de borrarla despues. Viene apagado porque toca fetch y document.cookie: enciendelo y prueba el sitio antes de dejarlo puesto.": "The default blocking only stops &lt;script&gt; tags. A third party has four more ways in: an iframe, an image pixel, fetch or XHR, and sendBeacon. This closes all of them and also stops the cookie from being written, instead of deleting it afterwards. It ships off because it patches fetch and document.cookie: turn it on and test the site before leaving it on.",
-  "Marcador del contenido bloqueado": "Blocked content placeholder",
-  "Tamano del texto": "Text size",
-  "Ancho del texto": "Text width",
-  "Clase CSS propia": "Own CSS class",
-  "Boton: fondo": "Button: background",
-  "Boton: texto": "Button: text",
-  "Boton: borde": "Button: border",
-  "Boton: radio": "Button: radius",
-  "Boton: padding": "Button: padding",
-  "Boton: peso": "Button: weight",
-  "Boton: clase CSS": "Button: CSS class",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -1387,66 +1376,7 @@ var DICT = {
     "Meta (Facebook) Pixel: advertising and measurement.",
   "Google Ads: atribucion de campanas.": "Google Ads: campaign attribution.",
   "Hotjar: grabacion y mapas de calor.": "Hotjar: recordings and heatmaps.",
-  "Vimeo: reproduccion y medicion de video.": "Vimeo: video playback and measurement.",
-
-  /* ---- Errores que devuelve el backend ----
-     Llegan como texto ya escrito desde backend.py y se pintan con msg(), que
-     pasa por frase(). Nunca estuvieron aqui, asi que con el panel en ingles
-     salian en espanol: la pantalla de acceso decia "credenciales invalidas".
-     Las claves deben coincidir LETRA POR LETRA con la cadena de backend.py;
-     si alla se reescribe un mensaje, hay que reescribirlo aqui.             */
-
-  // Acceso
-  "credenciales invalidas": "Invalid username or password.",
-  "No se pudo entrar.": "Could not sign in.",
-  "demasiados intentos, espera unos minutos":
-    "Too many attempts. Try again in a few minutes.",
-  "tu cuenta todavia esta pendiente de aprobacion":
-    "Your account is still awaiting approval.",
-  "no auth": "Your session has expired. Sign in again.",
-
-  // Permisos
-  "hace falta ser administrador": "You need to be an administrator.",
-  "solo el super administrador puede hacer esto":
-    "Only the super administrator can do this.",
-
-  // Usuarios
-  "ese usuario ya existe": "That username already exists.",
-  "ese usuario no existe": "That user does not exist.",
-  "no puedes borrarte a ti mismo": "You cannot delete your own account.",
-  "es el unico super administrador que queda":
-    "That is the only super administrator left.",
-  "usuario: de 3 a 32 caracteres, letras, numeros, punto, guion o guion bajo":
-    "Username: 3 to 32 characters, letters, numbers, dot, hyphen or underscore.",
-  "no hay ninguna solicitud con ese nombre": "There is no request under that name.",
-  "accion debe ser aprobar o rechazar": "Action must be approve or reject.",
-
-  // Contrasenas
-  "la contrasena actual no coincide": "The current password does not match.",
-  "la contrasena debe tener al menos 8 caracteres":
-    "The password must be at least 8 characters long.",
-  "la contrasena nueva necesita 8 caracteres o mas":
-    "The new password needs 8 characters or more.",
-
-  // Sitios y configuracion
-  "el nombre del sitio es obligatorio": "The site name is required.",
-  "el nombre no puede pasar de 80 caracteres":
-    "The name cannot be longer than 80 characters.",
-  "sitio sin config": "That site has no configuration yet.",
-  "config invalida": "Invalid configuration.",
-  "cookies debe ser una lista": "Cookies must be a list.",
-  "items debe ser una lista": "Items must be a list.",
-  "site not found": "Site not found.",
-
-  // Limites por IP y deteccion
-  "demasiadas peticiones": "Too many requests. Wait a moment.",
-  "demasiadas detecciones, espera un poco":
-    "Too many scans. Wait a moment before trying again.",
-  "demasiadas solicitudes, espera un rato":
-    "Too many requests. Wait a while before trying again.",
-  // Lleva la URL pegada detras, asi que entra por la pasada de subcadena de
-  // frase(), no por coincidencia exacta. Por eso conserva los dos puntos.
-  "No se pudo leer la pagina: ": "The page could not be read: "
+  "Vimeo: reproduccion y medicion de video.": "Vimeo: video playback and measurement."
 };
 
 /* Claves ordenadas de mas larga a mas corta: si "Contrasena" fuese antes que
@@ -1468,6 +1398,34 @@ function frase(t){
     if(out.indexOf(k) !== -1) out = out.split(k).join(DICT[k]);
   }
   return out;
+}
+
+/* Las categorias de cookies viajan como slug en espanol ("analitica",
+   "preferencias") porque asi se guardan en la config y en consent_logs. El
+   slug es la CLAVE y no se toca nunca; lo que se pinta es esta etiqueta.
+   Una categoria que el cliente se haya inventado no esta en la tabla y se
+   muestra tal cual, que es mejor que no mostrar nada.                      */
+var CAT_LBL = {
+  esencial:     { es:"Esencial",     en:"Essential" },
+  esenciales:   { es:"Esenciales",   en:"Essential" },
+  necesaria:    { es:"Necesaria",    en:"Necessary" },
+  necessary:    { es:"Necesaria",    en:"Necessary" },
+  analitica:    { es:"Analitica",    en:"Analytics" },
+  analytics:    { es:"Analitica",    en:"Analytics" },
+  statistics:   { es:"Estadisticas", en:"Statistics" },
+  marketing:    { es:"Marketing",    en:"Marketing" },
+  publicidad:   { es:"Publicidad",   en:"Advertising" },
+  preferencias: { es:"Preferencias", en:"Preferences" },
+  preferences:  { es:"Preferencias", en:"Preferences" },
+  funcional:    { es:"Funcional",    en:"Functional" },
+  functional:   { es:"Funcional",    en:"Functional" }
+};
+function catLabel(c){
+  if(c === undefined || c === null || c === "") return "";
+  var k = String(c).trim().toLowerCase();
+  var e = CAT_LBL[k];
+  if(e) return e[LANG === "en" ? "en" : "es"];
+  return String(c);
 }
 
 /* Un unico punto de intercepcion: cualquier innerHTML que se asigne en esta
@@ -2254,35 +2212,6 @@ var UI_GROUPS = [
     {p:"chip.background",k:"color",  l:"Fondo"},
     {p:"chip.color",     k:"color",  l:"Texto"},
     {p:"chip.border",    k:"text",   l:"Borde", ph:"1px solid ..."}
-  ]},
-  { t:"Bloqueo endurecido", seccion:"cookies", items:[
-    {p:"hardBlocking", k:"bool", l:"Bloquear tambien iframes, pixeles y peticiones", def:true}
-  ]},
-  { t:"Marcador del contenido bloqueado", items:[
-    {p:"placeholder.background", k:"color", l:"Fondo"},
-    {p:"placeholder.color",      k:"color", l:"Texto"},
-    {p:"placeholder.border",     k:"text",  l:"Borde", ph:"1px dashed ..."},
-    {p:"placeholder.radius",     k:"text",  l:"Radio", ph:"0"},
-    {p:"placeholder.padding",    k:"text",  l:"Padding", ph:"16px"},
-    {p:"placeholder.gap",        k:"text",  l:"Separacion", ph:"12px"},
-    {p:"placeholder.fontSize",   k:"text",  l:"Tamano del texto", ph:"14px"},
-    {p:"placeholder.family",     k:"select", l:"Tipografia", opts:[["","texto"],["heading","titulos"],["mono","mono"]]},
-    {p:"placeholder.textMaxWidth", k:"text", l:"Ancho del texto", ph:"40ch"},
-    {p:"placeholder.className",  k:"text",  l:"Clase CSS propia", ph:"mi-marcador"},
-    {p:"placeholder.button.background", k:"color", l:"Boton: fondo"},
-    {p:"placeholder.button.color",      k:"color", l:"Boton: texto"},
-    {p:"placeholder.button.border",     k:"text",  l:"Boton: borde", ph:"0"},
-    {p:"placeholder.button.radius",     k:"text",  l:"Boton: radio", ph:"6px"},
-    {p:"placeholder.button.padding",    k:"text",  l:"Boton: padding", ph:"10px 18px"},
-    {p:"placeholder.button.weight",     k:"text",  l:"Boton: peso", ph:"600"},
-    {p:"placeholder.buttonClassName",   k:"text",  l:"Boton: clase CSS", ph:"mi-boton"}
-  ]},
-  { t:"Global Privacy Control", seccion:"cookies", items:[
-    {p:"gpc.enabled", k:"bool", l:"Respetar la senal GPC del navegador", def:true},
-    {p:"gpc.onConflict", k:"select", l:"Si ya habia decidido antes", opts:[
-      ["revoke","La senal manda: se revoca"],
-      ["ask","Preguntar de nuevo"],
-      ["keep","Mantener su decision anterior"]]}
   ]},
   { t:"Deteccion de cookies", seccion:"cookies", items:[
     {p:"cookieDiscovery",   k:"bool", l:"Detectar cookies", def:false},
@@ -3635,7 +3564,7 @@ function patronesUI(lista){
     var match = esTexto ? r : (r.match || "");
     var cat = esTexto ? "" : (r.category || "");
     var opts = cats.map(function(c){
-      return '<option value="'+esc(c)+'"'+(cat===c?" selected":"")+'>'+esc(c)+'</option>';
+      return '<option value="'+esc(c)+'"'+(cat===c?" selected":"")+'>'+esc(catLabel(c))+'</option>';
     }).join('');
     var mala = cats.length && cat && cats.indexOf(cat) === -1;
     var vivo = usado(match);
@@ -3649,7 +3578,7 @@ function patronesUI(lista){
       marca+
       '<select onchange="cpSet('+i+',\'category\',this.value)">'+
         '<option value="">sin categoria</option>'+opts+
-        (mala ? '<option value="'+esc(cat)+'" selected>'+esc(cat)+' (no existe)</option>' : '')+
+        (mala ? '<option value="'+esc(cat)+'" selected>'+esc(catLabel(cat))+' (no existe)</option>' : '')+
       '</select>'+
       '<button class="btn ghost sm" onclick="cpQuitar('+i+')">&times;</button>'+
     '</div>';
@@ -3748,7 +3677,7 @@ function bloqueoUI(reglas){
   var cats = catsDelSitio();
   var filas = reglas.map(function(r, i){
     var opts = cats.map(function(c){
-      return '<option value="'+esc(c)+'"'+(r.category===c?" selected":"")+'>'+esc(c)+'</option>';
+      return '<option value="'+esc(c)+'"'+(r.category===c?" selected":"")+'>'+esc(catLabel(c))+'</option>';
     }).join('');
     var mala = cats.length && cats.indexOf(r.category) === -1;
     return '<div class="ab-row'+(mala?" ab-mala":"")+'">'+
@@ -3756,7 +3685,7 @@ function bloqueoUI(reglas){
         'oninput="abSet('+i+',\'match\',this.value)" />'+
       '<select onchange="abSet('+i+',\'category\',this.value)">'+
         '<option value="">sin categoria</option>'+opts+
-        (mala ? '<option value="'+esc(r.category)+'" selected>'+esc(r.category)+' (no existe)</option>' : '')+
+        (mala ? '<option value="'+esc(r.category)+'" selected>'+esc(catLabel(r.category))+' (no existe)</option>' : '')+
       '</select>'+
       '<button class="btn ghost sm" onclick="abQuitar('+i+')" title="Quitar">&times;</button>'+
     '</div>';
@@ -4368,7 +4297,13 @@ function buildSnippet(d){
   var rules = (d.config && d.config.autoBlock) || [];
   var cfgObj = '{siteId:"'+d.site_id+'",apiBase:"'+API+'"'+
     (rules.length ? ',autoBlock:'+JSON.stringify(rules) : '')+'}';
-  var s = "<!-- Consent Banner. En el <head>, lo primero, una sola vez -->\n"+
+  // El snippet esta blindado contra el traductor (va dentro de .snippet, que
+  // tr() salta a proposito para no romper el codigo). Por eso el comentario se
+  // elige aqui, mirando LANG, en vez de dejarselo al DICT.
+  var comentario = (LANG === "en")
+    ? "<!-- Consent Banner. In the <head>, first thing, only once -->"
+    : "<!-- Consent Banner. En el <head>, lo primero, una sola vez -->";
+  var s = comentario + "\n"+
     "<script>\nwindow.__consentConfig="+cfgObj+";\n";
   if(rules.length){
     s +=
@@ -4611,7 +4546,7 @@ function viewRegistros(d){
       '</div>'+
       '<div class="stats" id="stats"></div>'+
       '<div class="table-wrap"><table id="logs"><thead><tr>'+
-        '<th>Fecha</th><th>Decision</th><th>GPC</th><th>Categorias aceptadas</th>'+
+        '<th>Fecha</th><th>Decision</th><th>Categorias aceptadas</th>'+
         '<th>Idioma</th><th>Version</th><th>ID</th>'+
       '</tr></thead><tbody></tbody></table></div>'+
       '<p class="hint">Los 25 registros mas recientes. Cada fila es la prueba de una decision concreta: '+
@@ -4640,7 +4575,6 @@ function loadLogs(){
       tr.innerHTML =
         "<td class='mono'>"+esc(fecha(x.ts))+"</td>"+
         "<td><span class='tag "+esc(x.choice||"")+"'>"+esc(x.choice||"")+"</span></td>"+
-        "<td>"+(x.gpc ? "<span class='tag all'>GPC</span>" : "") +"</td>"+
         "<td>"+cats(x.categories)+"</td>"+
         "<td>"+esc(x.language||"")+"</td>"+
         "<td class='mono'>"+esc(x.version_texto||"")+"</td>"+
@@ -4659,7 +4593,9 @@ function cats(raw){
   var ks = Object.keys(o);
   if(!ks.length) return vacio;
   return '<div class="cats">'+ks.map(function(k){
-    return '<span class="cat'+(o[k]?' on':'')+'">'+esc(k)+'</span>';
+    // El chip enseña la etiqueta traducida; la clave sigue en title por si
+    // alguien necesita saber que se guardo de verdad en el registro.
+    return '<span class="cat'+(o[k]?' on':'')+'" title="'+esc(k)+'">'+esc(catLabel(k))+'</span>';
   }).join('')+'</div>';
 }
 
@@ -4885,9 +4821,7 @@ function ckPestanas(){
     ["detectadas", frase("Cookies detectadas"), rows ? rows.length : null],
     ["bloqueo",    frase("Bloqueo de scripts"), (cfg.autoBlock||[]).length],
     ["borrado",    frase("Cookies que se borran"), (cfg.cookiePatterns||[]).length],
-    ["deteccion",  frase("Deteccion"),          null],
-    ["gpc",        "GPC",                       null],
-    ["duro",       frase("Bloqueo endurecido"),  null]
+    ["deteccion",  frase("Deteccion"),          null]
   ];
   return '<div class="ck-tabs">'+ lista.map(function(x){
     return '<button class="ck-t'+(CK_TAB===x[0]?' on':'')+'" onclick="ckIr(\''+x[0]+'\')">'+
@@ -4971,8 +4905,7 @@ function pintarCkSeccion(){
     return;
   }
   var titulos = {categorias:"Categorias", bloqueo:"Bloqueo de scripts",
-                 borrado:"Cookies que se borran", deteccion:"Deteccion de cookies",
-                 gpc:"Global Privacy Control", duro:"Bloqueo endurecido"};
+                 borrado:"Cookies que se borran", deteccion:"Deteccion de cookies"};
   var g = UI_GROUPS.filter(function(x){ return x.t === titulos[CK_TAB]; })[0];
   if(!g){ host.innerHTML = ""; return; }
   host.innerHTML = '<div class="card"><h2>'+esc(g.t)+'</h2>'+
@@ -5068,7 +5001,7 @@ function filaCookie(x, tipos){
 
   var sug = "";
   if (x.sugerida === "esencial")      sug = '<span class="sug">se sugiere: necesaria</span>';
-  else if (x.sugerida)                sug = '<span class="sug">se sugiere: no necesaria ('+esc(x.sugerida)+')</span>';
+  else if (x.sugerida)                sug = '<span class="sug">se sugiere: no necesaria ('+esc(catLabel(x.sugerida))+')</span>';
   else                                sug = '<span class="sug none">desconocida</span>';
 
   var desc = x.explicacion || "No esta en el catalogo. Averigua quien la escribe antes de decidir.";
@@ -5079,7 +5012,8 @@ function filaCookie(x, tipos){
     '<option value=""'+(sinDecidir?" selected":"")+'>Sin decidir</option>'+
     '<option value="esencial"'+(esNecesaria?" selected":"")+'>Esencial (no se borra)</option>'+
     tipos.map(function(c){
-      return '<option value="'+esc(c)+'"'+(x.category===c?" selected":"")+'>'+esc(c)+'</option>';
+      // El value es el slug que se guarda; el texto, solo lo que se lee.
+      return '<option value="'+esc(c)+'"'+(x.category===c?" selected":"")+'>'+esc(catLabel(c))+'</option>';
     }).join('');
 
   var clase = "ck-sel" + (esNecesaria ? " es-nec" : (esNoNecesaria ? " no-nec" : " sin-dec"));
