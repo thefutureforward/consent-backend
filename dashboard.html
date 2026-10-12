@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Consent Banner. Dashboard</title>
+<title>Optward. Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap">
 <style>
@@ -251,8 +251,13 @@
   .pt.sucio{background:#E8B931}
   .ver-pill{padding:3px 8px;border:1px solid rgba(255,255,255,.18);border-radius:999px;
             font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.85}
-  .brand{font-weight:700;letter-spacing:.01em;font-size:15px;white-space:nowrap}
-  .brand span{opacity:.5;font-weight:400;margin-left:6px}
+  /* La marca es ahora una imagen: el alto manda y el ancho se deduce del
+     aspecto del PNG, asi no hay que tocar nada si cambia el archivo. En la
+     barra oscura va la version reversed; en el login, la normal. */
+  .brand{font-weight:700;letter-spacing:.01em;font-size:15px;white-space:nowrap;
+         display:flex;align-items:center}
+  .brand .logo{height:22px;width:auto;display:block}
+  .brand span{opacity:.5;font-weight:400;margin-left:8px}
   .topbar .spacer{flex:1}
   .topbar .who{font-size:13px;opacity:.8}
   .icon-btn{background:transparent;border:1px solid rgba(255,255,255,.28);color:#fff;
@@ -512,7 +517,8 @@
   /* ---------- login ---------- */
   #login{max-width:360px;margin:14vh auto;padding:0 20px}
   #login .card{padding:30px}
-  #login h1{font-size:18px;margin:0 0 4px;text-align:center}
+  #login h1{font-size:18px;margin:0 0 10px;text-align:center}
+  #login h1 .logo{height:30px;width:auto;display:inline-block;vertical-align:middle}
   #login .sub{text-align:center}
 
   /* ---------- modal ---------- */
@@ -528,7 +534,7 @@
 <!-- ============ LOGIN ============ -->
 <div id="login">
   <div class="card">
-    <h1>Consent Banner</h1>
+    <h1><img class="logo" src="/optward-logo-4x.png" alt="Optward" /></h1>
     <p class="sub">Entra para gestionar tus sitios.</p>
     <div class="field"><label>Usuario</label><input id="u" type="text" value="admin" /></div>
     <div class="field"><label>Contrasena</label><input id="p" type="password" value="admin" /></div>
@@ -540,7 +546,7 @@
 <!-- ============ APP ============ -->
 <div id="app" class="hide">
   <div class="topbar" id="topbar">
-    <div class="brand">Consent Banner<span>Dashboard</span></div>
+    <div class="brand"><img class="logo" src="/optward-logo-reversed-4x.png" alt="Optward" /><span>Dashboard</span></div>
     <div class="site-picker" id="picker"></div>
     <div class="spacer"></div>
     <span class="pub-estado" id="pub-estado"></span>
@@ -1386,6 +1392,34 @@ function frase(t){
     if(out.indexOf(k) !== -1) out = out.split(k).join(DICT[k]);
   }
   return out;
+}
+
+/* Las categorias de cookies viajan como slug en espanol ("analitica",
+   "preferencias") porque asi se guardan en la config y en consent_logs. El
+   slug es la CLAVE y no se toca nunca; lo que se pinta es esta etiqueta.
+   Una categoria que el cliente se haya inventado no esta en la tabla y se
+   muestra tal cual, que es mejor que no mostrar nada.                      */
+var CAT_LBL = {
+  esencial:     { es:"Esencial",     en:"Essential" },
+  esenciales:   { es:"Esenciales",   en:"Essential" },
+  necesaria:    { es:"Necesaria",    en:"Necessary" },
+  necessary:    { es:"Necesaria",    en:"Necessary" },
+  analitica:    { es:"Analitica",    en:"Analytics" },
+  analytics:    { es:"Analitica",    en:"Analytics" },
+  statistics:   { es:"Estadisticas", en:"Statistics" },
+  marketing:    { es:"Marketing",    en:"Marketing" },
+  publicidad:   { es:"Publicidad",   en:"Advertising" },
+  preferencias: { es:"Preferencias", en:"Preferences" },
+  preferences:  { es:"Preferencias", en:"Preferences" },
+  funcional:    { es:"Funcional",    en:"Functional" },
+  functional:   { es:"Funcional",    en:"Functional" }
+};
+function catLabel(c){
+  if(c === undefined || c === null || c === "") return "";
+  var k = String(c).trim().toLowerCase();
+  var e = CAT_LBL[k];
+  if(e) return e[LANG === "en" ? "en" : "es"];
+  return String(c);
 }
 
 /* Un unico punto de intercepcion: cualquier innerHTML que se asigne en esta
@@ -3524,7 +3558,7 @@ function patronesUI(lista){
     var match = esTexto ? r : (r.match || "");
     var cat = esTexto ? "" : (r.category || "");
     var opts = cats.map(function(c){
-      return '<option value="'+esc(c)+'"'+(cat===c?" selected":"")+'>'+esc(c)+'</option>';
+      return '<option value="'+esc(c)+'"'+(cat===c?" selected":"")+'>'+esc(catLabel(c))+'</option>';
     }).join('');
     var mala = cats.length && cat && cats.indexOf(cat) === -1;
     var vivo = usado(match);
@@ -3538,7 +3572,7 @@ function patronesUI(lista){
       marca+
       '<select onchange="cpSet('+i+',\'category\',this.value)">'+
         '<option value="">sin categoria</option>'+opts+
-        (mala ? '<option value="'+esc(cat)+'" selected>'+esc(cat)+' (no existe)</option>' : '')+
+        (mala ? '<option value="'+esc(cat)+'" selected>'+esc(catLabel(cat))+' (no existe)</option>' : '')+
       '</select>'+
       '<button class="btn ghost sm" onclick="cpQuitar('+i+')">&times;</button>'+
     '</div>';
@@ -3637,7 +3671,7 @@ function bloqueoUI(reglas){
   var cats = catsDelSitio();
   var filas = reglas.map(function(r, i){
     var opts = cats.map(function(c){
-      return '<option value="'+esc(c)+'"'+(r.category===c?" selected":"")+'>'+esc(c)+'</option>';
+      return '<option value="'+esc(c)+'"'+(r.category===c?" selected":"")+'>'+esc(catLabel(c))+'</option>';
     }).join('');
     var mala = cats.length && cats.indexOf(r.category) === -1;
     return '<div class="ab-row'+(mala?" ab-mala":"")+'">'+
@@ -3645,7 +3679,7 @@ function bloqueoUI(reglas){
         'oninput="abSet('+i+',\'match\',this.value)" />'+
       '<select onchange="abSet('+i+',\'category\',this.value)">'+
         '<option value="">sin categoria</option>'+opts+
-        (mala ? '<option value="'+esc(r.category)+'" selected>'+esc(r.category)+' (no existe)</option>' : '')+
+        (mala ? '<option value="'+esc(r.category)+'" selected>'+esc(catLabel(r.category))+' (no existe)</option>' : '')+
       '</select>'+
       '<button class="btn ghost sm" onclick="abQuitar('+i+')" title="Quitar">&times;</button>'+
     '</div>';
@@ -4257,7 +4291,13 @@ function buildSnippet(d){
   var rules = (d.config && d.config.autoBlock) || [];
   var cfgObj = '{siteId:"'+d.site_id+'",apiBase:"'+API+'"'+
     (rules.length ? ',autoBlock:'+JSON.stringify(rules) : '')+'}';
-  var s = "<!-- Consent Banner. En el <head>, lo primero, una sola vez -->\n"+
+  // El snippet esta blindado contra el traductor (va dentro de .snippet, que
+  // tr() salta a proposito para no romper el codigo). Por eso el comentario se
+  // elige aqui, mirando LANG, en vez de dejarselo al DICT.
+  var comentario = (LANG === "en")
+    ? "<!-- Consent Banner. In the <head>, first thing, only once -->"
+    : "<!-- Consent Banner. En el <head>, lo primero, una sola vez -->";
+  var s = comentario + "\n"+
     "<script>\nwindow.__consentConfig="+cfgObj+";\n";
   if(rules.length){
     s +=
@@ -4547,7 +4587,9 @@ function cats(raw){
   var ks = Object.keys(o);
   if(!ks.length) return vacio;
   return '<div class="cats">'+ks.map(function(k){
-    return '<span class="cat'+(o[k]?' on':'')+'">'+esc(k)+'</span>';
+    // El chip enseña la etiqueta traducida; la clave sigue en title por si
+    // alguien necesita saber que se guardo de verdad en el registro.
+    return '<span class="cat'+(o[k]?' on':'')+'" title="'+esc(k)+'">'+esc(catLabel(k))+'</span>';
   }).join('')+'</div>';
 }
 
@@ -4953,7 +4995,7 @@ function filaCookie(x, tipos){
 
   var sug = "";
   if (x.sugerida === "esencial")      sug = '<span class="sug">se sugiere: necesaria</span>';
-  else if (x.sugerida)                sug = '<span class="sug">se sugiere: no necesaria ('+esc(x.sugerida)+')</span>';
+  else if (x.sugerida)                sug = '<span class="sug">se sugiere: no necesaria ('+esc(catLabel(x.sugerida))+')</span>';
   else                                sug = '<span class="sug none">desconocida</span>';
 
   var desc = x.explicacion || "No esta en el catalogo. Averigua quien la escribe antes de decidir.";
@@ -4964,7 +5006,8 @@ function filaCookie(x, tipos){
     '<option value=""'+(sinDecidir?" selected":"")+'>Sin decidir</option>'+
     '<option value="esencial"'+(esNecesaria?" selected":"")+'>Esencial (no se borra)</option>'+
     tipos.map(function(c){
-      return '<option value="'+esc(c)+'"'+(x.category===c?" selected":"")+'>'+esc(c)+'</option>';
+      // El value es el slug que se guarda; el texto, solo lo que se lee.
+      return '<option value="'+esc(c)+'"'+(x.category===c?" selected":"")+'>'+esc(catLabel(c))+'</option>';
     }).join('');
 
   var clase = "ck-sel" + (esNecesaria ? " es-nec" : (esNoNecesaria ? " no-nec" : " sin-dec"));
