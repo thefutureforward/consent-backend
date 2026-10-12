@@ -857,7 +857,8 @@ class H(BaseHTTPRequestHandler):
         self._send(404, {"error": "not found"})
 
     # ---- estaticos ----
-    PUBLIC_FILES = {"dashboard.html", "sitio-demo.html", "consent-banner.js"}
+    PUBLIC_FILES = {"dashboard.html", "sitio-demo.html", "consent-banner.js",
+                    "optward-logo-4x.png", "optward-logo-reversed-4x.png"}
 
     def _file(self, rel):
         rel = rel.split("?")[0]
@@ -868,7 +869,9 @@ class H(BaseHTTPRequestHandler):
             return self._send(404, {"error": "not found"})
         ext = os.path.splitext(path)[1]
         ctype = {".html": "text/html; charset=utf-8", ".js": "text/javascript",
-                 ".css": "text/css", ".json": "application/json"}.get(ext, "application/octet-stream")
+                 ".css": "text/css", ".json": "application/json",
+                 ".png": "image/png", ".svg": "image/svg+xml",
+                 ".ico": "image/x-icon"}.get(ext, "application/octet-stream")
         # Sin cabeceras de cache el navegador aplica su heuristica y se queda
         # con la copia vieja: al publicar un dashboard nuevo el cliente seguia
         # viendo el anterior sin enterarse. El HTML no se guarda nunca; los
