@@ -791,7 +791,10 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         u = urlparse(self.path)
         p, q = u.path, parse_qs(u.query)
-        if p in ("/", "/dashboard"):
+        # "/" es la web publica de Optward; el panel vive en /dashboard.
+        if p == "/":
+            return self._file("index.html")
+        if p == "/dashboard":
             return self._file("dashboard.html")
         if p == "/api/config":
             return self.api_config(q)
@@ -857,7 +860,8 @@ class H(BaseHTTPRequestHandler):
         self._send(404, {"error": "not found"})
 
     # ---- estaticos ----
-    PUBLIC_FILES = {"dashboard.html", "sitio-demo.html", "consent-banner.js",
+    PUBLIC_FILES = {"index.html", "dashboard.html", "sitio-demo.html",
+                    "consent-banner.js",
                     "optward-logo-4x.png", "optward-logo-reversed-4x.png"}
 
     def _file(self, rel):
@@ -870,8 +874,7 @@ class H(BaseHTTPRequestHandler):
         ext = os.path.splitext(path)[1]
         ctype = {".html": "text/html; charset=utf-8", ".js": "text/javascript",
                  ".css": "text/css", ".json": "application/json",
-                 ".png": "image/png", ".svg": "image/svg+xml",
-                 ".ico": "image/x-icon"}.get(ext, "application/octet-stream")
+                 ".png": "image/png"}.get(ext, "application/octet-stream")
         # Sin cabeceras de cache el navegador aplica su heuristica y se queda
         # con la copia vieja: al publicar un dashboard nuevo el cliente seguia
         # viendo el anterior sin enterarse. El HTML no se guarda nunca; los
