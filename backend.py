@@ -109,7 +109,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS consent_logs(
       id INTEGER PRIMARY KEY AUTOINCREMENT, consent_id TEXT, site_id TEXT,
       choice TEXT, categories TEXT, version_texto TEXT, language TEXT,
-      ts TEXT, ip TEXT, user_agent TEXT);
+      ts TEXT, ip TEXT, user_agent TEXT, gpc INTEGER DEFAULT 0);
     -- role:   super | admin | user      (super es el dueno de la instalacion)
     -- status: activo | pendiente        (el alta por registro nace pendiente)
     CREATE TABLE IF NOT EXISTS users(
@@ -143,6 +143,11 @@ def init_db():
         # Los administradores de antes pasan a super: eran los duenos de la
         # instalacion, y si no quedara ninguno nadie podria aprobar altas.
         c.execute("UPDATE users SET role='super' WHERE role='admin'")
+
+    # Registros anteriores a GPC: la columna no existia.
+    cols = [r[1] for r in c.execute("PRAGMA table_info(consent_logs)")]
+    if "gpc" not in cols:
+        c.execute("ALTER TABLE consent_logs ADD COLUMN gpc INTEGER DEFAULT 0")
     migra_cookies_found(c)
     c.commit()
     if fresh:
@@ -372,8 +377,33 @@ def proveedor_de(nombre):
             mejor = (p, prov, dom)
     return (mejor[1], mejor[2]) if mejor else (None, None)
 
+# --- Catalogo ampliado (Open Cookie Database, Apache-2.0) ----------------
+# Unas 2.250 entradas mas, en un archivo aparte para no inflar este modulo.
+# Es un complemento: lo de arriba, que esta curado y en espanol, siempre gana.
+# Si el archivo falta, el sistema sigue funcionando con las 75 de siempre.
+ODB_EXACTAS = {}
+ODB_PREFIJOS = []
+
+def _cargar_odb():
+    global ODB_EXACTAS, ODB_PREFIJOS
+    ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies-odb.json")
+    try:
+        with open(ruta, encoding="utf-8") as f:
+            d = json.load(f)
+        ODB_EXACTAS = d.get("exactas") or {}
+        ODB_PREFIJOS = d.get("prefijos") or []
+    except Exception as e:
+        print("[catalogo] no se pudo cargar cookies-odb.json:", e)
+
+_cargar_odb()
+
+
 def clasificar_cookie(nombre):
-    """Devuelve (categoria_sugerida, explicacion) o (None, None) si no se reconoce."""
+    """Devuelve (categoria_sugerida, explicacion) o (None, None) si no se reconoce.
+
+    Tres pasadas, de mas fiable a menos: el catalogo propio (revisado a mano y
+    en espanol), luego el nombre exacto en la base abierta, y por ultimo sus
+    comodines, que son los que cubren las cookies con sufijo variable."""
     n = (nombre or "").strip()
     if not n:
         return None, None
@@ -381,7 +411,87 @@ def clasificar_cookie(nombre):
     for prefijo, tipo, desc in COOKIE_CATALOGO:
         if bajo.startswith(prefijo.lower()):
             return tipo, desc
+    hit = ODB_EXACTAS.get(bajo)
+    if hit:
+        return _red_seguridad(bajo, hit[0], hit[1])
+    for pref, tipo, desc in ODB_PREFIJOS:     # ya vienen de mas largo a mas corto
+        if pref and bajo.startswith(pref):
+            return _red_seguridad(bajo, tipo, desc)
     return None, None
+
+
+# Nombres que huelen a sesion, login o seguridad. La base abierta tiene
+# "sessionid" como marketing y "auth_token" tambien: si alguien aplica esas
+# sugerencias y el visitante rechaza marketing, el banner le borra la sesion y
+# lo echa del sitio. Ante un nombre asi no sugerimos nada y lo decimos.
+SOSPECHOSAS = ("session", "sess", "auth", "token", "csrf", "xsrf", "login",
+               "logged", "sid", "jwt", "oauth", "saml", "identity", "secure")
+
+def _red_seguridad(bajo, tipo, desc):
+    if tipo == "esencial":
+        return tipo, desc
+    if any(x in bajo for x in SOSPECHOSAS):
+        return None, ("El nombre apunta a sesion o autenticacion. El catalogo "
+                      "abierto la daba como '" + tipo + "', pero clasificarla ahi "
+                      "y denegarla podria cerrar la sesion del visitante. "
+                      "Comprueba quien la escribe antes de decidir.")
+    return tipo, desc
+
+
+# --- Dominios de rastreo (whotracks.me, CC BY 4.0) ----------------------
+# Unos 5.000 dominios con su categoria y la empresa detras, en un archivo
+# aparte para no inflar este modulo. Sirve para dos cosas: decir quien esta
+# detras de un host de terceros que el inventario ya detecta, y proponer
+# entradas de autoBlock que una persona aprueba en el panel.
+# Si el archivo falta, el sistema arranca igual y no propone nada.
+#
+# Se eligio esta fuente sobre EasyPrivacy por medicion: sobre 28 hosts de
+# terceros reales, EasyPrivacy reconocia el 14% y esta el 96%. EasyPrivacy
+# casi nunca bloquea un host entero (para Analytics o Hotjar usa reglas de
+# ruta), asi que deja fuera justo los nombres que mas importan aqui. Y su
+# licencia obliga a compartir igual; esta es atribucion y nada mas.
+DOMINIOS_RASTREO = {}
+def _cargar_rastreo():
+    global DOMINIOS_RASTREO
+    ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dominios-rastreo.json")
+    try:
+        with open(ruta, encoding="utf-8") as f:
+            DOMINIOS_RASTREO = (json.load(f).get("dominios")) or {}
+    except Exception as e:
+        print("[rastreo] no se pudo cargar dominios-rastreo.json:", e)
+_cargar_rastreo()
+
+
+def clasificar_host(host):
+    """(categoria_sugerida, empresa, explicacion) para un host de terceros.
+
+    La categoria va vacia cuando el dominio se reconoce pero NO conviene
+    proponerlo: infraestructura (jsDelivr, jQuery, Google Fonts), chats de
+    soporte, reproductores de video. Reconocerlo igual sirve, porque el panel
+    puede decir quien es y por que no se propone.
+
+    Se sube por los niveles del nombre, de mas especifico a menos, igual que
+    hace dominioBloqueado() en el bundle: para "stats.g.doubleclick.net" se
+    prueba ese, luego "g.doubleclick.net", luego "doubleclick.net".
+    """
+    h = (host or "").strip().lower().strip(".")
+    if not h or "." not in h:
+        return None, None, None
+    partes = h.split(".")
+    for i in range(len(partes) - 1):
+        hit = DOMINIOS_RASTREO.get(".".join(partes[i:]))
+        if not hit:
+            continue
+        categoria, empresa, grupo = (hit + ["", "", ""])[:3]
+        quien = empresa or "un tercero"
+        if categoria:
+            return categoria, empresa, "%s (%s). Propuesto para bloquear." % (quien, grupo)
+        if grupo in ("hosting", "cdn"):
+            return None, empresa, ("%s: infraestructura (%s). Bloquearlo tumbaria "
+                                   "el sitio, no se propone." % (quien, grupo))
+        return None, empresa, ("%s (%s). Se reconoce, pero bloquearlo se nota en "
+                               "pantalla, asi que se deja a tu criterio." % (quien, grupo))
+    return None, None, None
 
 
 def now():
@@ -857,6 +967,8 @@ class H(BaseHTTPRequestHandler):
             return self.dash_cookies_clear()
         if p == "/dash/site/cookies/apply":
             return self.dash_cookies_apply()
+        if p == "/dash/site/hosts/apply":
+            return self.dash_hosts_apply()
         self._send(404, {"error": "not found"})
 
     # ---- estaticos ----
@@ -951,11 +1063,15 @@ class H(BaseHTTPRequestHandler):
             c.close(); return self._send(403, {"error": "origen no autorizado para este site_id"})
         cid = data.get("consent_id") or str(uuid.uuid4())
         # APPEND-ONLY: solo INSERT, nunca UPDATE/DELETE.
-        c.execute("INSERT INTO consent_logs(consent_id,site_id,choice,categories,version_texto,language,ts,ip,user_agent)"
-                  " VALUES(?,?,?,?,?,?,?,?,?)",
+        # La cabecera manda sobre lo que diga el cuerpo: el navegador la envia
+        # solo, asi que no depende de que el bundle la reporte bien.
+        cab = (self.headers.get("Sec-GPC") or "").strip() == "1"
+        gpc = 1 if (cab or data.get("gpc") is True) else 0
+        c.execute("INSERT INTO consent_logs(consent_id,site_id,choice,categories,version_texto,language,ts,ip,user_agent,gpc)"
+                  " VALUES(?,?,?,?,?,?,?,?,?,?)",
                   (cid, site_id, data.get("choice"), json.dumps(data.get("categories")),
                    data.get("version"), data.get("language"), now(),
-                   ip_cliente(self), self.headers.get("User-Agent", "")))
+                   ip_cliente(self), self.headers.get("User-Agent", ""), gpc))
         c.commit(); c.close()
         self._send(200, {"consent_id": cid, "ts": now()})
 
@@ -1338,7 +1454,7 @@ class H(BaseHTTPRequestHandler):
         for r in c.execute("SELECT choice,COUNT(*) n FROM consent_logs WHERE site_id=? GROUP BY choice", (site_id,)):
             counts[r["choice"] or "?"] = r["n"]
         rows = [dict(r) for r in c.execute(
-            "SELECT consent_id,choice,categories,language,version_texto,ts,ip FROM consent_logs "
+            "SELECT consent_id,choice,categories,language,version_texto,ts,ip,gpc FROM consent_logs "
             "WHERE site_id=? ORDER BY id DESC LIMIT 25", (site_id,))]
         total = c.execute("SELECT COUNT(*) n FROM consent_logs WHERE site_id=?", (site_id,)).fetchone()["n"]
         c.close()
@@ -1419,6 +1535,17 @@ class H(BaseHTTPRequestHandler):
             d = dict(r)
             if propia and d["name"] == propia:
                 continue                      # es nuestra: ni se lista ni se pregunta
+            # Un host de terceros no es una cookie: su nombre es un dominio, y
+            # el catalogo de cookies no sabe nada de el. Va por su propia via.
+            if d.get("kind") == "host":
+                sug, empresa, expl = clasificar_host(d["name"])
+                d["sugerida"] = sug or ""
+                d["explicacion"] = expl or ""
+                d["cmp"] = ""
+                d["provider"] = empresa or ""
+                d["provider_domain"] = d["name"]
+                filas.append(d)
+                continue
             sug, expl = clasificar_cookie(d["name"])
             d["sugerida"] = sug or ""
             d["explicacion"] = expl or ""
@@ -1482,7 +1609,11 @@ class H(BaseHTTPRequestHandler):
                 patrones.append({"match": str(p)})
 
         anadidas, completadas, cubiertas = [], [], []
-        for r in c.execute("SELECT name,category FROM cookies_found WHERE site_id=? AND status='asignada'",
+        # kind='host' fuera: son dominios de terceros, no nombres de cookie.
+        # Metidos en cookiePatterns no casarian nunca con nada y solo
+        # ensuciarian la lista; su sitio es autoBlock, via dash_hosts_apply.
+        for r in c.execute("SELECT name,category FROM cookies_found WHERE site_id=? "
+                           "AND status='asignada' AND COALESCE(kind,'cookie')<>'host'",
                            (site_id,)):
             nombre, categoria = r["name"], r["category"]
             # Sin categoria, marcada como esencial, o categoria que ya no existe: no se toca.
@@ -1519,6 +1650,74 @@ class H(BaseHTTPRequestHandler):
         c.commit(); c.close()
         self._send(200, {"ok": True, "version": ver, "anadidas": anadidas,
                          "completadas": completadas, "cubiertas": cubiertas})
+
+    # Vuelca a autoBlock los hosts de terceros que alguien ya clasifico en el
+    # panel. Gemelo de dash_cookies_apply, pero para dominios.
+    #
+    # Nada entra aqui solo: solo las filas con status='asignada', que es lo
+    # que deja un humano al aprobarlas. La propuesta automatica se queda en
+    # 'nueva' y no llega a la config. Es la decision que ya tomaste para el
+    # escaner, aplicada tambien a esto.
+    def dash_hosts_apply(self):
+        u = self._user(); d = self._body(); site_id = d.get("site_id")
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        c = db()
+        fila = c.execute("SELECT version,json FROM site_config WHERE site_id=?", (site_id,)).fetchone()
+        if not fila:
+            c.close(); return self._send(404, {"error": "sitio sin config"})
+        cfg = json.loads(fila["json"])
+        ids_validos = set(x.get("id") for x in (cfg.get("categories") or []) if isinstance(x, dict))
+
+        reglas = []
+        for r in (cfg.get("autoBlock") or []):
+            if isinstance(r, dict) and r.get("match"):
+                reglas.append(dict(r))
+            elif isinstance(r, str) and r:
+                reglas.append({"match": r})
+
+        propio = (c.execute("SELECT domain FROM sites WHERE site_id=?", (site_id,)).fetchone() or {})
+        propio = (propio["domain"] if propio else "") or ""
+        propio = propio.strip().lower().lstrip(".")
+
+        anadidos, cubiertos, saltados, sin_categoria = [], [], [], []
+        for r in c.execute("SELECT name,category FROM cookies_found WHERE site_id=? "
+                           "AND status='asignada' AND kind='host'", (site_id,)):
+            host = (r["name"] or "").strip().lower().strip(".")
+            categoria = r["category"]
+            if not host:
+                continue
+            # Categoria vacia, o de un sitio distinto: la sugerencia viene en el
+            # vocabulario del catalogo ("marketing"), y este sitio puede no
+            # tener esa categoria. Se informa en vez de saltarlo en silencio,
+            # que es como se cuelan las cosas que parecen hechas y no lo estan.
+            if not categoria or categoria not in ids_validos:
+                sin_categoria.append(host)
+                continue
+            # Nunca el dominio del propio cliente: el bundle ya se niega a
+            # bloquearlo, pero una regla asi en la config confunde al leerla.
+            if propio and (host == propio or host.endswith("." + propio)):
+                saltados.append(host); continue
+
+            # Una regla mas corta que ya cubre este host: el bundle compara por
+            # sufijo, asi que "doubleclick.net" ya alcanza a "stats.g.doubleclick.net".
+            partes = host.split(".")
+            sufijos = {".".join(partes[i:]) for i in range(len(partes) - 1)}
+            cubre = next((x for x in reglas if x.get("match", "").lower().lstrip("*.") in sufijos), None)
+            if cubre is not None:
+                cubiertos.append(host); continue
+
+            reglas.append({"match": host, "category": categoria})
+            anadidos.append(host)
+
+        cfg["autoBlock"] = reglas
+        ver = fila["version"] + 1
+        c.execute("UPDATE site_config SET version=?, json=?, updated_at=? WHERE site_id=?",
+                  (ver, json.dumps(cfg), now(), site_id))
+        c.commit(); c.close()
+        self._send(200, {"ok": True, "version": ver, "anadidos": anadidos,
+                         "cubiertos": cubiertos, "saltados": saltados,
+                         "sin_categoria": sin_categoria})
 
     def log_message(self, *a):
         pass

@@ -1034,6 +1034,49 @@ var DICT = {
   "Mayusculas": "Uppercase",
   "Familia": "Family",
   "General": "General",
+  "Respetar la senal GPC del navegador": "Respect the browser's GPC signal",
+  "Global Privacy Control": "Global Privacy Control",
+  "Algunos navegadores envian una senal de \u201cno vendas ni compartas mis datos\u201d. Desde enero de 2026 es exigible en una docena de estados de EEUU. Con esto activado, a esos visitantes no se les pregunta: se deniega todo lo que se puede denegar y queda registrado como prueba. Pueden cambiarlo luego desde el pill o el enlace del pie.": "Some browsers send a \u201cdo not sell or share my data\u201d signal. Since January 2026 it is enforceable in a dozen US states. With this on, those visitors are not asked: everything that can be denied is denied, and it is recorded as proof. They can change it later from the pill or the footer link.",
+  "Si ya habia decidido antes": "If they had already decided",
+  "La senal manda: se revoca": "The signal wins: revoke",
+  "Preguntar de nuevo": "Ask again",
+  "Mantener su decision anterior": "Keep their earlier choice",
+  "El segundo ajuste solo entra cuando alguien ya habia decidido en este sitio": "The second setting only applies when someone had already decided on this site",
+  "de activar la senal en su navegador: dos instrucciones suyas que se contradicen. Revocar es lo mas defendible; preguntar es lo mas respetuoso; mantener es lo que menos analitica te hace perder.": "before turning the signal on in their browser: two instructions from the same person that contradict each other. Revoking is the most defensible; asking is the most respectful; keeping loses the least analytics.",
+  "Bloqueo endurecido": "Hard blocking",
+  "Bloquear tambien iframes, pixeles y peticiones": "Also block iframes, pixels and requests",
+  "El bloqueo de serie solo frena etiquetas &lt;script&gt;. Un tercero tiene otras cuatro vias: un iframe, un pixel de imagen, fetch o XHR, y sendBeacon. Esto las cierra todas y ademas impide que se escriba la cookie, en vez de borrarla despues. Viene apagado porque toca fetch y document.cookie: enciendelo y prueba el sitio antes de dejarlo puesto.": "The default blocking only stops &lt;script&gt; tags. A third party has four more ways in: an iframe, an image pixel, fetch or XHR, and sendBeacon. This closes all of them and also stops the cookie from being written, instead of deleting it afterwards. It ships off because it patches fetch and document.cookie: turn it on and test the site before leaving it on.",
+  "Marcador del contenido bloqueado": "Blocked content placeholder",
+  "Tamano del texto": "Text size",
+  "Ancho del texto": "Text width",
+  "Clase CSS propia": "Own CSS class",
+  "Boton: fondo": "Button: background",
+  "Boton: texto": "Button: text",
+  "Boton: borde": "Button: border",
+  "Boton: radio": "Button: radius",
+  "Boton: padding": "Button: padding",
+  "Boton: peso": "Button: weight",
+  "Boton: clase CSS": "Button: CSS class",
+  "ya se bloquea": "already blocked",
+  "Bloquear": "Block",
+  "Sin categorias que asignar": "No categories to assign",
+  "Anadido a bloqueo:": "Added to blocking:",
+  "Pulsa Publicar y copia de nuevo el codigo de Instalar.": "Press Publish and copy the Install code again.",
+  "Ese dominio ya estaba en la lista.": "That domain was already on the list.",
+  "No se propone bloquearlo": "Not proposed for blocking",
+  "dominio(s) anadidos al bloqueo": "domain(s) added to blocking",
+  "ya cubiertos por una regla mas corta": "already covered by a shorter rule",
+  "Copia de nuevo el codigo de Instalar.": "Copy the Install code again.",
+  "Sin cambios": "No changes",
+  "Guardando...": "Saving...",
+  "No se pudo aplicar.": "Could not apply.",
+  "Google Consent Mode": "Google Consent Mode",
+  "Modo": "Mode",
+  "Basico: los tags se bloquean hasta que acepten": "Basic: tags are blocked until they accept",
+  "Avanzado: se cargan denegados y Google recibe pings sin cookies": "Advanced: loaded denied, Google gets cookieless pings",
+  "Espera a la decision (ms)": "Wait for the decision (ms)",
+  "Redactar identificadores de clic": "Redact ad click identifiers",
+  "Pasar la campana por la URL": "Pass the campaign through the URL",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -2220,6 +2263,43 @@ var UI_GROUPS = [
     {p:"chip.background",k:"color",  l:"Fondo"},
     {p:"chip.color",     k:"color",  l:"Texto"},
     {p:"chip.border",    k:"text",   l:"Borde", ph:"1px solid ..."}
+  ]},
+  { t:"Google Consent Mode", seccion:"cookies", items:[
+    {p:"gcm.mode", k:"select", l:"Modo", opts:[
+      ["basic","Basico: los tags se bloquean hasta que acepten"],
+      ["advanced","Avanzado: se cargan denegados y Google recibe pings sin cookies"]]},
+    {p:"gcm.waitForUpdate", k:"num", l:"Espera a la decision (ms)", ph:"1500"},
+    {p:"gcm.adsDataRedaction", k:"bool", l:"Redactar identificadores de clic", def:true},
+    {p:"gcm.urlPassthrough", k:"bool", l:"Pasar la campana por la URL", def:false}
+  ]},
+  { t:"Bloqueo endurecido", seccion:"cookies", items:[
+    {p:"hardBlocking", k:"bool", l:"Bloquear tambien iframes, pixeles y peticiones", def:true}
+  ]},
+  { t:"Marcador del contenido bloqueado", items:[
+    {p:"placeholder.background", k:"color", l:"Fondo"},
+    {p:"placeholder.color",      k:"color", l:"Texto"},
+    {p:"placeholder.border",     k:"text",  l:"Borde", ph:"1px dashed ..."},
+    {p:"placeholder.radius",     k:"text",  l:"Radio", ph:"0"},
+    {p:"placeholder.padding",    k:"text",  l:"Padding", ph:"16px"},
+    {p:"placeholder.gap",        k:"text",  l:"Separacion", ph:"12px"},
+    {p:"placeholder.fontSize",   k:"text",  l:"Tamano del texto", ph:"14px"},
+    {p:"placeholder.family",     k:"select", l:"Tipografia", opts:[["","texto"],["heading","titulos"],["mono","mono"]]},
+    {p:"placeholder.textMaxWidth", k:"text", l:"Ancho del texto", ph:"40ch"},
+    {p:"placeholder.className",  k:"text",  l:"Clase CSS propia", ph:"mi-marcador"},
+    {p:"placeholder.button.background", k:"color", l:"Boton: fondo"},
+    {p:"placeholder.button.color",      k:"color", l:"Boton: texto"},
+    {p:"placeholder.button.border",     k:"text",  l:"Boton: borde", ph:"0"},
+    {p:"placeholder.button.radius",     k:"text",  l:"Boton: radio", ph:"6px"},
+    {p:"placeholder.button.padding",    k:"text",  l:"Boton: padding", ph:"10px 18px"},
+    {p:"placeholder.button.weight",     k:"text",  l:"Boton: peso", ph:"600"},
+    {p:"placeholder.buttonClassName",   k:"text",  l:"Boton: clase CSS", ph:"mi-boton"}
+  ]},
+  { t:"Global Privacy Control", seccion:"cookies", items:[
+    {p:"gpc.enabled", k:"bool", l:"Respetar la senal GPC del navegador", def:true},
+    {p:"gpc.onConflict", k:"select", l:"Si ya habia decidido antes", opts:[
+      ["revoke","La senal manda: se revoca"],
+      ["ask","Preguntar de nuevo"],
+      ["keep","Mantener su decision anterior"]]}
   ]},
   { t:"Deteccion de cookies", seccion:"cookies", items:[
     {p:"cookieDiscovery",   k:"bool", l:"Detectar cookies", def:false},
@@ -4313,6 +4393,21 @@ function buildSnippet(d){
     : "<!-- Consent Banner. En el <head>, lo primero, una sola vez -->";
   var s = comentario + "\n"+
     "<script>\nwindow.__consentConfig="+cfgObj+";\n";
+  // Consent Mode avanzado: el "default" tiene que salir ANTES que cualquier
+  // tag de Google, asi que va aqui inline y no en el bundle, que llega por red.
+  // wait_for_update le dice al tag que espere a la decision antes de disparar.
+  var gcm = (d.config && d.config.gcm) || {};
+  if(gcm.mode === "advanced"){
+    var espera = (gcm.waitForUpdate === undefined || gcm.waitForUpdate === null)
+                 ? 1500 : gcm.waitForUpdate;
+    s +=
+'window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}\n'+
+"gtag('consent','default',{ad_storage:'denied',ad_personalization:'denied',"+
+"ad_user_data:'denied',analytics_storage:'denied',functionality_storage:'denied',"+
+"personalization_storage:'denied',security_storage:'granted',wait_for_update:"+espera+"});\n"+
+"gtag('set','ads_data_redaction',"+(gcm.adsDataRedaction !== false)+");\n"+
+"gtag('set','url_passthrough',"+(gcm.urlPassthrough === true)+");\n";
+  }
   if(rules.length){
     s +=
 '(function(){var C=window.__consentConfig||{},R=C.autoBlock||[];if(!R.length)return;\n'+
@@ -4554,7 +4649,7 @@ function viewRegistros(d){
       '</div>'+
       '<div class="stats" id="stats"></div>'+
       '<div class="table-wrap"><table id="logs"><thead><tr>'+
-        '<th>Fecha</th><th>Decision</th><th>Categorias aceptadas</th>'+
+        '<th>Fecha</th><th>Decision</th><th>GPC</th><th>Categorias aceptadas</th>'+
         '<th>Idioma</th><th>Version</th><th>ID</th>'+
       '</tr></thead><tbody></tbody></table></div>'+
       '<p class="hint">Los 25 registros mas recientes. Cada fila es la prueba de una decision concreta: '+
@@ -4583,6 +4678,7 @@ function loadLogs(){
       tr.innerHTML =
         "<td class='mono'>"+esc(fecha(x.ts))+"</td>"+
         "<td><span class='tag "+esc(x.choice||"")+"'>"+esc(x.choice||"")+"</span></td>"+
+        "<td>"+(x.gpc ? "<span class='tag all'>GPC</span>" : "") +"</td>"+
         "<td>"+cats(x.categories)+"</td>"+
         "<td>"+esc(x.language||"")+"</td>"+
         "<td class='mono'>"+esc(x.version_texto||"")+"</td>"+
@@ -4612,6 +4708,7 @@ function cats(raw){
    valor). Aqui se decide que es cada una. Solo las no esenciales acaban en
    cookiePatterns: una cookie de sesion o de seguridad no se debe borrar. */
 var _ckCambios = {};     // nombre -> {category, status} pendiente de guardar
+var _ckTrasRecargar = "";  // mensaje que tiene que sobrevivir al repintado
 
 
 /* ---- Exportar cookie audit ---------------------------------------------
@@ -4829,7 +4926,10 @@ function ckPestanas(){
     ["detectadas", frase("Cookies detectadas"), rows ? rows.length : null],
     ["bloqueo",    frase("Bloqueo de scripts"), (cfg.autoBlock||[]).length],
     ["borrado",    frase("Cookies que se borran"), (cfg.cookiePatterns||[]).length],
-    ["deteccion",  frase("Deteccion"),          null]
+    ["deteccion",  frase("Deteccion"),          null],
+    ["gpc",        "GPC",                       null],
+    ["duro",       frase("Bloqueo endurecido"),  null],
+    ["gcm",        "Consent Mode",               null]
   ];
   return '<div class="ck-tabs">'+ lista.map(function(x){
     return '<button class="ck-t'+(CK_TAB===x[0]?' on':'')+'" onclick="ckIr(\''+x[0]+'\')">'+
@@ -4913,7 +5013,9 @@ function pintarCkSeccion(){
     return;
   }
   var titulos = {categorias:"Categorias", bloqueo:"Bloqueo de scripts",
-                 borrado:"Cookies que se borran", deteccion:"Deteccion de cookies"};
+                 borrado:"Cookies que se borran", deteccion:"Deteccion de cookies",
+                 gpc:"Global Privacy Control", duro:"Bloqueo endurecido",
+                 gcm:"Google Consent Mode"};
   var g = UI_GROUPS.filter(function(x){ return x.t === titulos[CK_TAB]; })[0];
   if(!g){ host.innerHTML = ""; return; }
   host.innerHTML = '<div class="card"><h2>'+esc(g.t)+'</h2>'+
@@ -4923,6 +5025,40 @@ function pintarCkSeccion(){
       '<button class="btn" onclick="saveCfg()">Publicar en el sitio</button></div>'+
   '</div>';
   el("ck-grupo").innerHTML = g.items.map(function(it){ return control(obj, it); }).join('');
+}
+
+
+/* Convierte un hallazgo de tipo host en una regla de bloqueo.
+
+   No escribe la regla aqui: marca el host con su categoria y deja que el
+   servidor la vuelque, igual que hacen las cookies con classify + apply. Hubo
+   un tiempo en que esto tenia su propia logica en el panel y el servidor otra:
+   dos caminos para la misma accion, que acaban comportandose distinto en
+   cuanto alguien toca uno y se olvida del otro. */
+function bloquearHost(host, id){
+  var sel = el("hb_"+id);
+  var cat = sel ? sel.value : "";
+  if(!host || !cat) return;
+  msg("ck-msg", frase("Guardando..."));
+  j("POST","/dash/site/cookies/classify",
+    {site_id: current, items:[{name: host, category: cat, status: "asignada"}]}).then(function(r){
+    if(!r.ok){ msg("ck-msg", r.d.error || "No se pudo guardar.", true); return; }
+    j("POST","/dash/site/hosts/apply", {site_id: current}).then(function(r2){
+      if(!r2.ok){ msg("ck-msg", r2.d.error || "No se pudo aplicar.", true); return; }
+      var n = (r2.d.anadidos || []).length, cub = (r2.d.cubiertos || []).length;
+      var partes = [];
+      if(n)   partes.push(n + " " + frase("dominio(s) anadidos al bloqueo"));
+      if(cub) partes.push(cub + " " + frase("ya cubiertos por una regla mas corta"));
+      // El repintado borra el mensaje, asi que se guarda y se vuelve a poner
+      // despues: sin eso, la accion termina sin decir que hizo.
+      _ckTrasRecargar = (partes.join(", ") || frase("Sin cambios")) +
+          (r2.d.version ? " (" + frase("version") + " " + r2.d.version + ")" : "") + ". " +
+          frase("Copia de nuevo el codigo de Instalar.");
+      // La config del servidor cambio: hay que releerla o el panel seguiria
+      // mostrando la anterior.
+      openTab("cookies");
+    });
+  });
 }
 
 function loadCookies(){
@@ -4938,6 +5074,7 @@ function loadCookies(){
     // los datos: hay que refrescarlas o se quedan sin numero.
     if(el("ck-pest")) el("ck-pest").innerHTML = ckPestanas();
     if(el("ck-body")) pintarCookies();
+    if(_ckTrasRecargar){ msg("ck-msg", _ckTrasRecargar); _ckTrasRecargar = ""; }
   });
 }
 
@@ -5030,10 +5167,52 @@ function filaCookie(x, tipos){
   // Sin desplegable para lo que el banner no puede borrar: clasificarlo no
   // tendria efecto y solo generaria falsas expectativas.
   if(!ckAccionable(x)){
+    // Un hallazgo de tipo "host" es un dominio de tercero que el sitio contacta.
+    // Borrarlo no se puede, pero BLOQUEARLO si: es exactamente lo que va en
+    // autoBlock. Hasta ahora el backend los reportaba y el panel se limitaba a
+    // etiquetarlos, asi que no habia forma de aprobar lo que proponia.
+    var accion = '<span class="ck-info">Solo para el informe</span>';
+    if((x.kind || "") === "host"){
+      var yaEsta = ((objActual() || {}).autoBlock || []).some(function(r){
+        return r && r.match && String(x.name).toLowerCase().indexOf(String(r.match).toLowerCase()) !== -1;
+      });
+      if(yaEsta){
+        accion = '<span class="pat-ok">'+frase("ya se bloquea")+'</span>';
+      } else {
+        var cats = (window._ckCats || []).filter(function(c){ return c !== "esencial"; });
+        // La sugerencia viene del catalogo de dominios de rastreo: trae
+        // categoria y empresa. Cuando NO sugiere nada es a proposito (un CDN,
+        // un reproductor, un chat): bloquearlo tumbaria o estropearia el
+        // sitio, asi que el boton no aparece de primeras. Se puede bloquear
+        // igualmente desde Bloqueo de scripts, pero a conciencia.
+        var sug = x.sugerida && cats.indexOf(x.sugerida) !== -1 ? x.sugerida : "";
+        if(!x.sugerida){
+          accion = '<span class="ck-info">'+frase("No se propone bloquearlo")+'</span>';
+          return '<tr id="row_'+id+'">'+
+            '<td><div class="ck-name">'+esc(x.name)+' '+ckEtiqueta(x)+'</div></td>'+
+            '<td><div class="ck-desc">'+esc(desc)+'</div></td>'+
+            '<td>'+accion+'</td><td></td>'+
+            '<td class="ck-seen">'+esc((x.last_seen||"").replace("T"," ").slice(0,16))+
+              '<div class="sub">'+esc(String(x.hits||0))+' '+frase("veces")+'</div></td>'+
+          '</tr>';
+        }
+        accion = cats.length
+          ? '<div class="row" style="gap:6px;flex-wrap:nowrap">'+
+              '<select class="ck-sel" id="hb_'+id+'" style="min-width:110px">'+
+                cats.map(function(c){
+                  return '<option value="'+esc(c)+'"'+(c===sug?' selected':'')+'>'+esc(c)+'</option>'; }).join('')+
+              '</select>'+
+              '<button class="btn ghost sm" onclick="bloquearHost(\''+esc(x.name).replace(/'/g,"")+'\',\''+id+'\')">'+
+                frase("Bloquear")+'</button>'+
+            '</div>'
+          : '<span class="ck-info">'+frase("Sin categorias que asignar")+'</span>';
+      }
+    }
     return '<tr id="row_'+id+'">'+
       '<td><div class="ck-name">'+esc(x.name)+' '+ckEtiqueta(x)+'</div></td>'+
       '<td><div class="ck-desc">'+esc(desc)+'</div></td>'+
-      '<td><span class="ck-info">Solo para el informe</span></td>'+
+      '<td>'+accion+'</td>'+
+      '<td></td>'+
       '<td class="ck-seen">'+esc((x.last_seen||"").replace("T"," ").slice(0,16))+
         '<div class="sub">'+esc(String(x.hits||0))+' '+frase("veces")+'</div></td>'+
     '</tr>';
