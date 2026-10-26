@@ -4298,7 +4298,52 @@ function saveCfg(){
   });
 }
 
-/* ---------------- INSTALAR ---------------- */
+/* ---------------- INSTALAR ----------------
+   Consent Mode v2: el estado por defecto. Va INLINE y antes que nada, igual
+   que el pre-bloqueador y por el mismo motivo, solo que aqui el que llega
+   tarde es Google: si la etiqueta carga sin un default puesto, no hay
+   escenario sin cookies que valga. Con el default denegado, GA4 carga
+   igualmente y mide sin cookies hasta que el visitante decida.
+
+   El mapa de senales sale de las categorias del sitio, no de una lista fija:
+   cada cliente nombra sus categorias como quiere ("analitica", "statistics")
+   y lo que importa es la senal que cuelga de cada una.                     */
+function bloqueConsentMode(d){
+  var C = d.config || {};
+  var cats = C.categories || [];
+  if(!cats.length) return "";
+  var mapa = {}, locked = [];
+  cats.forEach(function(c){
+    if(!c || !c.id) return;
+    mapa[c.id] = c.signals || [];
+    if(c.locked) locked = locked.concat(c.signals || []);
+  });
+  var ns  = C.namespace || "fwc_consent";
+  var ver = C.consentVersion || "";
+  return '<script>\n'+
+'(function(){\n'+
+'var NS="'+ns+'",VERSION="'+ver+'",MAP='+JSON.stringify(mapa)+';\n'+
+'var LOCKED='+JSON.stringify(locked)+';\n'+
+'var ALL=["ad_storage","ad_user_data","ad_personalization","analytics_storage",\n'+
+'"functionality_storage","personalization_storage","security_storage"];\n'+
+'window.dataLayer=window.dataLayer||[];\n'+
+'function gtag(){window.dataLayer.push(arguments)}\n'+
+'if(typeof window.gtag!=="function")window.gtag=gtag;\n'+
+'var prev=null;try{var m=document.cookie.match(new RegExp("(?:^|; )"+NS+"_cookie_consent=([^;]*)"));\n'+
+'if(m){var c=JSON.parse(decodeURIComponent(m[1]));if(c&&c.version===VERSION)prev=c}}catch(e){}\n'+
+'var d={};ALL.forEach(function(s){d[s]="denied"});\n'+
+'LOCKED.forEach(function(s){d[s]="granted"});\n'+
+'if(prev&&prev.categories){Object.keys(MAP).forEach(function(k){\n'+
+'if(prev.categories[k])MAP[k].forEach(function(s){d[s]="granted"})})}\n'+
+'d.wait_for_update=500;\n'+
+'gtag("consent","default",d);\n'+
+'gtag("set","ads_data_redaction",d.ad_storage!=="granted");\n'+
+'gtag("set","url_passthrough",true);\n'+
+'window.__consentDefaultSet=true;\n'+
+'})();\n'+
+'<\/script>\n';
+}
+
 function buildSnippet(d){
   // El pre-bloqueador va INLINE y antes que nada: el bundle llega por red y
   // para entonces el parser del navegador ya habria lanzado las etiquetas.
@@ -4311,7 +4356,7 @@ function buildSnippet(d){
   var comentario = (LANG === "en")
     ? "<!-- Consent Banner. In the <head>, first thing, only once -->"
     : "<!-- Consent Banner. En el <head>, lo primero, una sola vez -->";
-  var s = comentario + "\n"+
+  var s = comentario + "\n" + bloqueConsentMode(d) +
     "<script>\nwindow.__consentConfig="+cfgObj+";\n";
   if(rules.length){
     s +=
