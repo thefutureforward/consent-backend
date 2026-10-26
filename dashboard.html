@@ -665,6 +665,7 @@ var DICT = {
 
   /* --- Consent Mode --- */
   "Consent Mode (Google)": "Consent Mode (Google)",
+  "Consent Mode": "Consent Mode",
   "Emitir el estado por defecto": "Emit the default state",
   "Margen de espera (ms)": "Wait for update (ms)",
   "Ocultar datos de clics de anuncio": "Redact ad click data",
@@ -4961,6 +4962,9 @@ function ckPestanas(){
     ["categorias", frase("Categorias"),        (cfg.categories||[]).length],
     ["detectadas", frase("Cookies detectadas"), rows ? rows.length : null],
     ["bloqueo",    frase("Bloqueo de scripts"), (cfg.autoBlock||[]).length],
+    // Consent Mode va pegado al bloqueo: las dos piezas se leen juntas, porque
+    // emitir el default sin sacar a Google del bloqueo no sirve de nada.
+    ["consentmode", frase("Consent Mode"),      null],
     ["borrado",    frase("Cookies que se borran"), (cfg.cookiePatterns||[]).length],
     ["deteccion",  frase("Deteccion"),          null]
   ];
@@ -5046,6 +5050,7 @@ function pintarCkSeccion(){
     return;
   }
   var titulos = {categorias:"Categorias", bloqueo:"Bloqueo de scripts",
+                 consentmode:"Consent Mode (Google)",
                  borrado:"Cookies que se borran", deteccion:"Deteccion de cookies"};
   var g = UI_GROUPS.filter(function(x){ return x.t === titulos[CK_TAB]; })[0];
   if(!g){ host.innerHTML = ""; return; }
