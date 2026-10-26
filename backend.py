@@ -90,6 +90,14 @@ DEFAULT_CONFIG = {
 # ---------------------------------------------------------------- base de datos
 # Registro publico. Apagado: las cuentas las crea un administrador.
 REGISTRO_ABIERTO = os.environ.get("REGISTRO_ABIERTO") == "1"
+# Clave compartida con el worker del escaner. Sin ella, el endpoint que
+# reparte trabajo queda cerrado: es la unica puerta del backend que no pasa
+# por el login del panel.
+SCANNER_KEY = os.environ.get("SCANNER_KEY", "")
+# Un escaneo de ocho paginas por tres escenarios tarda unos minutos. Pasado
+# este rato sin noticias, se da el worker por muerto y el trabajo vuelve a la
+# cola, porque si no el sitio no se podria volver a escanear nunca.
+MINUTOS_MUERTO = int(os.environ.get("SCAN_TIMEOUT_MIN", "20"))
 
 def db():
     c = sqlite3.connect(DB)
@@ -124,10 +132,71 @@ def init_db():
     CREATE TABLE IF NOT EXISTS cookies_found(
       site_id TEXT, name TEXT, first_seen TEXT, last_seen TEXT, hits INTEGER,
       sample_domain TEXT, phase TEXT, status TEXT, category TEXT, note TEXT,
+      autor TEXT,
       PRIMARY KEY(site_id, name));
+    -- Lo que una persona ya clasifico a mano, para no volver a preguntarlo en
+    -- el siguiente sitio. Es lo unico que puede cubrir las cookies propias de
+    -- cada empresa, que ningun catalogo publico va a traer nunca.
+    -- Cola de escaneos. El backend solo apunta lo que hay que hacer: quien lo
+    -- hace es el worker, que vive en otro servicio porque Chromium no cabe
+    -- aqui (este backend es libreria estandar y sin dependencias a proposito).
+    CREATE TABLE IF NOT EXISTS scan_jobs(
+      id INTEGER PRIMARY KEY AUTOINCREMENT, site_id TEXT, url TEXT, paginas INTEGER,
+      estado TEXT, pedido TEXT, tomado TEXT, terminado TEXT, resumen TEXT, quien TEXT,
+      token TEXT);
+    -- P6. Vigilancia continua. Lo que diferencia a P6 de pulsar el boton de
+    -- escanear es esto: un reloj y una memoria. La memoria es scan_jobs.datos
+    -- (la foto comparable de cada escaneo) y el reloj esta aqui.
+    CREATE TABLE IF NOT EXISTS vigilancia(
+      site_id TEXT PRIMARY KEY, activa INTEGER DEFAULT 0, dias INTEGER DEFAULT 7,
+      url TEXT, paginas INTEGER DEFAULT 8, ultimo TEXT);
+    -- Un aviso es un CAMBIO, nunca un estado. "Este sitio contacta 11
+    -- terceros" no es un aviso, es el informe. "Hay uno que ayer no estaba y
+    -- recibe identificadores" si lo es. Esa distincion es la unica razon por
+    -- la que alguien sigue leyendo los avisos pasado un mes.
+    CREATE TABLE IF NOT EXISTS avisos(
+      id INTEGER PRIMARY KEY AUTOINCREMENT, site_id TEXT, job_id INTEGER,
+      tipo TEXT, host TEXT, titulo TEXT, detalle TEXT, gravedad TEXT,
+      cuando TEXT, visto INTEGER DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS catalogo_aprendido(
+      name TEXT, category TEXT, sitios INTEGER, primera TEXT, ultima TEXT,
+      PRIMARY KEY(name, category));
     """)
     # Migracion para bases anteriores al rol. ALTER TABLE falla si la columna
     # ya existe, y no hay IF NOT EXISTS para columnas en SQLite.
+    # Quien escribio cada cookie. Lo manda el escaner (P4) y es lo que permite
+    # clasificar por procedencia cuando el nombre no dice nada.
+    ck = [r[1] for r in c.execute("PRAGMA table_info(cookies_found)").fetchall()]
+    if ck and "autor" not in ck:
+        c.execute("ALTER TABLE cookies_found ADD COLUMN autor TEXT")
+    # En que estados de consentimiento se vio el hallazgo. Lo manda el escaner y
+    # es lo que permite decir "esto aparece ANTES de que nadie consienta", que
+    # es la pregunta que hace cualquier auditoria externa.
+    if ck and "fases" not in ck:
+        c.execute("ALTER TABLE cookies_found ADD COLUMN fases TEXT")
+    # HttpOnly la manda el escaner. Es la senal que distingue "la pone un
+    # script" de "la pone el servidor en una cabecera", y en el segundo caso el
+    # banner no puede hacer nada: hay que decirlo en vez de callarlo.
+    if ck and "httponly" not in ck:
+        c.execute("ALTER TABLE cookies_found ADD COLUMN httponly INTEGER")
+
+    # Identifica a QUIEN se le entrego cada trabajo. Sin esto, un worker al que
+    # se dio por muerto puede volver mas tarde y pisar el estado de un trabajo
+    # que ya esta haciendo otro.
+    sj = [r[1] for r in c.execute("PRAGMA table_info(scan_jobs)").fetchall()]
+    if sj and "token" not in sj:
+        c.execute("ALTER TABLE scan_jobs ADD COLUMN token TEXT")
+    # El informe del escaneo, en markdown. Se guarda con el trabajo para que el
+    # panel pueda enseñarlo: antes vivia solo en un fichero del disco de quien
+    # lanzaba el escaner, y desde el panel no habia forma de verlo.
+    if sj and "informe" not in sj:
+        c.execute("ALTER TABLE scan_jobs ADD COLUMN informe TEXT")
+    # La foto comparable del escaneo (P6). El informe en markdown no sirve para
+    # comparar: cambia de redaccion con cualquier cosa. Esto es lo mismo
+    # reducido a hosts, que recibio cada uno y cookies en frio.
+    if sj and "datos" not in sj:
+        c.execute("ALTER TABLE scan_jobs ADD COLUMN datos TEXT")
+
     cols = [r[1] for r in c.execute("PRAGMA table_info(users)").fetchall()]
     if "role" not in cols:
         c.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
@@ -398,12 +467,145 @@ def _cargar_odb():
 _cargar_odb()
 
 
-def clasificar_cookie(nombre):
-    """Devuelve (categoria_sugerida, explicacion) o (None, None) si no se reconoce.
+# --- Clasificacion asistida (P5) -----------------------------------------
+# Patrones estructurales, para cuando ni el catalogo ni la procedencia saben
+# nada. No adivinan el proveedor: solo reconocen la FORMA del nombre, que en
+# los marcos de trabajo mas comunes es bastante estable. Van de mas especifico
+# a mas general y cada uno dice por que, porque una sugerencia sin motivo no
+# se puede revisar.
+HEURISTICAS = [
+    # (que buscar, donde, categoria, por que)
+    (("utm_", "gclid", "fbclid", "msclkid", "ttclid"), "empieza", "marketing",
+     "Guarda el identificador de una campana publicitaria."),
+    (("_pk_", "_pk_id", "matomo"), "empieza", "analitica",
+     "Patron de Matomo (analitica)."),
+    (("ab_", "abtest", "_ab_", "optimize", "experiment", "variant"), "contiene", "analitica",
+     "Nombre de prueba A/B: sirve para medir, no para que el sitio funcione."),
+    (("consent", "cookieconsent", "gdpr", "cmp"), "contiene", "esencial",
+     "Guarda la propia decision sobre cookies, que es esencial por definicion."),
+    (("cart", "basket", "checkout", "carrito", "pedido", "order"), "contiene", "esencial",
+     "Nombre de carrito o pedido: borrarla vaciaria la compra del visitante."),
+    (("lang", "idioma", "locale", "currency", "moneda", "theme", "tema",
+      "timezone", "country", "region"), "contiene", "funcional",
+     "Guarda una preferencia de interfaz (idioma, moneda, tema)."),
+    (("_utm", "_campaign", "referrer", "_source", "attribution"), "contiene", "marketing",
+     "Guarda de donde vino el visitante, que es atribucion de campana."),
+    (("visitor", "uid", "uuid", "guid", "deviceid", "clientid", "_id"), "contiene", "analitica",
+     "Identificador persistente de visitante: sirve para reconocerlo entre visitas."),
+]
 
-    Tres pasadas, de mas fiable a menos: el catalogo propio (revisado a mano y
-    en espanol), luego el nombre exacto en la base abierta, y por ultimo sus
-    comodines, que son los que cubren las cookies con sufijo variable."""
+
+def _por_heuristica(bajo):
+    for agujas, modo, cat, por_que in HEURISTICAS:
+        for a in agujas:
+            if (bajo.startswith(a) if modo == "empieza" else a in bajo):
+                return cat, por_que + " Deducido por el nombre, confirmalo."
+    return None, None
+
+
+def _por_autor(bajo, autor):
+    """Hereda la categoria del script que escribio la cookie.
+
+    Es la capa que mas desconocidas resuelve, y solo existe desde que el
+    escaner anota quien escribe cada cookie: si la puso un script servido por
+    google-analytics.com, y ese dominio esta en el catalogo como analitica, la
+    cookie es analitica aunque su nombre no diga nada."""
+    if not autor:
+        return None, None
+    try:
+        host = urlparse(autor if "//" in autor else "http://" + autor).hostname or ""
+    except Exception:
+        return None, None
+    if not host:
+        return None, None
+    cat, empresa, _ = clasificar_host(host)
+    if not cat:
+        return None, None
+    quien = empresa or host
+    return cat, ("La escribe un script de " + quien + " (" + host + "), que el "
+                 "catalogo clasifica como " + cat + ". Deducido por procedencia.")
+
+
+# --- Catalogo aprendido ---------------------------------------------------
+# Cada vez que alguien clasifica una cookie a mano, se anota. La siguiente vez
+# que aparezca, en este sitio o en otro, ya se propone sola. Es lo que hacen
+# Complianz y Osano, y es la unica via para las cookies propias de cada
+# empresa: ninguna base publica las va a traer.
+#
+# Se exige coincidencia de DOS sitios distintos antes de proponerla a un
+# tercero. Con uno solo, un error de clasificacion se propagaria a todos los
+# clientes, que es peor que no proponer nada.
+MINIMO_SITIOS = 2
+
+
+def aprende(c, site_id, nombre, categoria):
+    n = (nombre or "").strip().lower()
+    cat = (categoria or "").strip()
+    if not n or not cat:
+        return
+    # Solo cuenta un sitio por cookie y categoria: si el mismo cliente la
+    # reclasifica diez veces no vale por diez confirmaciones.
+    ya = c.execute("SELECT 1 FROM cookies_found WHERE site_id<>? AND name=? "
+                   "AND category=? AND status='asignada' LIMIT 1",
+                   (site_id, nombre, cat)).fetchone()
+    distintos = 2 if ya else 1
+    t = now()
+    fila = c.execute("SELECT sitios FROM catalogo_aprendido WHERE name=? AND category=?",
+                     (n, cat)).fetchone()
+    if fila:
+        c.execute("UPDATE catalogo_aprendido SET sitios=?, ultima=? WHERE name=? AND category=?",
+                  (max(fila["sitios"], distintos), t, n, cat))
+    else:
+        c.execute("INSERT INTO catalogo_aprendido(name,category,sitios,primera,ultima) "
+                  "VALUES(?,?,?,?,?)", (n, cat, distintos, t, t))
+    global _APRENDIDO
+    _APRENDIDO = None            # se recarga sola en la siguiente consulta
+
+
+# Lo aprendido vive en memoria: la pantalla de cookies clasifica cien nombres
+# de golpe, y abrir SQLite en cada uno costaba 0,14 ms por cookie para algo que
+# cambia una vez al dia. Se recarga cuando alguien ensena algo nuevo.
+_APRENDIDO = None
+
+
+def _recarga_aprendido():
+    global _APRENDIDO
+    try:
+        c = db()
+        _APRENDIDO = {r["name"]: (r["category"], r["sitios"])
+                      for r in c.execute("SELECT name,category,sitios FROM catalogo_aprendido "
+                                         "WHERE sitios>=? ORDER BY sitios", (MINIMO_SITIOS,))}
+        c.close()
+    except Exception:
+        _APRENDIDO = {}
+    return _APRENDIDO
+
+
+def _por_aprendido(bajo):
+    """Lo que ya clasificaron personas en otros sitios."""
+    tabla = _APRENDIDO if _APRENDIDO is not None else _recarga_aprendido()
+    hit = tabla.get(bajo)
+    if not hit:
+        return None, None
+    return hit[0], ("Ya la clasificaron asi en otros " + str(hit[1]) +
+                    " sitios. Viene de revision humana, no del catalogo.")
+
+
+def clasificar_cookie(nombre, autor=None, propio="", dominio="", httponly=False):
+    """Devuelve (categoria_sugerida, explicacion). La explicacion nunca es None.
+
+    Cascada, de mas fiable a menos, y cada capa dice de donde sale lo que
+    propone:
+
+      1. catalogo propio, revisado a mano y en espanol
+      2. nombre exacto en la base abierta
+      3. comodines de la base abierta
+      3b. lo que ya clasificaron personas en otros sitios (catalogo aprendido)
+      4. QUIEN la escribio: si el script viene de un dominio catalogado, la
+         cookie hereda su categoria. Necesita el escaner (P4)
+      5. forma del nombre, como ultimo recurso
+
+    Las cuatro primeras identifican; la quinta deduce, y lo dice."""
     n = (nombre or "").strip()
     if not n:
         return None, None
@@ -417,7 +619,112 @@ def clasificar_cookie(nombre):
     for pref, tipo, desc in ODB_PREFIJOS:     # ya vienen de mas largo a mas corto
         if pref and bajo.startswith(pref):
             return _red_seguridad(bajo, tipo, desc)
-    return None, None
+
+    cat, expl = _por_aprendido(bajo)
+    if cat:
+        return _red_seguridad(bajo, cat, expl)
+
+    # A partir de aqui ya no se identifica, se deduce. La red de seguridad
+    # vigila igual: un nombre de sesion no se propone por mucho que la forma
+    # o la procedencia apunten a otra cosa.
+    cat, expl = _por_autor(bajo, autor)
+    if cat:
+        return _red_seguridad(bajo, cat, expl)
+    cat, expl = _por_heuristica(bajo)
+    if cat:
+        return _red_seguridad(bajo, cat, expl)
+
+    # Nadie sabe que es. Pero si el escaner vio quien la escribe, eso ya le
+    # ahorra el trabajo mas lento al que tenga que revisarla: buscar a mano de
+    # donde sale. No se sugiere categoria, solo se dice lo que se sabe.
+    pista = _pista_autor(autor, propio, httponly)
+    if pista:
+        return None, pista
+    return None, _sin_autor(dominio, httponly, propio)
+
+
+def _sin_autor(dominio="", httponly=False, propio=""):
+    """Que decir cuando ni siquiera se sabe quien la escribe.
+
+    Antes esto devolvia None y el panel rellenaba con una frase generica, lo que
+    rompia la promesa de que toda cookie viene con una pista. Y hay bastante que
+    decir: una cookie HttpOnly del propio dominio la pone el servidor por
+    cabecera, que es un sitio concreto donde mirar, no un misterio."""
+    dom = (dominio or "").strip().lstrip(".")
+    base = (propio or "").strip().lower().lstrip(".")
+    propia = bool(dom and base and
+                  ".".join(dom.lower().split(".")[-2:]) == ".".join(base.split(".")[-2:]))
+
+    if httponly and propia:
+        return ("La pone vuestro propio servidor en una cabecera Set-Cookie, no "
+                "un script: por eso no hay autor y por eso no se ve desde "
+                "JavaScript. El banner no puede bloquearla; miradlo en el codigo "
+                "del sitio o preguntad a quien lo mantiene.")
+    if httponly:
+        return ("La pone un servidor en una cabecera Set-Cookie" +
+                (" desde " + dom if dom else "") + ", no un script, asi que no "
+                "hay pila de llamadas que seguir. El banner no puede bloquear "
+                "una cookie de servidor.")
+    if propia:
+        return ("Es vuestra: vive en vuestro dominio (" + dom + ") pero el "
+                "escaner no vio que script la escribe, probablemente porque se "
+                "puso antes de que arrancara el banner. Ningun catalogo publico "
+                "puede saber que hace; la clasifica quien conozca la web.")
+    if dom:
+        return ("Sin catalogar y sin autor conocido. Vive en " + dom + ". "
+                "Pasa el escaner para que intente ver quien la escribe; si "
+                "sigue sin salir, suele ser del servidor.")
+    return ("Sin catalogar y sin autor conocido. Pasa el escaner con navegador "
+            "real: es lo que puede ver quien la escribe y si es del servidor.")
+
+
+def _pista_autor(autor, propio="", httponly=False):
+    """Que decirle a quien revisa cuando nadie sabe clasificar la cookie.
+
+    Hay tres situaciones distintas y se parecen solo en que no hay sugerencia:
+    la pone el propio sitio, la pone un tercero que el catalogo reconoce pero
+    sobre el que no opina, o la pone alguien que no esta en el catalogo. A
+    quien revisa le cambia el trabajo en cada caso, asi que se dicen aparte."""
+    if not autor or autor in ("inline", "servidor"):
+        return None
+    try:
+        host = urlparse(autor if "//" in autor else "http://" + autor).hostname or ""
+    except Exception:
+        return None
+    if not host:
+        return None
+
+    base = (propio or "").strip().lower().lstrip(".")
+    raiz = ".".join(host.lower().split(".")[-2:])
+    propia = base and (host.lower() == base or raiz == ".".join(base.split(".")[-2:]))
+
+    # Una cookie HttpOnly no la escribe ningun script: llega en una cabecera
+    # Set-Cookie, y lo que el escaner apunto como "autor" es la URL de esa
+    # respuesta. Decir "la escribe un script de X" seria falso, y ademas oculta
+    # lo unico que importa saber aqui: que el banner no puede bloquearla.
+    if httponly:
+        if propia:
+            return ("La pone vuestro propio servidor en una cabecera Set-Cookie "
+                    "al responder " + host + ", no un script. El banner no puede "
+                    "bloquearla ni borrarla: si no debe estar ahi antes del "
+                    "consentimiento, se arregla en el servidor.")
+        return ("La pone un servidor en una cabecera Set-Cookie, respondiendo "
+                "desde " + host + ". No la escribe ningun script, asi que el "
+                "banner no puede bloquearla.")
+
+    if propia:
+        return ("Es vuestra: la escribe vuestro propio sitio (" + host + "). "
+                "Ningun catalogo publico puede saber que hace, asi que esta la "
+                "clasifica quien conozca la web. Una vez hecho, no se vuelve a "
+                "preguntar.")
+
+    cat, empresa, _ = clasificar_host(host)
+    if empresa:
+        return ("La escribe " + empresa + " (" + host + "). El catalogo lo "
+                "reconoce pero no propone bloquearlo, asi que la categoria de "
+                "esta cookie la decides tu.")
+    return ("Sin catalogar. La escribe un script de " + host + ", que tampoco "
+            "esta en el catalogo de dominios. Mira que hace ese script para decidir.")
 
 
 # Nombres que huelen a sesion, login o seguridad. La base abierta tiene
@@ -833,6 +1140,205 @@ def public_key_for(c, site_id):
     r = c.execute("SELECT key FROM api_keys WHERE site_id=? AND kind='public' AND active=1", (site_id,)).fetchone()
     return r["key"] if r else None
 
+# ------------------------------------------------------------ P6. Vigilancia
+# Un aviso es un cambio respecto al escaneo anterior. Nunca un estado.
+QUE_ES = {"identificadores": "identificadores",
+          "huella": "datos de huella digital",
+          "busqueda": "lo que escribe el visitante en el buscador"}
+# De mas a menos grave. Si se ordena alfabeticamente sale "huella,
+# identificadores", que empieza la frase por lo menos importante.
+ORDEN_QUE = ["identificadores", "busqueda", "huella"]
+TOPE_AVISOS = 12          # por escaneo. Doce lineas se leen; cuarenta no.
+
+
+def _lista_que(claves):
+    claves = sorted(claves, key=lambda x: ORDEN_QUE.index(x)
+                    if x in ORDEN_QUE else 9)
+    return ", ".join(QUE_ES.get(x, x) for x in claves)
+
+
+def _lo_cubre(host, reglas):
+    """Si alguna regla de bloqueo del sitio alcanza a este host.
+
+    Importa para la redaccion, no para el aviso: un dominio nuevo que nadie
+    habia bloqueado es alguien que metio un script; uno que SI estaba en la
+    lista y aparece igualmente es un bloqueo que ha dejado de funcionar, y eso
+    se arregla de otra manera. Decir "nuevo" en el segundo caso manda a la
+    persona a anadir una regla que ya estaba puesta."""
+    host = (host or "").lower().strip(".")
+    partes = host.split(".")
+    sufijos = {".".join(partes[i:]) for i in range(len(partes))}
+    for r in reglas:
+        m = (r.get("match") if isinstance(r, dict) else r) or ""
+        m = str(m).lower().strip().lstrip("*.").strip(".")
+        if m and m in sufijos:
+            return True
+    return False
+
+
+def compara_fotos(vieja, nueva, reglas=None):
+    """Que ha cambiado entre dos escaneos. Devuelve la lista de avisos.
+
+    Lo dificil aqui no es encontrar diferencias, es callarse las que no
+    importan. Un escaneo tiene decenas de numeros que bailan solos entre una
+    vuelta y otra (cuantas peticiones, en que orden, que CDN respondio). Si se
+    avisa de todo eso, en un mes nadie abre la campana, y entonces volvemos a
+    enterarnos de las cosas por una carta. Solo se avisa de cuatro cosas."""
+    reglas = reglas or []
+    avisos = []
+    v_ter = set(vieja.get("terceros") or [])
+    n_ter = set(nueva.get("terceros") or [])
+    v_rec = vieja.get("recibieron") or {}
+    n_rec = nueva.get("recibieron") or {}
+
+    mudos = []
+    for host in sorted(n_ter - v_ter):
+        recibio = n_rec.get(host) or []
+        if not recibio:
+            mudos.append(host)
+            continue
+        que = _lista_que(recibio)
+        if _lo_cubre(host, reglas):
+            avisos.append({
+                "tipo": "bloqueo_roto", "host": host, "gravedad": "alta",
+                "titulo": "El bloqueo de %s ha dejado de funcionar" % host,
+                "detalle": ("Esta en tu lista de bloqueo y aun asi ha recibido %s "
+                            "antes de que el visitante decidiera. Suele significar "
+                            "que la etiqueta esta escrita directamente en el HTML de "
+                            "la plantilla: el navegador la pide al leerla, y a eso no "
+                            "llega el bloqueo. Hay que quitarla del HTML." % que)})
+        else:
+            avisos.append({
+                "tipo": "nuevo_receptor", "host": host, "gravedad": "alta",
+                "titulo": "%s es nuevo y recibe datos sin permiso" % host,
+                "detalle": ("En el escaneo anterior no aparecia. Ahora recibe %s "
+                            "antes de que el visitante decida. Si no sabes quien lo "
+                            "ha puesto, pregunta en marketing antes de bloquearlo: "
+                            "casi siempre es una etiqueta nueva." % que)})
+
+    # Un dominio que ya estaba pero que ANTES no recibia nada y ahora si. Es el
+    # cambio mas facil de pasar por alto mirando el informe, porque el numero
+    # de terceros no se mueve.
+    for host in sorted(n_ter & v_ter):
+        nuevo_que = sorted(set(n_rec.get(host) or []) - set(v_rec.get(host) or []))
+        if not nuevo_que:
+            continue
+        que = _lista_que(nuevo_que)
+        avisos.append({
+            "tipo": "mas_datos", "host": host, "gravedad": "alta",
+            "titulo": "%s ha empezado a recibir mas de lo que recibia" % host,
+            "detalle": ("Ya aparecia antes, pero no recibia %s y ahora si, antes de "
+                        "que el visitante decida. El numero de terceros no ha "
+                        "cambiado: mirando solo el informe esto no se ve." % que)})
+
+    v_ck = set(vieja.get("cookies") or [])
+    for nombre in sorted(set(nueva.get("cookies") or []) - v_ck):
+        avisos.append({
+            "tipo": "cookie_nueva", "host": "", "gravedad": "media",
+            "titulo": "Cookie nueva antes del consentimiento: %s" % nombre,
+            "detalle": ("Se escribe sin que nadie haya decidido nada y no estaba en "
+                        "el escaneo anterior. Clasificala en Cookies detectadas: "
+                        "mientras este sin clasificar, el banner no sabe si puede "
+                        "borrarla." % ())})
+
+    # Los dominios nuevos que no recibieron nada van juntos en una sola linea.
+    # Suelen ser un CDN o un servidor de imagenes, y una linea para cada uno es
+    # exactamente el ruido que hace que se deje de mirar esto.
+    if mudos:
+        avisos.append({
+            "tipo": "nuevos_mudos", "host": "", "gravedad": "baja",
+            "titulo": "%d dominio%s nuevo%s, sin datos identificativos"
+                      % (len(mudos), "s" if len(mudos) > 1 else "",
+                         "s" if len(mudos) > 1 else ""),
+            "detalle": ("Se contactaron sin permiso pero no recibieron "
+                        "identificadores, ni huella, ni la busqueda: %s"
+                        % ", ".join(mudos[:12]))})
+
+    orden = {"alta": 0, "media": 1, "baja": 2}
+    avisos.sort(key=lambda a: orden.get(a["gravedad"], 3))
+    if len(avisos) > TOPE_AVISOS:
+        resto = len(avisos) - TOPE_AVISOS
+        avisos = avisos[:TOPE_AVISOS]
+        avisos.append({
+            "tipo": "mas", "host": "", "gravedad": "baja",
+            "titulo": "y %d cambio%s mas" % (resto, "s" if resto > 1 else ""),
+            "detalle": "Estan todos en el informe completo de este escaneo."})
+    return avisos
+
+
+def genera_avisos(c, site_id, job_id, foto):
+    """Compara la foto recien llegada con la del escaneo anterior y guarda los
+    avisos. Devuelve cuantos ha creado.
+
+    El primer escaneo de un sitio no genera ninguno: no hay con que comparar, y
+    volcar treinta avisos el primer dia es la forma mas rapida de que alguien
+    apague esto."""
+    if not foto or foto.get("muro"):
+        return 0
+    prev = c.execute("SELECT datos FROM scan_jobs WHERE site_id=? AND id<? "
+                     "AND datos IS NOT NULL AND datos<>'' "
+                     "ORDER BY id DESC LIMIT 1", (site_id, job_id)).fetchone()
+    if not prev:
+        return 0
+    try:
+        vieja = json.loads(prev["datos"])
+    except Exception:
+        return 0
+    reglas = []
+    fila = c.execute("SELECT json FROM site_config WHERE site_id=?", (site_id,)).fetchone()
+    if fila:
+        try:
+            reglas = (json.loads(fila["json"]).get("autoBlock") or [])
+        except Exception:
+            reglas = []
+    avisos = compara_fotos(vieja, foto, reglas)
+    for a in avisos:
+        c.execute("INSERT INTO avisos(site_id,job_id,tipo,host,titulo,detalle,"
+                  "gravedad,cuando,visto) VALUES(?,?,?,?,?,?,?,?,0)",
+                  (site_id, job_id, a["tipo"], a["host"], a["titulo"][:200],
+                   a["detalle"][:600], a["gravedad"], now()))
+    return len(avisos)
+
+
+def encola_vigilancia(c):
+    """El reloj. Encola los escaneos programados que ya tocan.
+
+    Corre cuando el worker pide trabajo, no en un hilo aparte. Asi no hay un
+    temporizador que mantener vivo ni un cron que configurar en Railway, y el
+    unico momento en que alguien pregunta "hay algo que hacer" es justo el
+    momento en que hay alguien para hacerlo. Si el worker esta parado no se
+    acumula nada: al volver mira la fecha y encola una vez, no una por dia
+    perdido."""
+    hoy = datetime.datetime.now(datetime.timezone.utc)
+    for v in c.execute("SELECT * FROM vigilancia WHERE activa=1").fetchall():
+        dias = max(1, int(v["dias"] or 7))
+        if v["ultimo"]:
+            try:
+                ult = datetime.datetime.fromisoformat(v["ultimo"].replace("Z", "+00:00"))
+                if (hoy - ult).total_seconds() < dias * 86400:
+                    continue
+            except Exception:
+                pass
+        abierto = c.execute("SELECT id FROM scan_jobs WHERE site_id=? AND "
+                            "estado IN ('pendiente','corriendo') LIMIT 1",
+                            (v["site_id"],)).fetchone()
+        if abierto:
+            continue
+        url = (v["url"] or "").strip()
+        if not url:
+            dom = (c.execute("SELECT domain FROM sites WHERE site_id=?",
+                             (v["site_id"],)).fetchone() or {"domain": ""})["domain"] or ""
+            dom = dom.split(",")[0].strip()
+            if not dom:
+                continue
+            url = dom if dom.startswith("http") else "https://" + dom
+        c.execute("INSERT INTO scan_jobs(site_id,url,paginas,estado,pedido,quien) "
+                  "VALUES(?,?,?,?,?,?)",
+                  (v["site_id"], url[:300], max(1, min(40, int(v["paginas"] or 8))),
+                   "pendiente", now(), "vigilancia"))
+        c.execute("UPDATE vigilancia SET ultimo=? WHERE site_id=?", (now(), v["site_id"]))
+
+
 # ---------------------------------------------------------------- HTTP handler
 class H(BaseHTTPRequestHandler):
     def _send(self, code, obj=None, ctype="application/json", raw=None, cookie=None,
@@ -922,6 +1428,12 @@ class H(BaseHTTPRequestHandler):
             return self.dash_site_logs(q)
         if p == "/dash/site/cookies":
             return self.dash_site_cookies(q)
+        if p == "/dash/site/scan/estado":
+            return self.dash_scan_estado(q)
+        if p == "/dash/site/scan/informe":
+            return self.dash_scan_informe(q)
+        if p == "/dash/site/avisos":
+            return self.dash_avisos(q)
         return self._file(p.lstrip("/"))  # servir estaticos (sitio-demo.html, consent-banner.js)
 
     # ---- POST ----
@@ -967,6 +1479,14 @@ class H(BaseHTTPRequestHandler):
             return self.dash_cookies_clear()
         if p == "/dash/site/cookies/apply":
             return self.dash_cookies_apply()
+        if p == "/dash/site/scan":
+            return self.dash_scan_pedir()
+        if p == "/dash/site/avisos/visto":
+            return self.dash_avisos_visto()
+        if p == "/dash/site/vigilancia":
+            return self.dash_vigilancia()
+        if p == "/api/scan/cola":
+            return self.api_scan_cola()
         if p == "/dash/site/hosts/apply":
             return self.dash_hosts_apply()
         self._send(404, {"error": "not found"})
@@ -1024,9 +1544,16 @@ class H(BaseHTTPRequestHandler):
             if self.headers.get("If-None-Match") == etag:
                 return self._send(304, raw=b"", ctype=ctype,
                                   headers={"ETag": etag, "Cache-Control": cache})
+        cab = {"ETag": etag, "Cache-Control": cache}
+        # Solo en la pagina de pruebas: una cookie HttpOnly puesta por cabecera.
+        # Sin ella no hay forma de probar en local ni la captura por CDP del
+        # escaner ni el aviso de "esta la pone el servidor, el banner no puede
+        # bloquearla", que es justo el caso que mas cuesta ver y el que mas se
+        # malinterpreta. No se pone en ninguna otra pagina.
+        if rel == "sitio-demo.html":
+            cab["Set-Cookie"] = "demo_sesion_servidor=1; Path=/; HttpOnly; SameSite=Lax"
         with open(path, "rb") as f:
-            self._send(200, raw=f.read(), ctype=ctype,
-                       headers={"ETag": etag, "Cache-Control": cache})
+            self._send(200, raw=f.read(), ctype=ctype, headers=cab)
 
     # ---- API publica ----
     def api_config(self, q):
@@ -1495,12 +2022,18 @@ class H(BaseHTTPRequestHandler):
             nombre = str(nombre).strip()[:120]
             if not nombre or (propia and nombre == propia):
                 continue
-            dominio = ""; kind = "cookie"; party = "first"; page = ""
+            dominio = ""; kind = "cookie"; party = "first"; page = ""; autor = ""
+            fases = ""; ho = 0
             if isinstance(item, dict):
                 dominio = str(item.get("domain") or "")[:120]
                 kind = str(item.get("kind") or "cookie")[:20]
                 party = "third" if str(item.get("party") or "") == "third" else "first"
                 page = str(item.get("page") or "")[:200]
+                autor = str(item.get("autor") or "")[:200]
+                f = item.get("fases")
+                if isinstance(f, list):
+                    fases = ",".join(str(x)[:12] for x in f[:6])[:80]
+                ho = 1 if item.get("httpOnly") else 0
             if kind not in ("cookie", "localStorage", "sessionStorage", "host"):
                 kind = "cookie"
             if es_de_extension(nombre):
@@ -1508,14 +2041,27 @@ class H(BaseHTTPRequestHandler):
             ya = c.execute("SELECT hits FROM cookies_found WHERE site_id=? AND name=?",
                            (site_id, nombre)).fetchone()
             if ya:
-                c.execute("UPDATE cookies_found SET last_seen=?, hits=hits+1 WHERE site_id=? AND name=?",
-                          (ts, site_id, nombre))
+                # El autor solo se rellena, nunca se pisa con vacio: una visita
+                # normal del bundle no lo trae y borraria lo que vio el escaner.
+                if autor:
+                    c.execute("UPDATE cookies_found SET last_seen=?, hits=hits+1, autor=? "
+                              "WHERE site_id=? AND name=?", (ts, autor, site_id, nombre))
+                else:
+                    c.execute("UPDATE cookies_found SET last_seen=?, hits=hits+1 "
+                              "WHERE site_id=? AND name=?", (ts, site_id, nombre))
+                # Igual que el autor: solo se rellena, nunca se pisa con vacio.
+                if fases:
+                    c.execute("UPDATE cookies_found SET fases=? WHERE site_id=? AND name=?",
+                              (fases, site_id, nombre))
+                if ho:
+                    c.execute("UPDATE cookies_found SET httponly=1 WHERE site_id=? AND name=?",
+                              (site_id, nombre))
             else:
                 c.execute("INSERT INTO cookies_found(site_id,name,first_seen,last_seen,hits,"
-                          "sample_domain,phase,status,category,note,kind,party,page) "
-                          "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                          "sample_domain,phase,status,category,note,kind,party,page,autor,"
+                          "fases,httponly) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                           (site_id, nombre, ts, ts, 1, dominio, fase, "nueva", "", "",
-                           kind, party, page))
+                           kind, party, page, autor, fases, ho))
                 nuevas += 1
         c.commit(); c.close()
         self._send(200, {"ok": True, "nuevas": nuevas})
@@ -1528,11 +2074,18 @@ class H(BaseHTTPRequestHandler):
         # El nombre de la cookie propia depende del namespace del sitio, asi que
         # se calcula igual que lo hace el bundle en vez de adivinarlo por prefijo.
         propia = cookie_propia(c, site_id)
+        fila_sitio = c.execute("SELECT domain FROM sites WHERE site_id=?", (site_id,)).fetchone()
+        dom_propio = ((fila_sitio["domain"] if fila_sitio else "") or "").split(",")[0].strip()
         filas = []
         for r in c.execute("SELECT name,first_seen,last_seen,hits,sample_domain,phase,status,"
-                           "category,note,kind,party,page FROM cookies_found WHERE site_id=? ORDER BY "
+                           "category,note,kind,party,page,autor,fases,httponly FROM cookies_found "
+                           "WHERE site_id=? ORDER BY "
                            "CASE status WHEN 'nueva' THEN 0 ELSE 1 END, name", (site_id,)):
             d = dict(r)
+            # "frio" significa que se vio sin que nadie hubiera consentido. Es
+            # lo primero que mira una auditoria externa, asi que viaja aparte y
+            # no enterrado en una cadena.
+            d["sin_permiso"] = "frio" in (d.get("fases") or "")
             if propia and d["name"] == propia:
                 continue                      # es nuestra: ni se lista ni se pregunta
             # Un host de terceros no es una cookie: su nombre es un dominio, y
@@ -1546,7 +2099,9 @@ class H(BaseHTTPRequestHandler):
                 d["provider_domain"] = d["name"]
                 filas.append(d)
                 continue
-            sug, expl = clasificar_cookie(d["name"])
+            sug, expl = clasificar_cookie(d["name"], d.get("autor"), dom_propio,
+                                          d.get("sample_domain") or "",
+                                          bool(d.get("httponly")))
             d["sugerida"] = sug or ""
             d["explicacion"] = expl or ""
             # Quien la pone. Si hay proveedor conocido, es de un tercero aunque
@@ -1561,6 +2116,239 @@ class H(BaseHTTPRequestHandler):
         c.close()
         pend = len([f for f in filas if f["status"] == "nueva"])
         self._send(200, {"rows": filas, "total": len(filas), "pendientes": pend})
+
+    def dash_scan_pedir(self):
+        """El panel encola un escaneo. No lo ejecuta: eso es del worker."""
+        u = self._user(); d = self._body(); site_id = d.get("site_id")
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        c = db()
+        fila = c.execute("SELECT domain FROM sites WHERE site_id=?", (site_id,)).fetchone()
+        if not fila:
+            c.close(); return self._send(404, {"error": "ese sitio no existe"})
+        url = (d.get("url") or "").strip()
+        if not url:
+            dom = ((fila["domain"] if fila else "") or "").split(",")[0].strip()
+            if not dom:
+                c.close()
+                return self._send(400, {"error": "este sitio no tiene dominio configurado; "
+                                                 "ponlo en Instalar o pasa una url"})
+            url = dom if dom.startswith("http") else "https://" + dom
+        # Si ya hay uno esperando o corriendo, no se encola otro: dos escaneos
+        # del mismo sitio a la vez solo gastan el doble.
+        abierto = c.execute("SELECT id,estado FROM scan_jobs WHERE site_id=? AND "
+                            "estado IN ('pendiente','corriendo') ORDER BY id DESC LIMIT 1",
+                            (site_id,)).fetchone()
+        if abierto:
+            c.close()
+            return self._send(200, {"ok": True, "id": abierto["id"],
+                                    "estado": abierto["estado"], "ya_estaba": True})
+        paginas = max(1, min(40, int(d.get("paginas") or 8)))
+        cur = c.execute("INSERT INTO scan_jobs(site_id,url,paginas,estado,pedido,quien) "
+                        "VALUES(?,?,?,?,?,?)",
+                        (site_id, url[:300], paginas, "pendiente", now(), u))
+        c.commit(); jid = cur.lastrowid; c.close()
+        self._send(200, {"ok": True, "id": jid, "estado": "pendiente", "url": url})
+
+    def dash_scan_estado(self, q):
+        u = self._user(); site_id = (q.get("site_id") or [""])[0]
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        c = db()
+        filas = [dict(r) for r in c.execute(
+            "SELECT id,url,paginas,estado,pedido,tomado,terminado,resumen,quien,"
+            "(informe IS NOT NULL AND informe <> '') AS tiene_informe "
+            "FROM scan_jobs WHERE site_id=? ORDER BY id DESC LIMIT 5", (site_id,))]
+        c.close()
+        self._send(200, {"rows": filas, "worker": bool(SCANNER_KEY)})
+
+    def dash_scan_informe(self, q):
+        """El informe de un escaneo, aparte del estado.
+
+        Va por su propia peticion porque el estado se sondea cada pocos
+        segundos y el informe pesa: mandarlo en cada vuelta serian cientos de
+        KB para nada."""
+        u = self._user(); site_id = (q.get("site_id") or [""])[0]
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        jid = (q.get("id") or [""])[0]
+        c = db()
+        if jid:
+            fila = c.execute("SELECT informe,url,terminado FROM scan_jobs "
+                             "WHERE id=? AND site_id=?", (jid, site_id)).fetchone()
+        else:
+            fila = c.execute("SELECT informe,url,terminado FROM scan_jobs "
+                             "WHERE site_id=? AND informe IS NOT NULL AND informe <> '' "
+                             "ORDER BY id DESC LIMIT 1", (site_id,)).fetchone()
+        c.close()
+        if not fila or not fila["informe"]:
+            return self._send(404, {"error": "ese escaneo no tiene informe"})
+        self._send(200, {"informe": fila["informe"], "url": fila["url"],
+                         "terminado": fila["terminado"]})
+
+    def dash_avisos(self, q):
+        """Los avisos de P6. Lo que alimenta la campana del panel."""
+        u = self._user(); site_id = (q.get("site_id") or [""])[0]
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        c = db()
+        filas = [dict(r) for r in c.execute(
+            # El escaneo mas reciente primero, y dentro de cada escaneo lo
+            # grave antes que lo menor. Con ORDER BY id DESC a secas salia al
+            # reves dentro de cada tanda: lo primero que se leia era la linea
+            # de menos peso.
+            "SELECT id,tipo,host,titulo,detalle,gravedad,cuando,visto,job_id "
+            "FROM avisos WHERE site_id=? ORDER BY job_id DESC, "
+            "CASE gravedad WHEN 'alta' THEN 0 WHEN 'media' THEN 1 ELSE 2 END, id "
+            "LIMIT 60", (site_id,))]
+        sin_ver = c.execute("SELECT COUNT(*) n FROM avisos WHERE site_id=? AND visto=0",
+                            (site_id,)).fetchone()["n"]
+        v = c.execute("SELECT * FROM vigilancia WHERE site_id=?", (site_id,)).fetchone()
+        c.close()
+        self._send(200, {"rows": filas, "sin_ver": sin_ver,
+                         "vigilancia": dict(v) if v else
+                         {"activa": 0, "dias": 7, "url": "", "paginas": 8,
+                          "ultimo": None}})
+
+    def dash_avisos_visto(self):
+        """Marcar leido. Sin id, todos los del sitio."""
+        u = self._user(); d = self._body(); site_id = d.get("site_id")
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        c = db()
+        if d.get("id"):
+            c.execute("UPDATE avisos SET visto=1 WHERE id=? AND site_id=?",
+                      (d.get("id"), site_id))
+        else:
+            c.execute("UPDATE avisos SET visto=1 WHERE site_id=?", (site_id,))
+        c.commit(); c.close()
+        self._send(200, {"ok": True})
+
+    def dash_vigilancia(self):
+        """Encender o apagar la vigilancia de un sitio y cada cuanto mira."""
+        u = self._user(); d = self._body(); site_id = d.get("site_id")
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        activa = 1 if d.get("activa") else 0
+        dias = max(1, min(30, int(d.get("dias") or 7)))
+        paginas = max(1, min(40, int(d.get("paginas") or 8)))
+        url = str(d.get("url") or "").strip()[:300]
+        c = db()
+        antes = c.execute("SELECT activa FROM vigilancia WHERE site_id=?",
+                          (site_id,)).fetchone()
+        c.execute("INSERT INTO vigilancia(site_id,activa,dias,url,paginas) "
+                  "VALUES(?,?,?,?,?) ON CONFLICT(site_id) DO UPDATE SET "
+                  "activa=excluded.activa, dias=excluded.dias, url=excluded.url, "
+                  "paginas=excluded.paginas", (site_id, activa, dias, url, paginas))
+        # Al ENCENDERLA, el primer escaneo toca ya. Dos razones: hace falta una
+        # foto de partida para poder comparar la siguiente, y quien enciende una
+        # vigilancia espera que empiece a vigilar, no dentro de una semana.
+        # Solo en la transicion: cambiar los dias de 7 a 3 no vuelve a disparar.
+        arranca = activa and not (antes and antes["activa"])
+        if arranca:
+            c.execute("UPDATE vigilancia SET ultimo=NULL WHERE site_id=?", (site_id,))
+        c.commit(); c.close()
+        self._send(200, {"ok": True, "activa": activa, "dias": dias,
+                         "arranca_ya": bool(arranca)})
+
+    def api_scan_cola(self):
+        """El worker pide trabajo y reporta. Va por clave compartida, no por
+        login: no hay persona detras."""
+        if not SCANNER_KEY:
+            return self._send(404, {"error": "not found"})
+        if self.headers.get("X-Scanner-Key") != SCANNER_KEY:
+            return self._send(401, {"error": "clave de worker invalida"})
+        d = self._body() or {}
+        accion = d.get("accion")
+        c = db()
+        if accion == "tomar":
+            # P6. El reloj de la vigilancia va aqui, en el unico momento en el
+            # que hay alguien preguntando si hay trabajo.
+            encola_vigilancia(c)
+            # Un trabajo que lleva demasiado "corriendo" es un worker que
+            # murio: si no se recupera, el sitio se queda sin poder escanear
+            # nunca mas, porque el panel bloquea el boton mientras haya uno
+            # abierto. Se devuelve a la cola una sola vez.
+            limite = (datetime.datetime.now(datetime.timezone.utc)
+                      - datetime.timedelta(minutes=MINUTOS_MUERTO)).isoformat().replace("+00:00", "Z")
+            c.execute("UPDATE scan_jobs SET estado='pendiente', tomado=NULL, "
+                      "resumen='el worker anterior no respondio; reintentado' "
+                      "WHERE estado='corriendo' AND tomado IS NOT NULL AND tomado < ?",
+                      (limite,))
+            fila = c.execute("SELECT id,site_id,url,paginas FROM scan_jobs "
+                             "WHERE estado='pendiente' ORDER BY id LIMIT 1").fetchone()
+            if not fila:
+                c.commit(); c.close(); return self._send(200, {"job": None})
+            # El UPDATE lleva la condicion dentro a proposito: si dos workers
+            # piden a la vez, SQLite serializa las escrituras y solo uno ve
+            # estado='pendiente'. Sin esa condicion los dos se llevaban el
+            # mismo trabajo y escaneaban el sitio dos veces (probado: cinco).
+            token = secrets.token_hex(8)
+            cur = c.execute("UPDATE scan_jobs SET estado='corriendo', tomado=?, token=? "
+                            "WHERE id=? AND estado='pendiente'",
+                            (now(), token, fila["id"]))
+            if not cur.rowcount:
+                c.commit(); c.close(); return self._send(200, {"job": None})
+            # El worker necesita la clave publica del sitio para poder enviar
+            # los hallazgos por el mismo endpoint que usa el bundle.
+            k = c.execute("SELECT key FROM api_keys WHERE site_id=? AND kind='public' "
+                          "AND active=1 LIMIT 1", (fila["site_id"],)).fetchone()
+            c.commit()
+            job = dict(fila); job["api_key"] = k["key"] if k else ""
+            job["token"] = token
+            c.close(); return self._send(200, {"job": job})
+        if accion == "sigo":
+            # Latido. Un sitio grande tarda mas que MINUTOS_MUERTO (40 paginas
+            # por tres escenarios pasan de una hora), y sin esto el backend lo
+            # daba por muerto estando vivo: lo re-encolaba, otro worker lo
+            # cogia y el sitio se escaneaba dos veces a la vez. El latido es
+            # lo que distingue "lento" de "muerto", que no es lo mismo.
+            cur = c.execute("UPDATE scan_jobs SET tomado=? WHERE id=? AND token=? "
+                            "AND estado='corriendo'",
+                            (now(), d.get("id"), d.get("token") or ""))
+            c.commit(); c.close()
+            # vivo=False: el trabajo ya no es suyo, que pare en vez de seguir
+            # gastando un navegador para nada.
+            return self._send(200, {"vivo": bool(cur.rowcount)})
+        if accion == "terminar":
+            jid = d.get("id")
+            # La cola es un historial, no un archivo: con un escaneo al mes por
+            # sitio no crece, pero con escaneos programados si. Se dejan los 20
+            # ultimos de cada sitio, contando cuantos hay mas nuevos que cada
+            # uno. Con subconsulta y LIMIT no sale: SQLite no la correlaciona
+            # como uno espera y borraba de mas (probado: dejaba 15 de 20).
+            c.execute("DELETE FROM scan_jobs WHERE id IN (SELECT a.id FROM scan_jobs a "
+                      "WHERE (SELECT COUNT(*) FROM scan_jobs b "
+                      "       WHERE b.site_id=a.site_id AND b.id>a.id) >= 20)")
+            # Solo lo cierra quien lo tiene. Un worker al que se dio por muerto
+            # puede reaparecer cuando el trabajo ya es de otro: sin esta
+            # condicion lo marcaba "hecho", el panel desbloqueaba el boton y se
+            # podia pedir un tercer escaneo mientras el segundo seguia vivo.
+            # La foto (P6). De un muro no se guarda: compararla con la del
+            # sitio de verdad daria un aviso por cada dominio, dos veces (el
+            # dia del muro "han desaparecido todos" y al dia siguiente "han
+            # vuelto todos"). Un escaneo murado no es una foto del sitio.
+            foto = d.get("datos")
+            if not isinstance(foto, dict) or foto.get("muro"):
+                foto = None
+            cur = c.execute("UPDATE scan_jobs SET estado=?, terminado=?, resumen=?, "
+                            "informe=?, datos=? WHERE id=? AND (token=? OR token IS NULL)",
+                            (str(d.get("estado") or "hecho")[:20], now(),
+                             str(d.get("resumen") or "")[:400],
+                             str(d.get("informe") or "")[:120000],
+                             json.dumps(foto) if foto else None, jid,
+                             d.get("token") or ""))
+            nuevos = 0
+            if cur.rowcount and foto:
+                fila = c.execute("SELECT site_id FROM scan_jobs WHERE id=?",
+                                 (jid,)).fetchone()
+                if fila:
+                    nuevos = genera_avisos(c, fila["site_id"], int(jid), foto)
+            c.commit(); c.close()
+            return self._send(200, {"ok": bool(cur.rowcount),
+                                    "ignorado": not cur.rowcount,
+                                    "avisos": nuevos})
+        c.close(); self._send(400, {"error": "accion desconocida"})
 
     def dash_cookies_classify(self):
         u = self._user(); d = self._body(); site_id = d.get("site_id")
@@ -1582,6 +2370,8 @@ class H(BaseHTTPRequestHandler):
                 estado = "asignada" if categoria else "nueva"
             c.execute("UPDATE cookies_found SET category=?, status=? WHERE site_id=? AND name=?",
                       (categoria, estado, site_id, nombre))
+            if estado == "asignada" and categoria:
+                aprende(c, site_id, nombre, categoria)
         c.commit(); c.close()
         self._send(200, {"ok": True, "actualizadas": len(cambios)})
 

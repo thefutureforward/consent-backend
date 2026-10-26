@@ -5,6 +5,7 @@
  body{font:15px/1.6 system-ui,sans-serif;margin:0;padding:24px;max-width:860px}
  h1{font-size:22px;margin:0 0 4px} h2{font-size:15px;margin:26px 0 8px}
  .av{background:#FFF4E5;border:1px solid #F0D9AE;padding:12px 14px;border-radius:8px;font-size:13.5px}
+ .pel{background:#FDE8E8;border:1px solid #F5C2C2;padding:12px 14px;border-radius:8px;font-size:13.5px}
  table{border-collapse:collapse;width:100%;font-size:13.5px;margin-top:6px}
  td,th{text-align:left;padding:7px 9px;border-bottom:1px solid #eee;vertical-align:top}
  th{background:#f6f6f6;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
@@ -12,32 +13,65 @@
  code{background:#f0f0f0;padding:1px 5px;border-radius:4px;font-size:12.5px}
  button{font:inherit;padding:8px 14px;cursor:pointer;margin-right:6px}
  iframe{border:1px solid #ddd}
+ nav a{margin-right:14px}
+ .aqui{font-weight:700;text-decoration:none;color:#111}
+ form{margin:10px 0}
+ input[type=search]{font:inherit;padding:7px 10px;border:1px solid #ccc;border-radius:6px;width:240px}
 </style></head><body>
 
 <h1>Prueba local del banner</h1>
 <p>Abre esta pagina servida por <b>tu backend</b> (no con doble clic: tiene que
-ser <code>http://localhost:PUERTO/...</code>) y mira la tabla de abajo.</p>
+ser <code>http://localhost:PUERTO/sitio-demo.html</code>).</p>
 
 <div class="av"><b>Antes de nada:</b> pon aqui tu <code>siteId</code> y tu
 <code>apiBase</code>, en el script del final de este archivo. Sin eso el banner
 no carga la configuracion de tu sitio.</div>
+
+<div class="pel"><b>Esta pagina filtra datos a proposito.</b> Imita las fugas
+que documento el informe de un bufete sobre un cliente real: terceros que
+cargan sin permiso, el termino buscado saliendo hacia fuera, identificadores y
+datos de huella. Es para que el escaner tenga algo que encontrar. <b>No la
+copies como ejemplo de implementacion.</b></div>
+
+<nav id="nav"></nav>
 
 <h2>1. Contenido embebido (prueba P3 y P7)</h2>
 <p>Con marketing <b>denegado</b> debe verse un <b>marcador</b> con un boton, no
 un hueco en blanco. Al pulsarlo, el video aparece <b>sin recargar</b>.</p>
 <iframe id="video" width="420" height="236" src="https://player.vimeo.com/video/76979871"></iframe>
 
-<h2>2. Estado en vivo</h2>
+<h2>2. Buscador (prueba el canario de P4)</h2>
+<p>El escaner busca un termino inventado y despues rastrea esa cadena en todas
+las peticiones salientes. Si aparece, es prueba de fuga y dice en que campo.
+Puedes probarlo a mano: busca algo y mira la tabla de abajo.</p>
+<form action="sitio-demo.html" method="get">
+  <input type="search" name="q" placeholder="busca algo">
+  <button type="submit">Buscar</button>
+</form>
+
+<h2>3. Estado en vivo</h2>
 <table id="tabla"><thead><tr><th>Que se mira</th><th>Estado</th><th>Que deberia pasar</th></tr></thead>
 <tbody></tbody></table>
 
-<h2>3. Acciones</h2>
+<h2>4. Acciones</h2>
 <button onclick="escribir()">Escribir cookies de prueba</button>
 <button onclick="pedir()">Lanzar peticiones a terceros</button>
 <button onclick="location.reload()">Recargar</button>
 <button onclick="olvidar()">Olvidar mi decision</button>
 
-<h2>4. Google Consent Mode</h2>
+<h2>5. Las cinco vias del bloqueo endurecido (P3)</h2>
+<p>Un tercero no entra solo por <code>&lt;script&gt;</code>: tambien por iframe,
+pixel de imagen, <code>fetch</code>, <code>XHR</code> y <code>sendBeacon</code>.
+Cerrar cuatro y dejar una abierta es no cerrar ninguna. Esto las prueba las cinco
+contra un dominio que deberia estar bloqueado.</p>
+<p><b>Para que valga:</b> ese dominio tiene que estar en el bloqueo del sitio y su
+categoria estar <b>rechazada</b>. Si acabas de aceptar todo, pulsa "Olvidar mi
+decision" y rechaza.</p>
+<button onclick="probarVias()">Probar las 5 vias</button>
+<table id="vias"><thead><tr><th>Via</th><th>Resultado</th><th>Que deberia pasar</th></tr></thead>
+<tbody><tr><td colspan="3">Pulsa el boton.</td></tr></tbody></table>
+
+<h2>6. Google Consent Mode</h2>
 <p>Con el modo <b>avanzado</b> debe aparecer un <code>consent default</code>
 con todo denegado <b>antes</b> de decidir, y un <code>consent update</code>
 despues. En <b>basico</b> solo el update.</p>
@@ -45,19 +79,93 @@ despues. En <b>basico</b> solo el update.</p>
  font-size:12px;overflow:auto;max-height:220px"></pre>
 
 <script>
-// ---------- PON AQUI LO TUYO ----------
-window.__consentConfig = {
-  siteId:  "site_712fee55",
-  apiBase: "http://localhost:8000"
-};
-// --------------------------------------
+// ---- CODIGO DE INSTALAR, pegado tal cual sale del panel ----------------
+// dataLayer va ANTES del bundle: Consent Mode escribe ahi, y si se declara
+// despues la caja de la seccion 6 sale vacia.
 window.__consentLog = function(t, m){ console.log("[cb]", t, m); };
 window.dataLayer = window.dataLayer || [];
+window.__consentConfig={siteId:"site_712fee55",apiBase:"http://localhost:8000",autoBlock:[{"match": "js.hs-scripts.com", "category": "marketing"}, {"match": "player.vimeo.com", "category": "marketing"}, {"match": "google-analytics.com", "category": "analitica"}, {"match": "googletagmanager.com", "category": "analitica"}, {"match": "www.facebook.com", "category": "marketing"}, {"match": "static.ads-twitter.com", "category": "marketing"}, {"match": "connect.facebook.net", "category": "marketing"}]};
+(function(){var C=window.__consentConfig||{},R=C.autoBlock||[];if(!R.length)return;
+var B={observer:null,blocked:[]};window.__consentBlocker=B;
+function H(s){try{return new URL(s,location.href).hostname.toLowerCase()}catch(e){return ""}}
+function hit(s){if(!s)return null;var h=H(s);if(!h||h===location.hostname.toLowerCase())return null;
+for(var i=0;i<R.length;i++){var r=R[i];if(!r||!r.match)continue;var m=String(r.match).toLowerCase().replace(/^\*?\.?/,"");
+if(h===m||h.slice(-(m.length+1))==="."+m)return r}return null}
+function kill(n,r){var s=n.getAttribute("src");n.type="text/plain";n.setAttribute("type","text/plain");
+n.setAttribute("data-consent-src",s);n.setAttribute("data-consent-category",r.category);n.removeAttribute("src");B.blocked.push(s)}
+B.observer=new MutationObserver(function(m){m.forEach(function(x){Array.prototype.forEach.call(x.addedNodes,function(n){
+if(n.tagName==="SCRIPT"){var r=hit(n.getAttribute("src"));if(r)kill(n,r)}})})});
+B.observer.observe(document.documentElement,{childList:true,subtree:true});})();
+// ------------------------------------------------------------------------
 </script>
 
-<script src="/consent-banner.js"></script>
+<!-- SIN async: el bundle trae los parches de new Image(), fetch, XHR,
+     sendBeacon y la escritura de cookies. Con async llega tarde y los
+     rastreadores inline ya habrian salido. -->
+<script src="http://localhost:8000/consent-banner.js"></script>
 
 <script>
+// Varias "paginas" en un solo archivo, con ?p=. El escaner recorre enlaces
+// internos, y una pagina sola no basta: lo que pone cookies suele estar en una
+// ficha de producto o en un articulo, no en la portada. Asi se prueba el
+// recorrido sin anadir archivos ni tocar la lista blanca del backend.
+var PAGS = [["", "Portada"], ["producto", "Producto"], ["blog", "Blog"],
+            ["contacto", "Contacto"]];
+var QS   = new URLSearchParams(location.search);
+var AQUI = QS.get("p") || "";
+document.getElementById("nav").innerHTML = PAGS.map(function(p){
+  return p[0] === AQUI ? '<span class="aqui">' + p[1] + '</span>'
+    : '<a href="sitio-demo.html' + (p[0] ? '?p=' + p[0] : '') + '">' + p[1] + '</a>';
+}).join(" ");
+if (AQUI) document.querySelector("h1").textContent = "Prueba local: " + AQUI;
+
+// ---- Fugas a proposito, para que el escaner tenga que encontrarlas ----
+
+// (a) Un tercero que no espera a nadie. Se carga siempre, sin permiso: es el
+//     patron "Consent Gating Failure" del informe.
+(function(){ var i = new Image(); i.src = "https://www.google-analytics.com/collect?v=1&t=pageview"; })();
+
+// (b) Identificadores y huella, tambien sin permiso. Son las secciones 6 y 7
+//     del informe: cid/sid y resolucion, idioma, plataforma.
+(function(){
+  var i = new Image();
+  i.src = "https://www.google-analytics.com/g/collect?v=2"
+        + "&cid=" + (Math.random() + "").slice(2)
+        + "&sid=" + Date.now()
+        + "&sr="  + screen.width + "x" + screen.height
+        + "&ul="  + navigator.language
+        + "&uap=" + encodeURIComponent(navigator.platform || "");
+})();
+
+// (c) El termino buscado, hacia dos terceros y en campos distintos. Es la
+//     seccion 3, la que mas pesa: lo que el visitante escribio sale fuera.
+(function(){
+  var q = QS.get("q");
+  if (!q) return;
+  var a = new Image();
+  a.src = "https://www.google-analytics.com/g/collect?v=2&en=view_search_results"
+        + "&ep.search_term=" + encodeURIComponent(q)
+        + "&dl=" + encodeURIComponent(location.href);
+  var b = new Image();
+  b.src = "https://static.ads-twitter.com/uwt.js?term=" + encodeURIComponent(q);
+})();
+
+// (d) Y uno que SI respeta el consentimiento, para que las fases se
+//     distingan. Si todas las pasadas dieran lo mismo no se podria saber si el
+//     bloqueo funciona o si el sitio simplemente no tiene terceros.
+setTimeout(function(){
+  var c = document.cookie.match(/_cookie_consent=([^;]*)/);
+  var ok = false;
+  try { ok = c && JSON.parse(decodeURIComponent(c[1])).choice === "all"; } catch(e){}
+  if (ok) {
+    var s = document.createElement("script");
+    s.src = "https://connect.facebook.net/en_US/fbevents.js";
+    document.head.appendChild(s);
+    document.cookie = "demo_solo_si_acepta=1; path=/";
+  }
+}, 900);
+
+// ---- Lo de siempre: comprobaciones manuales de P3, P7 y Consent Mode ----
 function escribir(){
   ["_ga=GA1.1.prueba","sessionid=NO_TOCAR","PHPSESSID=NO_TOCAR","_trk=rastreo"]
     .forEach(function(c){ document.cookie = c + "; path=/"; });
@@ -71,9 +179,71 @@ function pedir(){
   setTimeout(pintar, 600);
 }
 function olvidar(){
-  document.cookie = "fwc_consent_cookie_consent=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+  var ns = (window.__consentConfig||{}).namespace || "fwc_consent";
+  document.cookie = ns + "_cookie_consent=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
   location.reload();
 }
+// Prueba las cinco vias por las que un tercero puede colarse. Cada una se
+// comprueba por lo que el bundle hace al bloquearla, que es distinto en cada
+// caso: fetch rechaza la promesa, sendBeacon devuelve false, el src de img se
+// queda vacio y la url pasa a data-consent-src, XHR no llega a abrir.
+function probarVias(){
+  var reglas = (window.__consentConfig || {}).autoBlock || [];
+  var host = reglas.length
+    ? String(reglas[0].match || reglas[0]).replace(/^\*?\.?/, "")
+    : "www.google-analytics.com";
+  var base = "https://" + host + "/prueba-vias";
+  var tb = document.querySelector("#vias tbody");
+  var res = [];
+  function apunta(via, bloqueado, nota){
+    res.push("<tr><td><code>"+via+"</code></td><td class='"+(bloqueado?"si":"no")+"'>"+
+             (bloqueado ? "BLOQUEADA" : "PASA")+"</td><td>"+nota+"</td></tr>");
+    tb.innerHTML = res.join("");
+  }
+  tb.innerHTML = "<tr><td colspan='3'>Probando contra <code>"+host+"</code>...</td></tr>";
+  res = [];
+
+  // 1. pixel de imagen creado con new Image(): nunca entra en el DOM
+  var im = new Image(); im.src = base + ".gif";
+  apunta("img.src", !im.src && !!im.getAttribute("data-consent-src"),
+         "La url queda en data-consent-src y la peticion no sale");
+
+  // 2. iframe
+  var ifr = document.createElement("iframe"); ifr.src = base + ".html";
+  apunta("iframe.src", !ifr.src && !!ifr.getAttribute("data-consent-src"),
+         "Igual que el pixel. P7 pone un marcador en su lugar");
+
+  // 3. sendBeacon
+  var bc = true;
+  try { bc = navigator.sendBeacon(base + "/beacon", "x"); } catch(e){ bc = false; }
+  apunta("navigator.sendBeacon", bc === false,
+         "Devuelve false. Es como se mandan metricas al cerrar la pestana");
+
+  // 4. XHR
+  var xhr = new XMLHttpRequest(); var abierto = true;
+  try { xhr.open("GET", base + "/xhr"); xhr.send(); } catch(e){}
+  abierto = !xhr.__cbBloqueado;
+  apunta("XMLHttpRequest", !abierto, "open() no llega a abrir nada");
+
+  // 5. fetch, que es asincrono y se responde al final
+  fetch(base + "/fetch").then(function(){
+    apunta("fetch", false, "Deberia rechazar la promesa");
+  }).catch(function(e){
+    apunta("fetch", /bloqueado/.test(e.message), "La promesa se rechaza: " + e.message);
+  });
+
+  // 6. y la cookie. Ojo: esta via NO va por dominio sino por patron de nombre,
+  // asi que hay que usar un nombre que este en "Cookies que se borran" y cuya
+  // categoria este rechazada. Con un nombre inventado no se bloquea nada, y la
+  // prueba parecia fallar cuando en realidad no habia regla que aplicar.
+  document.cookie = "_ga=GA1.1.prueba_via; path=/";
+  var escrita = document.cookie.indexOf("_ga=GA1.1.prueba_via") >= 0;
+  apunta("document.cookie (_ga)", !escrita,
+         escrita ? "Se escribio: comprueba que _ga este en Cookies que se borran "+
+                   "y que su categoria este rechazada"
+                 : "No se deja escribir, en vez de borrarla despues");
+}
+
 function fila(q, ok, bien){
   return "<tr><td>"+q+"</td><td class='"+(ok?"si":"no")+"'>"+(ok?"SI":"NO")+
          "</td><td>"+bien+"</td></tr>";
@@ -94,6 +264,12 @@ function pintar(){
             "Pulsa 'Escribir cookies'. NUNCA debe bloquearse, rechaces o no");
   h += fila("Cookie de rastreo escrita", ck.indexOf("_ga=")>=0,
             "Solo si aceptaste analitica");
+  // Las dos de abajo son de P4: no se ven desde aqui, se ven en el escaner.
+  h += fila("Cookie HttpOnly del servidor", ck.indexOf("demo_sesion_servidor")<0,
+            "Debe decir SI: existe pero NO se ve desde JavaScript. Es el caso "+
+            "que una prueba manual no puede detectar y el escaner si");
+  h += fila("Termino de busqueda en la URL", !!QS.get("q"),
+            "Busca algo arriba. El escaner comprueba si sale hacia terceros");
   document.querySelector("#tabla tbody").innerHTML = h;
   document.getElementById("dl").textContent =
     (window.dataLayer||[]).map(function(a){
@@ -103,4 +279,6 @@ function pintar(){
 }
 setInterval(pintar, 1200); pintar();
 </script>
+<img src="https://analytics.tiktok.com/i18n/pixel/events.js?cid=9f3a2b1c&sr=1920x1080"
+     width="1" height="1" alt="">
 </body></html>

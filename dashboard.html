@@ -460,6 +460,69 @@
   .ck-t em{font-style:normal;font-weight:400;opacity:.65;margin-left:4px}
   .ck-pend{margin-left:auto;font-size:12px;font-weight:600;color:#8A5A00;
            background:#FFF4E5;border-radius:999px;padding:5px 11px}
+  .sug-deducida{background:#FFF4E5;color:#8A5A00;border-color:#F0D9AE}
+  /* El modal se centra en la ventana. Antes iba con margin:3vh auto, que en
+     pantallas bajas lo pegaba al borde de arriba y la caja blanca se solapaba
+     con la barra oscura: parecia que el modal estaba cortado. */
+  .inf-modal{display:none;position:fixed;inset:0;z-index:9000;
+    align-items:center;justify-content:center;padding:4vh 16px}
+  .inf-fondo{position:absolute;inset:0;background:rgba(10,20,30,.45)}
+  .inf-caja{position:relative;width:100%;max-width:900px;margin:0;background:#fff;
+    border-radius:12px;box-shadow:0 18px 50px rgba(10,20,30,.35);
+    max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+  .inf-top{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:12px 16px;border-bottom:1px solid #e3e8ec}
+  .inf-cuerpo{overflow:auto;padding:4px 20px 20px;font-size:13.5px;line-height:1.55}
+  .inf-cuerpo .inf-h{color:#1F3A52;margin:18px 0 6px;font-size:15px}
+  .inf-cuerpo h3.inf-h{font-size:18px}
+  .inf-cuerpo p{margin:6px 0}
+  .inf-cita{margin:8px 0;padding:8px 12px;background:#FDECEC;border-left:3px solid #9B1C1C;
+    color:#7A1616}
+  .inf-tabla{border-collapse:collapse;width:100%;margin:8px 0;font-size:12.5px}
+  .inf-tabla th{background:#1F3A52;color:#fff;text-align:left;padding:6px 8px;font-size:11.5px}
+  .inf-tabla td{border-bottom:1px solid #e9edf0;padding:5px 8px;vertical-align:top}
+  .inf-tabla tr:nth-child(even) td{background:#F7F9FA}
+  /* P6. La campana. El numero solo sale si hay algo sin leer: una campana con
+     un cero permanente se deja de mirar en una semana, y entonces el dia que
+     trae algo tampoco se mira. */
+  /* El numero va DENTRO del boton. Flotando por encima con position:absolute
+     se salia por arriba y la barra lo recortaba por la mitad: un contador a
+     medias es peor que ninguno, porque no se sabe si pone 3 o 8. */
+  .campana{display:inline-flex;align-items:center;gap:7px}
+  /* La clase se llama av-n y no pt: .pt ya existe en la barra como el puntito
+     verde de "Publicado", con width y height de 8px fijos, y el contador salia
+     aplastado dentro de un circulo de 8 pixeles. */
+  .campana .av-n{background:#C0392B;color:#fff;font-size:10.5px;font-weight:700;
+    border-radius:9px;padding:1px 6px;line-height:1.7;display:inline-block;
+    min-width:9px;text-align:center}
+  .av-fila{border:1px solid #e9edf0;border-left:3px solid #c9d2d8;border-radius:8px;
+    padding:10px 12px;margin:8px 0;background:#fff}
+  .av-fila.alta{border-left-color:#9B1C1C;background:#FDF6F6}
+  .av-fila.media{border-left-color:#B45309}
+  .av-fila.visto{opacity:.5}
+  .av-t{font-weight:600;font-size:13.5px;color:#1F3A52}
+  .av-d{font-size:12.5px;color:#4a5a66;margin-top:4px;line-height:1.55}
+  .av-c{font-size:11.5px;color:#8a97a1;margin-top:5px}
+  .vig{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;
+    color:#4a5a66;margin:10px 0 0;padding:9px 11px;background:#F7F9FA;
+    border:1px solid #e9edf0;border-radius:8px}
+  .vig .vig-nota{flex:1 1 320px;min-width:0}
+  /* La fecha del ultimo escaneo programado, en su propia linea: pegada al
+     final del parrafo estiraba la caja hasta el borde de la pantalla. */
+  .vig .vig-ult{flex:1 1 100%;font-size:11.5px;color:#8a97a1;margin-top:2px}
+  .vig input[type=number]{width:52px;font:12.5px inherit;padding:4px 6px;
+    border:1px solid #d8dde2;border-radius:6px}
+  .esc-url{font:13px/1.3 inherit;padding:7px 10px;border:1px solid var(--linea,#d8dde2);
+    border-radius:7px;min-width:0;flex:0 1 250px;max-width:280px}
+  .sin-permiso{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;
+    font-weight:700;background:#FDE8E8;color:#9B1C1C;border:1px solid #F5C2C2;
+    margin-left:6px;cursor:help}
+  .sug-deducida em{font-style:normal;opacity:.8;font-weight:600}
+  .esc-caja{margin:0 0 14px;padding:11px 14px;border-radius:8px;font-size:13.5px;
+            background:#EEF3F8;border:1px solid #CFDDE9;color:#2B4257}
+  .esc-caja .sub{opacity:.7;font-size:12.5px}
+  .esc-ok{background:#ECF6EF;border-color:#C5E3D0;color:#1E5131}
+  .esc-muro{background:#FDEEEC;border-color:#F2C9C3;color:#8C2F22}
   /* ---------- cookies detectadas ---------- */
   .ck-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
            flex-wrap:wrap;margin-bottom:14px}
@@ -562,6 +625,9 @@
     <button class="btn sm" id="btn-publicar" onclick="saveCfg()">Publicar</button>
     <span class="who" id="who"></span>
     <div class="modes lang-sw" id="lang-sw"></div>
+    <button class="icon-btn campana" id="campana" onclick="verAvisos()"
+            title="Cambios detectados desde el escaneo anterior">Avisos<span
+            class="av-n" id="campana-n" style="display:none">0</span></button>
     <button class="icon-btn" onclick="logout()">Salir</button>
   </div>
   <div class="marco">
@@ -989,6 +1055,10 @@ var DICT = {
   "Dominios": "Allowed domains",
   "Ver codigo": "View code",
   "Registros de consentimiento": "Consent records",
+  "Senal GPC": "GPC signal",
+  "Otros": "Other",
+  "Cada registro es la prueba de una decision: cuando, que acepto y con que version del texto. Los de Senal GPC los decidio el navegador del visitante, sin preguntarle.":
+    "Each record proves one decision: when, what was accepted and with which text version. GPC signal ones were decided by the visitor's browser, without asking them.",
   "Ver registros": "View records",
   "Como se ve hoy": "How it looks today",
   "Atajos": "Shortcuts",
@@ -1077,6 +1147,23 @@ var DICT = {
   "Espera a la decision (ms)": "Wait for the decision (ms)",
   "Redactar identificadores de clic": "Redact ad click identifiers",
   "Pasar la campana por la URL": "Pass the campaign through the URL",
+  "deducido, confirmalo": "deduced, confirm it",
+  "aparece sin permiso": "appears without consent",
+  "El escaner la vio antes de que nadie consintiera. Es lo primero que mira una auditoria.":
+    "The scanner saw it before anyone consented. It is the first thing an audit looks at.",
+  "Escanear el sitio": "Scan the site",
+  "Escaneo encolado.": "Scan queued.",
+  "Ya habia un escaneo en marcha.": "A scan was already running.",
+  "No se pudo pedir el escaneo.": "Could not request the scan.",
+  "Escaneo en cola.": "Scan queued.",
+  "Esperando al worker.": "Waiting for the worker.",
+  "No hay worker escuchando: define SCANNER_KEY y arranca el escaner con --worker.": "No worker listening: set SCANNER_KEY and start the scanner with --worker.",
+  "Escaneando": "Scanning",
+  "tarda un par de minutos por sitio.": "takes a couple of minutes per site.",
+  "No se pudo escanear:": "Could not scan:",
+  "Lo que se vio es un muro anti-bot, no el sitio. No se guardo nada.": "What it saw was an anti-bot wall, not the site. Nothing was saved.",
+  "El escaneo fallo:": "The scan failed:",
+  "Ultimo escaneo:": "Last scan:",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -1339,6 +1426,18 @@ var DICT = {
   "Clasifica cada una. Las esenciales nunca se borran.":
     "Classify each one. Essential cookies are never deleted.",
   "Aplicar sugerencias": "Apply suggestions",
+  "Pagina por la que empieza el escaneo": "Page the scan starts from",
+  "Ver el informe": "View report",
+  "Informe del escaneo": "Scan report",
+  "Descargar .md": "Download .md",
+  "Cerrar": "Close",
+  "No hay informe.": "No report available.",
+  "sin aplicar: su categoria no existe en este sitio":
+    "not applied: their category does not exist on this site",
+  "son deducciones marcadas en ambar: repasalas antes de guardar.":
+    "are deductions marked in amber: review them before saving.",
+  "Sin aplicar por falta de categoria en este sitio":
+    "Not applied, category missing on this site",
   "Refrescar": "Refresh",
   "Guardar clasificacion": "Save classification",
   "Detectadas": "Detected",
@@ -1367,12 +1466,18 @@ var DICT = {
   "cookie(s) respondidas. Revisa y pulsa Guardar.":
     "cookie(s) answered. Review and press Save.",
   "patron(es) anadidos a la configuracion (version": "pattern(s) added to the settings (version",
-  "Aqui solo aparecen las cookies de": "Only cookies from",
+  "El banner, por si solo, ve las cookies de": "On its own, the banner sees cookies from",
   "tu propio dominio": "your own domain",
-  "no son visibles desde JavaScript, asi que ningun banner puede detectarlas ni borrarlas. Para el informe de auditoria hay que anotarlas a mano desde DevTools":
-    "are not visible to JavaScript, so no banner can detect or delete them. For the audit report they must be noted by hand from DevTools",
+  "que no sean": "that are not",
   "Las de terceros": "Third party ones",
-  "y las marcadas": "and those marked",
+  "y las": "and",
+  "las trae el": "are brought in by the",
+  "escaner": "scanner",
+  ", que usa un navegador real: pulsa": ", which uses a real browser: press",
+  "Escanear el sitio": "Scan the site",
+  ". Detectarlas no es poder bloquearlas: una cookie": ". Detecting them is not the same as blocking them: an",
+  "la pone el servidor en una cabecera, y ni el banner ni ningun script pueden evitarla ni borrarla":
+    "cookie is set by the server in a header, and neither the banner nor any script can prevent or delete it",
 
   /* --- cuenta --- */
   "Cambiar contrasena": "Change password",
@@ -1610,6 +1715,7 @@ function boot(){
     renderPicker();
     renderTabs();
     openTab(tab);
+    cargarAvisos();
   });
 }
 
@@ -1650,7 +1756,7 @@ document.addEventListener("click", function(){ if(menuOpen){ menuOpen=false; ren
 function pickSite(id){
   current = id; menuOpen = false;
   window._ckDetectadas = undefined;   // son de otro sitio: hay que volver a pedirlas
-  renderPicker(); openTab(tab);
+  renderPicker(); openTab(tab); cargarAvisos();
 }
 
 /* ---------------- pestanas ---------------- */
@@ -1902,14 +2008,27 @@ function rsLogs(){
     var c = r.d.counts || {}, t = r.d.total || 0;
     CONTADORES.registros = t || null;
     renderTabs();
+    // El banner escribe cuatro decisiones posibles, no tres: ademas de all,
+    // custom y none esta "gpc", que es la que toma sola al llegar la senal. Con
+    // solo tres cajas, esas quedaban dentro del total y fuera de todas, los
+    // numeros no sumaban, y encima se ocultaba justo la categoria que es
+    // obligacion legal. La caja de GPC sale solo si hay alguna; "otros" solo si
+    // aun asi falta algo, para que ningun registro desaparezca en silencio.
+    var gpc = c.gpc||0;
+    var otros = t - ((c.all||0)+(c.custom||0)+(c.none||0)+gpc);
     host.innerHTML =
       '<div class="stat"><div class="n">'+t+'</div><div class="l">Total</div></div>'+
       '<div class="stat acc"><div class="n">'+(c.all||0)+'</div><div class="l">Aceptan todo</div></div>'+
       '<div class="stat cus"><div class="n">'+(c.custom||0)+'</div><div class="l">Personalizan</div></div>'+
-      '<div class="stat rej"><div class="n">'+(c.none||0)+'</div><div class="l">Rechazan</div></div>';
+      '<div class="stat rej"><div class="n">'+(c.none||0)+'</div><div class="l">Rechazan</div></div>'+
+      (gpc ? '<div class="stat rej"><div class="n">'+gpc+'</div><div class="l">'+
+             frase("Senal GPC")+'</div></div>' : '')+
+      (otros > 0 ? '<div class="stat"><div class="n">'+otros+'</div><div class="l">'+
+             frase("Otros")+'</div></div>' : '');
     var pie = el("rs-logs-pie");
     if(pie) pie.textContent = t
-      ? frase("Cada registro es la prueba de una decision: cuando, que acepto y con que version del texto.")
+      ? frase(c.gpc ? "Cada registro es la prueba de una decision: cuando, que acepto y con que version del texto. Los de Senal GPC los decidio el navegador del visitante, sin preguntarle."
+                    : "Cada registro es la prueba de una decision: cuando, que acepto y con que version del texto.")
       : frase("Todavia no hay registros. Cada uno sera la prueba de una decision concreta.");
   });
 }
@@ -4422,7 +4541,15 @@ function buildSnippet(d){
 'if(n.tagName==="SCRIPT"){var r=hit(n.getAttribute("src"));if(r)kill(n,r)}})})});\n'+
 'B.observer.observe(document.documentElement,{childList:true,subtree:true});})();\n';
   }
-  s += '<\/script>\n<script async src="'+API+'/consent-banner.js"><\/script>';
+  // SIN async, a proposito. El bundle lleva los parches de new Image(), fetch,
+  // XHR, sendBeacon y la escritura de cookies; el pre-bloqueador de arriba solo
+  // cubre etiquetas <script src>. Con async el bundle llega cuando le toca, y
+  // cualquier rastreador que dispare desde un script inline (que es como se
+  // instalan gtag, fbq y casi todos) ya ha salido. Medido contra la pagina de
+  // pruebas: con async, Google Analytics recibe datos en la fase fria pese a
+  // estar en la lista de bloqueo; sin async, no. Cuesta unos milisegundos de
+  // render y es la diferencia entre bloquear y no bloquear.
+  s += '<\/script>\n<script src="'+API+'/consent-banner.js"><\/script>';
   return s;
 }
 
@@ -4985,6 +5112,9 @@ function pintarCkSeccion(){
           '<div><h2 style="margin:0">Cookies detectadas en el sitio</h2>'+
           '<p class="sub" style="margin:4px 0 0">Clasifica cada una. Las esenciales nunca se borran.</p></div>'+
           '<div class="row">'+
+            '<input id="esc-url" class="esc-url" placeholder="http://localhost:8000/sitio-demo.html" '+
+              'title="'+frase("Pagina por la que empieza el escaneo")+'">'+
+            '<button class="btn sm" id="btn-escanear" onclick="pedirEscaneo()">Escanear el sitio</button>'+
             '<button class="btn ghost sm" onclick="vaciarInventario()">Vaciar inventario</button>'+
             '<button class="btn ghost sm" onclick="exportarAuditPDF()">Exportar audit (PDF)</button>'+
             '<button class="btn ghost sm" onclick="exportarAudit()">CSV</button>'+
@@ -4993,16 +5123,22 @@ function pintarCkSeccion(){
             '<button class="btn sm" id="ck-save" onclick="guardarCookies()">Guardar clasificacion</button>'+
           '</div>'+
         '</div>'+
+        '<div id="ck-escaneo"></div>'+
+        '<div id="ck-vigilancia"></div>'+
         '<div id="ck-aviso"></div>'+
-        '<div class="banner-nota">Aqui solo aparecen las cookies de <b>tu propio dominio</b>. '+
-        'Las de terceros (<code>.google.com</code>, <code>.vimeo.com</code>) y las marcadas '+
-        '<code>HttpOnly</code> no son visibles desde JavaScript, asi que ningun banner puede '+
-        'detectarlas ni borrarlas. Para el informe de auditoria hay que anotarlas a mano desde '+
-        'DevTools &rarr; Application &rarr; Cookies.</div>'+
+        '<div class="banner-nota">El banner, por si solo, ve las cookies de <b>tu propio '+
+        'dominio</b> que no sean <code>HttpOnly</code>. Las de terceros '+
+        '(<code>.google.com</code>, <code>.vimeo.com</code>) y las <code>HttpOnly</code> las '+
+        'trae el <b>escaner</b>, que usa un navegador real: pulsa <b>Escanear el sitio</b>. '+
+        'Detectarlas no es poder bloquearlas: una cookie <code>HttpOnly</code> la pone el '+
+        'servidor en una cabecera, y ni el banner ni ningun script pueden evitarla ni '+
+        'borrarla.</div>'+
         '<div id="ck-body"><div class="empty">Cargando...</div></div>'+
         '<div class="row mt"><span id="ck-msg" class="msg"></span></div>'+
       '</div>';
     if(window._ckRows) pintarCookies();
+    verEscaneo(false);
+    cargarAvisos();        // pinta el interruptor de vigilancia
     return;
   }
 
@@ -5046,9 +5182,16 @@ function bloquearHost(host, id){
     j("POST","/dash/site/hosts/apply", {site_id: current}).then(function(r2){
       if(!r2.ok){ msg("ck-msg", r2.d.error || "No se pudo aplicar.", true); return; }
       var n = (r2.d.anadidos || []).length, cub = (r2.d.cubiertos || []).length;
+      var sinCat = r2.d.sin_categoria || [];
       var partes = [];
       if(n)   partes.push(n + " " + frase("dominio(s) anadidos al bloqueo"));
       if(cub) partes.push(cub + " " + frase("ya cubiertos por una regla mas corta"));
+      // El servidor los salta cuando la categoria sugerida no existe en este
+      // sitio. Callarselo deja al usuario pulsando un boton que no hace nada y
+      // sin forma de averiguar por que.
+      if(sinCat.length) partes.push(sinCat.length + " " +
+          frase("sin aplicar: su categoria no existe en este sitio") +
+          " (" + sinCat.slice(0,3).join(", ") + ")");
       // El repintado borra el mensaje, asi que se guarda y se vuelve a poner
       // despues: sin eso, la accion termina sin decir que hizo.
       _ckTrasRecargar = (partes.join(", ") || frase("Sin cambios")) +
@@ -5058,6 +5201,281 @@ function bloquearHost(host, id){
       // mostrando la anterior.
       openTab("cookies");
     });
+  });
+}
+
+
+/* ---- Escaneo del sitio (P4) ---------------------------------------------
+   El panel no escanea: encola el trabajo y mira como va. Quien lo hace es el
+   worker, que corre aparte porque Chromium no cabe en el backend. */
+var _escTimer = null;
+
+function pedirEscaneo(){
+  var b = el("btn-escanear"); if(b) b.disabled = true;
+  // La URL viaja desde el panel. Antes solo iba el site_id y el servidor
+  // armaba "https://" + dominio, sin puerto: contra un sitio real acierta,
+  // pero en local da https://localhost y el escaneo falla con conexion
+  // rechazada en las cuatro pasadas. Ademas, poder apuntar a una pagina
+  // concreta es util: lo que pone cookies suele estar en una ficha de
+  // producto, no en la portada.
+  var campo = el("esc-url"), url = campo ? campo.value.trim() : "";
+  if(url){ try{ localStorage.setItem("esc-url-"+current, url) }catch(e){} }
+  j("POST", "/dash/site/scan", url ? {site_id: current, url: url}
+                                   : {site_id: current}).then(function(r){
+    if(!r.ok){
+      if(b) b.disabled = false;
+      msg("ck-msg", r.d.error || frase("No se pudo pedir el escaneo."), true);
+      return;
+    }
+    msg("ck-msg", r.d.ya_estaba ? frase("Ya habia un escaneo en marcha.")
+                                : frase("Escaneo encolado."));
+    verEscaneo(true);
+  });
+}
+
+// Convierte el informe (markdown) en HTML. Solo se cubre lo que el generador
+// usa: titulos, tablas, negrita, codigo, citas y parrafos. Un renderizador
+// completo seria una dependencia nueva para nada.
+function mdAHtml(md){
+  var lineas = String(md).split("\n"), out = [], tabla = null;
+  function cierra(){
+    if(!tabla) return;
+    out.push('<table class="inf-tabla"><thead><tr>' +
+      tabla.cab.map(function(c){ return "<th>" + inline(c) + "</th>"; }).join("") +
+      "</tr></thead><tbody>" +
+      tabla.filas.map(function(f){
+        return "<tr>" + f.map(function(c){ return "<td>" + inline(c) + "</td>"; }).join("") + "</tr>";
+      }).join("") + "</tbody></table>");
+    tabla = null;
+  }
+  function inline(t){
+    return esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+                 .replace(/`([^`]+)`/g, "<code>$1</code>");
+  }
+  function celdas(l){
+    return l.replace(/^\||\|$/g, "").split("|").map(function(c){ return c.trim(); });
+  }
+  lineas.forEach(function(l){
+    var t = l.trim();
+    if(/^\|/.test(t)){
+      var c = celdas(t);
+      if(!tabla){ tabla = {cab: c, filas: []}; return; }
+      if(/^[-: ]+$/.test(c.join(""))) return;      // la linea de guiones
+      tabla.filas.push(c); return;
+    }
+    cierra();
+    if(!t) return;
+    var m = t.match(/^(#{1,3})\s+(.*)$/);
+    if(m){ out.push("<h" + (m[1].length+2) + ' class="inf-h">' + inline(m[2]) +
+                    "</h" + (m[1].length+2) + ">"); return; }
+    if(t.indexOf("> ") === 0){ out.push('<blockquote class="inf-cita">' +
+                                        inline(t.slice(2)) + "</blockquote>"); return; }
+    out.push("<p>" + inline(t) + "</p>");
+  });
+  cierra();
+  return out.join("");
+}
+
+function verInforme(id){
+  j("GET", "/dash/site/scan/informe?site_id=" + encodeURIComponent(current) +
+           (id ? "&id=" + id : "")).then(function(r){
+    if(!r.ok){ msg("ck-msg", (r.d && r.d.error) || frase("No hay informe."), true); return; }
+    var caja = el("inf-modal");
+    if(!caja){
+      caja = document.createElement("div");
+      caja.id = "inf-modal"; caja.className = "inf-modal";
+      document.body.appendChild(caja);
+    }
+    window._infTexto = r.d.informe;
+    caja.innerHTML =
+      '<div class="inf-fondo" onclick="cerrarInforme()"></div>' +
+      '<div class="inf-caja"><div class="inf-top">' +
+        '<b>' + frase("Informe del escaneo") + '</b>' +
+        '<span><button class="btn ghost sm" onclick="bajarInforme()">' +
+          frase("Descargar .md") + '</button>' +
+        '<button class="btn ghost sm" onclick="cerrarInforme()">' +
+          frase("Cerrar") + '</button></span>' +
+      '</div><div class="inf-cuerpo">' + mdAHtml(r.d.informe) + '</div></div>';
+    caja.style.display = "flex";
+  });
+}
+function cerrarInforme(){ var c = el("inf-modal"); if(c) c.style.display = "none"; }
+function bajarInforme(){
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([window._infTexto || ""], {type:"text/markdown"}));
+  a.download = "informe-escaneo.md"; a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ---------------- P6. Vigilancia continua ----------------
+   Lo que separa esto de pulsar "Escanear el sitio" son dos cosas: un reloj,
+   para que lo pulse solo, y una memoria, para saber como estaba el sitio la
+   vez anterior. De ahi sale la regla de la que depende todo lo demas: aqui no
+   se ensenan estados, se ensenan CAMBIOS. "Este sitio contacta 11 terceros" no
+   es un aviso, es el informe. "Hay uno que la semana pasada no estaba y recibe
+   identificadores" si lo es. Si nada ha cambiado, la campana no trae nada, y
+   esa es justo la razon por la que se sigue mirando pasado un mes. */
+function cargarAvisos(){
+  if(!current) return;
+  j("GET", "/dash/site/avisos?site_id=" + encodeURIComponent(current)).then(function(r){
+    if(!r.ok) return;
+    window._avisos = r.d;
+    var n = r.d.sin_ver || 0, pt = el("campana-n");
+    if(pt){ pt.textContent = n > 9 ? "9+" : String(n); pt.style.display = n ? "" : "none"; }
+    pintarVigilancia(r.d.vigilancia);
+  });
+}
+
+function verAvisos(){
+  if(!current) return;
+  j("GET", "/dash/site/avisos?site_id=" + encodeURIComponent(current)).then(function(r){
+    if(!r.ok) return;
+    var filas = r.d.rows || [], cuerpo = "";
+    var caja = el("av-modal");
+    if(!caja){
+      caja = document.createElement("div");
+      caja.id = "av-modal"; caja.className = "inf-modal";
+      document.body.appendChild(caja);
+    }
+    if(!filas.length){
+      cuerpo = '<p class="sub">' + frase("No hay ningun cambio que avisar.") + ' ' +
+        frase("Aqui solo aparece lo que ha cambiado respecto al escaneo anterior: "+
+              "un tercero nuevo que recibe datos, un bloqueo que ha dejado de "+
+              "funcionar, o una cookie que empieza a aparecer antes de que nadie "+
+              "consienta. El primer escaneo de un sitio nunca genera avisos: no hay "+
+              "con que compararlo.") + '</p>';
+    } else {
+      for(var i = 0; i < filas.length; i++){
+        var a = filas[i];
+        cuerpo += '<div class="av-fila ' + esc(a.gravedad) + (a.visto ? ' visto' : '') + '">' +
+          '<div class="av-t">' + esc(a.titulo) + '</div>' +
+          '<div class="av-d">' + esc(a.detalle) + '</div>' +
+          '<div class="av-c">' + esc((a.cuando || "").replace("T", " ").slice(0, 16)) +
+          (a.job_id ? ' &middot; <a href="#" onclick="cerrarAvisos();verInforme(' +
+                      a.job_id + ');return false">' +
+                      frase("ver el informe de ese escaneo") + '</a>' : '') +
+          '</div></div>';
+      }
+    }
+    caja.innerHTML =
+      '<div class="inf-fondo" onclick="cerrarAvisos()"></div>' +
+      '<div class="inf-caja"><div class="inf-top"><b>' + frase("Avisos") + '</b><span>' +
+      (filas.length ? '<button class="btn ghost sm" onclick="avisosVistos()">' +
+                      frase("Marcar todo como leido") + '</button>' : '') +
+      '<button class="btn ghost sm" onclick="cerrarAvisos()">' +
+        frase("Cerrar") + '</button></span></div>' +
+      '<div class="inf-cuerpo">' + cuerpo + '</div></div>';
+    caja.style.display = "flex";
+  });
+}
+function cerrarAvisos(){ var c = el("av-modal"); if(c) c.style.display = "none"; }
+function avisosVistos(){
+  j("POST", "/dash/site/avisos/visto", {site_id: current}).then(function(){
+    cerrarAvisos(); cargarAvisos();
+  });
+}
+
+function pintarVigilancia(v){
+  var caja = el("ck-vigilancia");
+  if(!caja) return;                  // no estamos en Cookies detectadas
+  v = v || {activa: 0, dias: 7};
+  caja.innerHTML = '<div class="vig">' +
+    '<label><input type="checkbox" id="vig-on" ' + (v.activa ? 'checked' : '') +
+      ' onchange="guardarVigilancia()"> <b>' +
+      frase("Vigilar este sitio solo") + '</b></label>' +
+    '<span>' + frase("cada") + ' <input type="number" id="vig-dias" min="1" max="30" ' +
+      'value="' + (v.dias || 7) + '" onchange="guardarVigilancia()"> ' +
+      frase("dias") + '</span>' +
+    '<span class="sub vig-nota">' +
+      frase("Escanea sin que pulses nada y solo avisa si algo ha cambiado. "+
+            "Necesita el worker del escaner en marcha.") +
+    '</span>' +
+    // La fecha va en su propia linea: pegada al final del parrafo estiraba la
+    // caja hasta el borde de la pantalla y el texto se iba a dos lineas feas.
+    (v.ultimo ? '<span class="vig-ult">' + frase("Ultimo escaneo programado:") +
+                ' ' + esc((v.ultimo || "").replace("T", " ").slice(0, 16)) +
+                '</span>' : '') +
+    '</div>';
+}
+function guardarVigilancia(){
+  var on = el("vig-on"), d = el("vig-dias"), u = el("esc-url");
+  j("POST", "/dash/site/vigilancia", {
+      site_id: current,
+      activa: on && on.checked ? 1 : 0,
+      dias: d ? parseInt(d.value || "7", 10) : 7,
+      // La misma URL que usa el boton de escanear. Si esta vacia, el backend
+      // la arma con el dominio del sitio.
+      url: u ? u.value.trim() : "", paginas: 8}).then(function(r){
+    if(!r.ok) return;
+    msg("ck-msg", !(on && on.checked)
+        ? frase("Vigilancia desactivada.")
+        : (r.d && r.d.arranca_ya)
+          // Al encenderla hace falta una foto de partida, asi que el primer
+          // escaneo entra en la cola ya. Decirlo evita que alguien la encienda
+          // y se quede esperando una semana sin saber si funciona.
+          ? frase("Vigilancia activada. El primer escaneo entra en la cola ahora, "+
+                  "para tener con que comparar.")
+          : frase("Vigilancia actualizada."), false);
+  });
+}
+
+function verEscaneo(seguir){
+  j("GET", "/dash/site/scan/estado?site_id=" + encodeURIComponent(current)).then(function(r){
+    var caja = el("ck-escaneo"); if(!caja || !r.ok) return;
+    var filas = r.d.rows || [], ult = filas[0];
+    var campo = el("esc-url");
+    if(campo && !campo.value){
+      var guardada = "";
+      try{ guardada = localStorage.getItem("esc-url-"+current) || "" }catch(e){}
+      campo.value = guardada || (ult && ult.url) || "";
+    }
+    var b = el("btn-escanear");
+    var vivo = ult && (ult.estado === "pendiente" || ult.estado === "corriendo");
+    if(b) b.disabled = !!vivo;
+
+    if(!ult){ caja.innerHTML = ""; }
+    else {
+      var texto, clase = "esc-caja";
+      if(ult.estado === "pendiente"){
+        texto = frase("Escaneo en cola.") + " " +
+          (r.d.worker ? frase("Esperando al worker.")
+                      : "<b>" + frase("No hay worker escuchando: define SCANNER_KEY y arranca el escaner con --worker.") + "</b>");
+      } else if(ult.estado === "corriendo"){
+        texto = frase("Escaneando") + " " + esc(ult.url) + "... " +
+                frase("tarda un par de minutos por sitio.");
+      } else if(ult.estado === "muro"){
+        clase += " esc-muro";
+        texto = "<b>" + frase("No se pudo escanear:") + "</b> " + esc(ult.resumen || "") + " " +
+                frase("Lo que se vio es un muro anti-bot, no el sitio. No se guardo nada.");
+      } else if(ult.estado === "error"){
+        clase += " esc-muro";
+        texto = "<b>" + frase("El escaneo fallo:") + "</b> " + esc(ult.resumen || "");
+      } else {
+        clase += " esc-ok";
+        texto = "<b>" + frase("Ultimo escaneo:") + "</b> " + esc(ult.resumen || "") +
+                " <span class=\'sub\'>" + esc((ult.terminado || "").replace("T", " ").slice(0, 16)) + "</span>";
+      }
+      // El informe es lo que de verdad contesta "donde estan los huecos".
+      // Antes vivia solo en un fichero del disco de quien lanzaba el escaner,
+      // asi que desde el panel no habia forma de llegar a el.
+      if(ult.tiene_informe){
+        texto += ' <button class="btn ghost sm" style="margin-left:8px" ' +
+                 'onclick="verInforme(' + ult.id + ')">' +
+                 frase("Ver el informe") + '</button>';
+      }
+      caja.innerHTML = '<div class="' + clase + '">' + texto + '</div>';
+    }
+
+    // Mientras hay uno en marcha se repregunta; cuando acaba, se refresca la
+    // tabla una vez y se para. Sin esto habria que recargar a mano para ver
+    // lo que acaba de encontrar.
+    if(_escTimer){ clearTimeout(_escTimer); _escTimer = null; }
+    if(vivo){
+      _escTimer = setTimeout(function(){ verEscaneo(true); }, 4000);
+    } else if(seguir){
+      loadCookies();
+      // Un escaneo recien acabado es justo cuando puede haber avisos nuevos.
+      cargarAvisos();
+    }
   });
 }
 
@@ -5145,11 +5563,28 @@ function filaCookie(x, tipos){
   var sinDecidir    = !esNecesaria && !esNoNecesaria;
 
   var sug = "";
-  if (x.sugerida === "esencial")      sug = '<span class="sug">se sugiere: necesaria</span>';
-  else if (x.sugerida)                sug = '<span class="sug">se sugiere: no necesaria ('+esc(catLabel(x.sugerida))+')</span>';
+  // Una sugerencia deducida (por quien escribio la cookie o por la forma del
+  // nombre) no vale lo mismo que una identificada en el catalogo, y quien
+  // revisa tiene que poder distinguirlas de un vistazo. Si no, se aprueba todo
+  // igual y la deduccion se convierte en un dato duro que nadie comprobo.
+  var deducida = /Deducido|procedencia|escribe un script/.test(x.explicacion || "");
+  var marca = deducida ? " sug-deducida" : "";
+  var cola = deducida ? ' <em>deducido, confirmalo</em>' : '';
+  if (x.sugerida === "esencial")      sug = '<span class="sug'+marca+'">se sugiere: necesaria'+cola+'</span>';
+  else if (x.sugerida)                sug = '<span class="sug'+marca+'">se sugiere: no necesaria ('+esc(catLabel(x.sugerida))+')'+cola+'</span>';
   else                                sug = '<span class="sug none">desconocida</span>';
 
   var desc = x.explicacion || "No esta en el catalogo. Averigua quien la escribe antes de decidir.";
+
+  // Lo que aparece sin que nadie haya consentido es el primer hallazgo de
+  // cualquier auditoria externa, y el que sostiene una reclamacion. Va marcado
+  // aparte de la sugerencia de categoria, porque son dos cosas distintas: una
+  // es "que es", la otra es "cuando aparece".
+  if (x.sin_permiso) {
+    sug += ' <span class="sin-permiso" title="El escaner la vio antes de que ' +
+           'nadie consintiera. Es lo primero que mira una auditoria.">' +
+           'aparece sin permiso</span>';
+  }
 
   // Un solo desplegable con todo: sin decidir, esencial, y las categorias
   // que el sitio tenga configuradas.
@@ -5300,21 +5735,39 @@ function contarCambios(){
 function aceptarSugerencias(){
   var rows = window._ckRows || [];
   var tipos = (window._ckCats||[]).filter(function(c){ return c!=="esencial"; });
-  var n = 0;
+  var n = 0, deducidas = 0, faltan = {};
   rows.forEach(function(x){
     if(x.status === "asignada" || !x.sugerida) return;
     if(x.sugerida === "esencial"){
       x.category = "esencial"; x.status = "asignada";
     } else {
-      if(tipos.indexOf(x.sugerida) < 0) return;   // ese tipo no existe en la config
+      if(tipos.indexOf(x.sugerida) < 0){
+        // La categoria sugerida no existe en este sitio. Antes se saltaba en
+        // silencio: el boton parecia no hacer nada y no habia forma de saber
+        // por que. Ahora se cuenta y se dice cual falta.
+        faltan[x.sugerida] = (faltan[x.sugerida]||0) + 1; return;
+      }
       x.category = x.sugerida; x.status = "asignada";
     }
+    // Las deducidas (por procedencia o por la forma del nombre) no valen lo
+    // mismo que las identificadas en catalogo. Se aplican igual, porque el
+    // boton es para ir rapido, pero se dice cuantas hay que repasar.
+    if(/Deducido|procedencia|escribe un script/.test(x.explicacion || "")) deducidas++;
     _ckCambios[x.name] = { category: x.category, status: "asignada" };
     n++;
   });
   pintarCookies();
-  msg("ck-msg", n ? (n+" cookie(s) respondidas. Revisa y pulsa Guardar.")
-                  : "No hay sugerencias aplicables.", false);
+  var txt;
+  if(!n) txt = frase("No hay sugerencias aplicables.");
+  else {
+    txt = n + " " + frase("cookie(s) respondidas. Revisa y pulsa Guardar.");
+    if(deducidas) txt += " " + deducidas + " " +
+        frase("son deducciones marcadas en ambar: repasalas antes de guardar.");
+  }
+  var sinCat = Object.keys(faltan);
+  if(sinCat.length) txt += " " + frase("Sin aplicar por falta de categoria en este sitio") +
+      ": " + sinCat.join(", ") + ".";
+  msg("ck-msg", txt, false);
 }
 
 function guardarCookies(){

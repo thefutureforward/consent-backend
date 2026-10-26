@@ -1,1 +1,6 @@
 # El backend solo usa la libreria estandar: no hay dependencias.
+#
+# El worker del escaner (P4) SI necesita Playwright, pero va en otro servicio
+# y tiene su propio escaner/requirements.txt. No se ponen aqui a proposito:
+# Playwright con Chromium son unos 350 MB, y el proceso que atiende a los
+# clientes no tiene por que cargar con eso.

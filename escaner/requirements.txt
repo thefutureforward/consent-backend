@@ -1,0 +1,15 @@
+# Dependencias del worker del escaner. El backend no necesita ninguna.
+#
+# La version esta clavada por el Dockerfile: la imagen oficial
+# playwright/python:v1.56.0-noble trae los navegadores de esa version, y si el
+# paquete no coincide, no los encuentra.
+#
+# EN LOCAL NO HACE FALTA. Si ya tienes Playwright instalado, sea cual sea la
+# version, usa el que tengas: el escaner solo usa API estable. Instalar esto
+# encima intentaria cambiarte la version y en Windows suele fallar al no poder
+# reemplazar playwright.exe. En ese caso salta el pip install y haz solo:
+#
+#     python -m playwright install chromium
+#
+# ("python -m playwright" en vez de "playwright" evita el .exe bloqueado.)
+playwright==1.56.0
