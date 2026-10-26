@@ -791,7 +791,10 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         u = urlparse(self.path)
         p, q = u.path, parse_qs(u.query)
-        if p in ("/", "/dashboard"):
+        # "/" es la web publica de Optward; el panel vive en /dashboard.
+        if p == "/":
+            return self._file("index.html")
+        if p == "/dashboard":
             return self._file("dashboard.html")
         if p == "/api/config":
             return self.api_config(q)
@@ -857,18 +860,44 @@ class H(BaseHTTPRequestHandler):
         self._send(404, {"error": "not found"})
 
     # ---- estaticos ----
-    PUBLIC_FILES = {"dashboard.html", "sitio-demo.html", "consent-banner.js"}
+    PUBLIC_FILES = {"index.html", "dashboard.html", "sitio-demo.html",
+                    "consent-banner.js",
+                    "optward-logo-4x.png", "optward-logo-reversed-4x.png",
+                    # El navegador pide /favicon.ico por su cuenta, sin que
+                    # ninguna etiqueta lo enlace (pestañas restauradas, lectores
+                    # de feeds, bots). Por eso este queda en la raiz aunque el
+                    # resto de los iconos viva en static/icons/.
+                    "favicon.ico"}
+
+    # Carpetas que se sirven enteras. Se listan por prefijo y no archivo por
+    # archivo: agregar un icono nuevo no deberia obligar a tocar el backend.
+    # Las extensiones siguen acotadas, asi que aunque alguien deje un .py o un
+    # .db ahi dentro por error, no se publica.
+    PUBLIC_DIRS = ("static/",)
+    PUBLIC_DIR_EXTS = {".png", ".svg", ".ico", ".webmanifest",
+                       ".css", ".js", ".json", ".woff2"}
 
     def _file(self, rel):
         rel = rel.split("?")[0]
-        if rel not in self.PUBLIC_FILES:
-            return self._send(404, {"error": "not found"})
+        # Se normaliza ANTES de mirar la lista blanca. Con un prefijo de
+        # carpeta de por medio el orden importa: "static/../backend.py" empieza
+        # por "static/" pero apunta afuera, y resolverlo primero lo deja en
+        # "backend.py", que no esta permitido.
         path = os.path.normpath(os.path.join(HERE, rel))
-        if not path.startswith(HERE) or not os.path.isfile(path):
+        if not path.startswith(HERE + os.sep) or not os.path.isfile(path):
             return self._send(404, {"error": "not found"})
+        rel = os.path.relpath(path, HERE).replace(os.sep, "/")
         ext = os.path.splitext(path)[1]
+        if rel not in self.PUBLIC_FILES and not (
+                rel.startswith(self.PUBLIC_DIRS)
+                and ext in self.PUBLIC_DIR_EXTS):
+            return self._send(404, {"error": "not found"})
         ctype = {".html": "text/html; charset=utf-8", ".js": "text/javascript",
-                 ".css": "text/css", ".json": "application/json"}.get(ext, "application/octet-stream")
+                 ".css": "text/css", ".json": "application/json",
+                 ".png": "image/png", ".ico": "image/x-icon",
+                 ".svg": "image/svg+xml",
+                 ".webmanifest": "application/manifest+json"}.get(
+                     ext, "application/octet-stream")
         # Sin cabeceras de cache el navegador aplica su heuristica y se queda
         # con la copia vieja: al publicar un dashboard nuevo el cliente seguia
         # viendo el anterior sin enterarse. El HTML no se guarda nunca; los

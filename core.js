@@ -16,6 +16,32 @@ let _userConfig = null;
     gtmId: "",                     // vacio = modo sin GTM (gtag directo)
     endpoint: "",                  // vacio = sin auditoria backend
     consentVersion: "2025-01",     // al cambiar, se vuelve a preguntar
+    // Consent Mode v2. Decide como arranca Google antes de que el visitante
+    // responda. Con el default denegado y Google FUERA de autoBlock, GA4 carga
+    // igualmente y mide sin cookies: es el escenario "cookieless".
+    consentMode: {
+      // false = no se emite ningun default. Para sitios que prefieran el
+      // bloqueo puro (Google dentro de autoBlock) y no quieran tocar nada.
+      enabled: true,
+      // Margen que Google espera por si la decision llega justo despues, en ms.
+      waitForUpdate: 500,
+      // Quita identificadores de los clics de anuncio con ad_storage denegado.
+      adsDataRedaction: true,
+      // Pasa el client_id y el estado de sesion por la URL (parametro _gl) para
+      // enlazar una pagina con la siguiente sin cookies. APAGADO por defecto:
+      // el EDPB (Directrices 2/2023 v2.0) considera que anadir identificadores
+      // a URLs con JavaScript es acceso al equipo terminal bajo el art. 5(3) de
+      // la ePrivacy, asi que propagar el id de quien acaba de rechazar no es
+      // terreno seguro. Encenderlo es una decision que alguien debe tomar a
+      // proposito. Lo unico que se gana es continuidad de SESION: el trafico
+      // por pagina se cuenta igual con esto apagado.
+      urlPassthrough: false,
+      // Lista de codigos de pais o region (["ES","FR"]) para aplicar el default
+      // solo ahi. OJO: fuera de esa lista no se emite default, asi que esos
+      // visitantes se miden en modo pleno desde el primer momento. Vacio o null
+      // = mismo trato para todo el mundo, que es lo que casi siempre se quiere.
+      region: null
+    },
     // URL de la politica de privacidad o de cookies. Admite una cadena, o un
     // objeto por idioma cuando cada version tiene su pagina:
     //   policyUrl: "https://ejemplo.com/cookies"
@@ -462,6 +488,71 @@ let _userConfig = null;
     window.dataLayer = window.dataLayer || [];
     if (typeof window.gtag === "function") window.gtag.apply(null, arguments);
     else window.dataLayer.push(arguments);
+  }
+
+  // Consent Mode v2: estado POR DEFECTO.
+  // Sin esto, Google no tiene nada contra lo que correr y el escenario
+  // cookieless no existe: o la etiqueta esta bloqueada y no manda nada, o
+  // corre con almacenamiento libre. El default denegado es lo que hace que
+  // GA4 cargue igualmente y mande pings sin cookies hasta que haya decision.
+  //
+  // Lo ideal es que esto lo emita el snippet en linea del <head>, ANTES de
+  // GTM. Este bloque es la red de seguridad para los sitios que no lo tengan:
+  // el bundle va async, asi que puede llegar tarde y por eso no sustituye al
+  // snippet. Si el snippet ya lo puso, aqui no se toca nada.
+  // Normaliza el bloque consentMode de cualquier config, rellenando con los
+  // DEFAULTS lo que falte. Se escribe clave a clave y no con assign() porque
+  // un false del cliente tiene que ganarle a un true por defecto.
+  function cmFrom(cfg) {
+    var b = DEFAULTS.consentMode, cm = (cfg && cfg.consentMode) || {};
+    function v(k) { return cm[k] === undefined ? b[k] : cm[k]; }
+    return {
+      enabled:          !!v("enabled"),
+      waitForUpdate:    v("waitForUpdate"),
+      adsDataRedaction: !!v("adsDataRedaction"),
+      urlPassthrough:   !!v("urlPassthrough"),
+      region:           v("region")
+    };
+  }
+
+  // La config LOCAL, la del snippet inline. emitDefaultConsent() no puede usar
+  // merged() porque corre antes de que llegue la config remota, y ese es
+  // justamente el momento en que hay que hablar: despues de GTM ya no sirve.
+  // Por eso el generador del dashboard escribe consentMode en el snippet.
+  function configLocal() {
+    return _userConfig ||
+      (typeof window !== "undefined" && window.__consentConfig) || {};
+  }
+
+  function emitDefaultConsent() {
+    if (window.__consentDefaultSet) return;
+    var local = configLocal();
+    var cm = cmFrom(local);
+    if (!cm.enabled) return;           // el sitio lo apaga a proposito
+    window.__consentDefaultSet = true;
+
+    var d = {};
+    ALL_SIGNALS.forEach(function (s) { d[s] = "denied"; });
+    // security_storage va siempre concedida: es la senal de seguridad y
+    // prevencion de fraude, no se decide ni se rechaza.
+    d.security_storage = "granted";
+    // El resto de senales que el visitante no decide son las de las categorias
+    // bloqueadas. Si el snippet no trae categorias (instalacion antigua), se
+    // cae a las de siempre para no cambiar el comportamiento por sorpresa.
+    var locked = [];
+    (local.categories || []).forEach(function (c) {
+      if (c && c.locked) locked = locked.concat(c.signals || []);
+    });
+    if (!locked.length) locked = ["functionality_storage", "security_storage"];
+    locked.forEach(function (s) { d[s] = "granted"; });
+
+    if (cm.waitForUpdate) d.wait_for_update = cm.waitForUpdate;
+    if (cm.region && cm.region.length) d.region = cm.region;
+
+    gtag("consent", "default", d);
+    if (cm.adsDataRedaction) gtag("set", "ads_data_redaction", true);
+    if (cm.urlPassthrough) gtag("set", "url_passthrough", true);
+    log("default", JSON.stringify(d));
   }
 
   function cookieName(C) { return C.namespace + "_cookie_consent"; }
@@ -979,6 +1070,9 @@ let _userConfig = null;
     checkSafety(C);   // tambien tras decidir en esta misma carga, no solo al volver
     // 3. Consent Mode v2: update.
     gtag("consent", "update", signals);
+    // Aqui si vale merged(): la config remota ya llego hace rato.
+    if (cmFrom(C).adsDataRedaction)
+      gtag("set", "ads_data_redaction", signals.ad_storage !== "granted");
     log("update", JSON.stringify(signals));
     // 3b. Activar scripts bloqueados de las categorias concedidas (sitios sin GTM).
     // Primero se retiran las reglas de las categorias concedidas y despues se
@@ -1720,6 +1814,7 @@ let _userConfig = null;
   }
 
   function init() {
+    emitDefaultConsent();   // para quien use start() sin pasar por blockNow()
     var C = merged();
     if (C.siteId && C.apiBase && !_remoteLoaded) {
       loadRemoteThen(C, function () { proceed(merged()); });
@@ -1738,6 +1833,15 @@ let _userConfig = null;
       // Ya decidio: no mostrar banner, cargar toggles, limpiar si hace falta.
       state.chosen = prev.categories || {};
       log("init", "Decision previa encontrada (choice=" + prev.choice + ").");
+      // Consent Mode v2: update tambien al RESTAURAR, no solo al decidir.
+      // Faltaba, y con el default denegado era el fallo que dejaba a un
+      // visitante que ya habia aceptado en denied para siempre: la etiqueta
+      // arrancaba denegada y nadie le volvia a decir que ya tenia permiso.
+      var sigPrev = signalsFrom(C, state.chosen);
+      gtag("consent", "update", sigPrev);
+      if (cmFrom(C).adsDataRedaction)
+        gtag("set", "ads_data_redaction", sigPrev.ad_storage !== "granted");
+      log("update", "Decision previa restaurada: " + JSON.stringify(sigPrev));
       if (C.activeDeletion) {
         deleteAnalyticsCookies(state.chosen);
         startDeletionWatch(C, state.chosen);   // los terceros reescriben tras cargar
@@ -1759,7 +1863,7 @@ let _userConfig = null;
   // ---- API publica (ESM) ----------------------------------------------------
   // start(config) permite a un framework pasar la config por argumento en vez
   // de por window.__consentConfig. El resto es la misma API de siempre.
-export function blockNow() { installAutoBlock(); }
+export function blockNow() { emitDefaultConsent(); installAutoBlock(); }
 export function start(config) { if (config) { _userConfig = config; } init(); }
 export function open() { openPanel(merged()); }
 export function reset() {
