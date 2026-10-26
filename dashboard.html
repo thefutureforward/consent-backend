@@ -663,6 +663,20 @@ var DICT = {
   "autoBlock vacio": "empty autoBlock",
   "webfont activo": "webfont on",
 
+  /* --- Consent Mode --- */
+  "Consent Mode (Google)": "Consent Mode (Google)",
+  "Emitir el estado por defecto": "Emit the default state",
+  "Margen de espera (ms)": "Wait for update (ms)",
+  "Ocultar datos de clics de anuncio": "Redact ad click data",
+  "Pasar el identificador por la URL": "Pass the identifier in the URL",
+  "Paises donde aplicar el default": "Countries where the default applies",
+  "Con esto activado y Google fuera del bloqueo de scripts, GA4 carga igualmente y mide sin cookies hasta que el visitante decida. Si lo apagas, Google solo mide a quien acepta.":
+    "With this on and Google out of the script blocking list, GA4 still loads and measures without cookies until the visitor decides. Turn it off and Google only measures those who accept.",
+  "Enlaza una pagina con la siguiente sin cookies, pero mete el identificador del visitante en la URL. Apagado por defecto: el EDPB lo considera acceso al equipo terminal. Sin esto el trafico por pagina se cuenta igual; lo que se pierde es la continuidad de sesion.":
+    "Links one page to the next without cookies, but puts the visitor's identifier in the URL. Off by default: the EDPB treats it as access to terminal equipment. Without it, per-page traffic is still counted; what is lost is session continuity.",
+  "Vacio = mismo trato para todo el mundo. Si pones paises, fuera de la lista NO se emite el default y esos visitantes se miden en modo pleno.":
+    "Empty = same treatment for everyone. If you list countries, no default is emitted outside the list and those visitors are measured in full mode.",
+
   /* --- grupos de apariencia --- */
   "Idioma": "Language",
   "Detectar el idioma del navegador": "Detect the browser language",
@@ -1995,6 +2009,28 @@ var UI_GROUPS = [
   ]},
   { t:"Bloqueo de scripts", open:true, seccion:"cookies", items:[
     {p:"autoBlock", k:"bloqueo", l:""}
+  ]},
+  // Consent Mode va pegado al bloqueo de scripts porque las dos piezas se leen
+  // juntas: emitir el default sin sacar a Google del bloqueo no sirve de nada,
+  // porque no queda etiqueta viva que lo escuche.
+  { t:"Consent Mode (Google)", seccion:"cookies", items:[
+    {p:"consentMode.enabled", k:"bool", def:true,
+     l:"Emitir el estado por defecto",
+     n:"Con esto activado y Google fuera del bloqueo de scripts, GA4 carga igualmente "+
+       "y mide sin cookies hasta que el visitante decida. Si lo apagas, Google solo "+
+       "mide a quien acepta."},
+    {p:"consentMode.waitForUpdate", k:"num", l:"Margen de espera (ms)", ph:"500"},
+    {p:"consentMode.adsDataRedaction", k:"bool", def:true,
+     l:"Ocultar datos de clics de anuncio"},
+    {p:"consentMode.urlPassthrough", k:"bool", def:false,
+     l:"Pasar el identificador por la URL",
+     n:"Enlaza una pagina con la siguiente sin cookies, pero mete el identificador "+
+       "del visitante en la URL. Apagado por defecto: el EDPB lo considera acceso al "+
+       "equipo terminal. Sin esto el trafico por pagina se cuenta igual; lo que se "+
+       "pierde es la continuidad de sesion."},
+    {p:"consentMode.region", k:"lista", l:"Paises donde aplicar el default", ph:"ES, FR",
+     n:"Vacio = mismo trato para todo el mundo. Si pones paises, fuera de la lista NO "+
+       "se emite el default y esos visitantes se miden en modo pleno."}
   ]},
   { t:"Cookies que se borran", seccion:"cookies", items:[
     {p:"cookiePatterns", k:"patrones", l:""}
@@ -3899,6 +3935,11 @@ function control(obj, it){
   } else if(it.k==="area"){
     body = '<textarea id="'+id+'" rows="3" placeholder="'+esc(it.ph||"por defecto")+'" '+
       'oninput="onCtl(\''+it.p+'\',this.value)">'+esc(v==null?"":v)+'</textarea>';
+  } else if(it.k==="lista"){
+    // Lista de cadenas separadas por comas. Se guarda como array, no como
+    // texto: el bundle itera sobre ella y una cadena se recorreria letra a letra.
+    body = '<input type="text" id="'+id+'" value="'+esc(Array.isArray(v) ? v.join(", ") : (v==null?"":v))+'" '+
+      'placeholder="'+esc(it.ph||"por defecto")+'" oninput="onCtl(\''+it.p+'\', listaDe(this.value))" />';
   } else {
     body = '<input type="text" id="'+id+'" value="'+esc(v==null?"":v)+'" placeholder="'+esc(it.ph||"por defecto")+'" '+
       'oninput="onCtl(\''+it.p+'\',this.value)" />';
@@ -3908,9 +3949,23 @@ function control(obj, it){
   // Los editores con interfaz propia (categorias, patrones, bloqueo) ocupan
   // el ancho entero: la rejilla de dos columnas los aplastaria.
   var completo = (it.k === "cats" || it.k === "patrones" || it.k === "bloqueo");
+  // it.n: nota explicativa debajo del control. Para ajustes donde el nombre
+  // del campo no basta y equivocarse sale caro. La traduccion la hace tr()
+  // al pasar por innerHTML, igual que con el resto de la interfaz.
+  var nota = it.n ? '<p class="hint">'+esc(it.n)+'</p>' : '';
   return '<div class="ctl'+(completo ? ' ctl-full' : '')+'" data-p="'+it.p+'">'+
          '<span class="ctl-t"><label>'+esc(it.l)+'</label>'+
-         '<span class="ctl-p">'+esc(it.p)+'</span></span>'+ body +'</div>';
+         '<span class="ctl-p">'+esc(it.p)+'</span></span>'+ body + nota +'</div>';
+}
+
+// "ES, FR" -> ["ES","FR"]. Vacio devuelve "" para que onCtl borre la clave y
+// el bundle caiga a su valor por defecto, en vez de guardar un array vacio.
+function listaDe(s){
+  var out = [];
+  String(s == null ? "" : s).split(",").forEach(function(x){
+    x = x.trim(); if(x) out.push(x);
+  });
+  return out.length ? out : "";
 }
 
 var _prevTimer = null;
@@ -4307,11 +4362,34 @@ function saveCfg(){
 
    El mapa de senales sale de las categorias del sitio, no de una lista fija:
    cada cliente nombra sus categorias como quiere ("analitica", "statistics")
-   y lo que importa es la senal que cuelga de cada una.                     */
+   y lo que importa es la senal que cuelga de cada una.
+
+   url_passthrough NO se activa. Sin cookies, Google meteria el client_id y el
+   estado de sesion en la URL (el parametro _gl) para enlazar una pagina con la
+   siguiente. El EDPB (Directrices 2/2023 v2.0) considera que anadir
+   identificadores a URLs con JavaScript es un acceso al equipo terminal bajo
+   el art. 5(3) de la ePrivacy, asi que propagar el id de quien acaba de
+   rechazar no es terreno seguro. Lo unico que se pierde es la continuidad de
+   SESION: el trafico por pagina se sigue contando igual.                   */
+/* Lee consentMode de la config del sitio y rellena con los mismos valores por
+   defecto que el bundle. Clave a clave, no con assign(): un false del cliente
+   tiene que ganarle a un true por defecto.                                   */
+var CM_DEFAULTS = { enabled:true, waitForUpdate:500, adsDataRedaction:true,
+                    urlPassthrough:false, region:null };
+function cmFrom(C){
+  var cm = (C && C.consentMode) || {}, out = {};
+  Object.keys(CM_DEFAULTS).forEach(function(k){
+    out[k] = cm[k] === undefined ? CM_DEFAULTS[k] : cm[k];
+  });
+  return out;
+}
+
 function bloqueConsentMode(d){
   var C = d.config || {};
   var cats = C.categories || [];
   if(!cats.length) return "";
+  var cm = cmFrom(C);
+  if(!cm.enabled) return "";          // el sitio lo apaga a proposito
   var mapa = {}, locked = [];
   cats.forEach(function(c){
     if(!c || !c.id) return;
@@ -4320,6 +4398,12 @@ function bloqueConsentMode(d){
   });
   var ns  = C.namespace || "fwc_consent";
   var ver = C.consentVersion || "";
+  var extra = "";
+  if(cm.waitForUpdate) extra += 'd.wait_for_update='+Number(cm.waitForUpdate)+';\n';
+  if(cm.region && cm.region.length) extra += 'd.region='+JSON.stringify(cm.region)+';\n';
+  var sets = "";
+  if(cm.adsDataRedaction) sets += 'gtag("set","ads_data_redaction",d.ad_storage!=="granted");\n';
+  if(cm.urlPassthrough)   sets += 'gtag("set","url_passthrough",true);\n';
   return '<script>\n'+
 '(function(){\n'+
 'var NS="'+ns+'",VERSION="'+ver+'",MAP='+JSON.stringify(mapa)+';\n'+
@@ -4335,10 +4419,9 @@ function bloqueConsentMode(d){
 'LOCKED.forEach(function(s){d[s]="granted"});\n'+
 'if(prev&&prev.categories){Object.keys(MAP).forEach(function(k){\n'+
 'if(prev.categories[k])MAP[k].forEach(function(s){d[s]="granted"})})}\n'+
-'d.wait_for_update=500;\n'+
+extra+
 'gtag("consent","default",d);\n'+
-'gtag("set","ads_data_redaction",d.ad_storage!=="granted");\n'+
-'gtag("set","url_passthrough",true);\n'+
+sets+
 'window.__consentDefaultSet=true;\n'+
 '})();\n'+
 '<\/script>\n';
@@ -4348,8 +4431,13 @@ function buildSnippet(d){
   // El pre-bloqueador va INLINE y antes que nada: el bundle llega por red y
   // para entonces el parser del navegador ya habria lanzado las etiquetas.
   var rules = (d.config && d.config.autoBlock) || [];
+  // consentMode viaja tambien en la config inline. Hace falta para el caso en
+  // que el bloque de arriba NO se emite (enabled:false): sin esto, el bundle
+  // llegaria por su cuenta y emitiria el default que el sitio acaba de apagar.
+  var cmSite = (d.config && d.config.consentMode) || null;
   var cfgObj = '{siteId:"'+d.site_id+'",apiBase:"'+API+'"'+
-    (rules.length ? ',autoBlock:'+JSON.stringify(rules) : '')+'}';
+    (rules.length ? ',autoBlock:'+JSON.stringify(rules) : '')+
+    (cmSite ? ',consentMode:'+JSON.stringify(cmSite) : '')+'}';
   // El snippet esta blindado contra el traductor (va dentro de .snippet, que
   // tr() salta a proposito para no romper el codigo). Por eso el comentario se
   // elige aqui, mirando LANG, en vez de dejarselo al DICT.
