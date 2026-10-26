@@ -3,7 +3,15 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Consent Banner. Dashboard</title>
+<title>Optward. Dashboard</title>
+
+<!-- Favicon e iconos de app. Todo vive en /static/icons/ menos
+     favicon.ico, que el navegador pide en la raiz por su cuenta. -->
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/static/icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<link rel="manifest" href="/static/icons/site.webmanifest">
+<meta name="theme-color" content="#0F3D35">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap">
 <style>
@@ -251,8 +259,13 @@
   .pt.sucio{background:#E8B931}
   .ver-pill{padding:3px 8px;border:1px solid rgba(255,255,255,.18);border-radius:999px;
             font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.85}
-  .brand{font-weight:700;letter-spacing:.01em;font-size:15px;white-space:nowrap}
-  .brand span{opacity:.5;font-weight:400;margin-left:6px}
+  /* La marca es ahora una imagen: el alto manda y el ancho se deduce del
+     aspecto del PNG, asi no hay que tocar nada si cambia el archivo. En la
+     barra oscura va la version reversed; en el login, la normal. */
+  .brand{font-weight:700;letter-spacing:.01em;font-size:15px;white-space:nowrap;
+         display:flex;align-items:center}
+  .brand .logo{height:22px;width:auto;display:block}
+  .brand span{opacity:.5;font-weight:400;margin-left:8px}
   .topbar .spacer{flex:1}
   .topbar .who{font-size:13px;opacity:.8}
   .icon-btn{background:transparent;border:1px solid rgba(255,255,255,.28);color:#fff;
@@ -512,7 +525,8 @@
   /* ---------- login ---------- */
   #login{max-width:360px;margin:14vh auto;padding:0 20px}
   #login .card{padding:30px}
-  #login h1{font-size:18px;margin:0 0 4px;text-align:center}
+  #login h1{font-size:18px;margin:0 0 10px;text-align:center}
+  #login h1 .logo{height:30px;width:auto;display:inline-block;vertical-align:middle}
   #login .sub{text-align:center}
 
   /* ---------- modal ---------- */
@@ -528,7 +542,7 @@
 <!-- ============ LOGIN ============ -->
 <div id="login">
   <div class="card">
-    <h1>Consent Banner</h1>
+    <h1><img class="logo" src="/optward-logo-4x.png" alt="Optward" /></h1>
     <p class="sub">Entra para gestionar tus sitios.</p>
     <div class="field"><label>Usuario</label><input id="u" type="text" value="admin" /></div>
     <div class="field"><label>Contrasena</label><input id="p" type="password" value="admin" /></div>
@@ -540,11 +554,11 @@
 <!-- ============ APP ============ -->
 <div id="app" class="hide">
   <div class="topbar" id="topbar">
-    <div class="brand">Consent Banner<span>Dashboard</span></div>
+    <div class="brand"><img class="logo" src="/optward-logo-reversed-4x.png" alt="Optward" /><span>Dashboard</span></div>
     <div class="site-picker" id="picker"></div>
     <div class="spacer"></div>
     <span class="pub-estado" id="pub-estado"></span>
-    <button class="btn ghost sm" onclick="temaProbar()">Probar en mi sitio</button>
+    <button class="btn ghost sm hide" id="btn-probar" onclick="temaProbar()">Probar en mi sitio</button>
     <button class="btn sm" id="btn-publicar" onclick="saveCfg()">Publicar</button>
     <span class="who" id="who"></span>
     <div class="modes lang-sw" id="lang-sw"></div>
@@ -586,6 +600,12 @@ function el(id){ return document.getElementById(id); }
 var DICT = {
   /* --- barra, pestanas, login --- */
   "Entra para gestionar tus sitios.": "Sign in to manage your sites.",
+  /* Errores del login. Llegan del backend en espanol dentro de r.d.error y se
+     pintan con msg(), que pasa por frase(): basta con tenerlos aqui. */
+  "credenciales invalidas": "Invalid username or password.",
+  "No se pudo entrar.": "Could not sign in.",
+  "demasiados intentos, espera unos minutos": "Too many attempts. Please wait a few minutes.",
+  "tu cuenta todavia esta pendiente de aprobacion": "Your account is still awaiting approval.",
   "Usuario": "Username",
   "Contrasena actual": "Current password",
   "Contrasena nueva": "New password",
@@ -600,6 +620,11 @@ var DICT = {
   "Cuenta": "Account",
   "Sitios": "Sites",
   "Nuevo sitio": "New site",
+  // Los dos botones llevan el "+" pegado al texto. frase() busca primero la
+  // frase exacta y solo hace reemplazo por subcadena con claves de 12 letras o
+  // mas; "Nuevo sitio" tiene 11, asi que sin esta entrada se quedaban en
+  // espanol dentro del panel en ingles.
+  "+ Nuevo sitio": "+ New site",
   "Crear sitio": "Create site",
   "Crear primer sitio": "Create first site",
   "Borrar sitio": "Delete site",
@@ -642,6 +667,21 @@ var DICT = {
     "no script is blocked, cookies are only deleted afterwards.",
   "autoBlock vacio": "empty autoBlock",
   "webfont activo": "webfont on",
+
+  /* --- Consent Mode --- */
+  "Consent Mode (Google)": "Consent Mode (Google)",
+  "Consent Mode": "Consent Mode",
+  "Emitir el estado por defecto": "Emit the default state",
+  "Margen de espera (ms)": "Wait for update (ms)",
+  "Ocultar datos de clics de anuncio": "Redact ad click data",
+  "Pasar el identificador por la URL": "Pass the identifier in the URL",
+  "Paises donde aplicar el default": "Countries where the default applies",
+  "Con esto activado y Google fuera del bloqueo de scripts, GA4 carga igualmente y mide sin cookies hasta que el visitante decida. Si lo apagas, Google solo mide a quien acepta.":
+    "With this on and Google out of the script blocking list, GA4 still loads and measures without cookies until the visitor decides. Turn it off and Google only measures those who accept.",
+  "Enlaza una pagina con la siguiente sin cookies, pero mete el identificador del visitante en la URL. Apagado por defecto: el EDPB lo considera acceso al equipo terminal. Sin esto el trafico por pagina se cuenta igual; lo que se pierde es la continuidad de sesion.":
+    "Links one page to the next without cookies, but puts the visitor's identifier in the URL. Off by default: the EDPB treats it as access to terminal equipment. Without it, per-page traffic is still counted; what is lost is session continuity.",
+  "Vacio = mismo trato para todo el mundo. Si pones paises, fuera de la lista NO se emite el default y esos visitantes se miden en modo pleno.":
+    "Empty = same treatment for everyone. If you list countries, no default is emitted outside the list and those visitors are measured in full mode.",
 
   /* --- grupos de apariencia --- */
   "Idioma": "Language",
@@ -1388,6 +1428,34 @@ function frase(t){
   return out;
 }
 
+/* Las categorias de cookies viajan como slug en espanol ("analitica",
+   "preferencias") porque asi se guardan en la config y en consent_logs. El
+   slug es la CLAVE y no se toca nunca; lo que se pinta es esta etiqueta.
+   Una categoria que el cliente se haya inventado no esta en la tabla y se
+   muestra tal cual, que es mejor que no mostrar nada.                      */
+var CAT_LBL = {
+  esencial:     { es:"Esencial",     en:"Essential" },
+  esenciales:   { es:"Esenciales",   en:"Essential" },
+  necesaria:    { es:"Necesaria",    en:"Necessary" },
+  necessary:    { es:"Necesaria",    en:"Necessary" },
+  analitica:    { es:"Analitica",    en:"Analytics" },
+  analytics:    { es:"Analitica",    en:"Analytics" },
+  statistics:   { es:"Estadisticas", en:"Statistics" },
+  marketing:    { es:"Marketing",    en:"Marketing" },
+  publicidad:   { es:"Publicidad",   en:"Advertising" },
+  preferencias: { es:"Preferencias", en:"Preferences" },
+  preferences:  { es:"Preferencias", en:"Preferences" },
+  funcional:    { es:"Funcional",    en:"Functional" },
+  functional:   { es:"Funcional",    en:"Functional" }
+};
+function catLabel(c){
+  if(c === undefined || c === null || c === "") return "";
+  var k = String(c).trim().toLowerCase();
+  var e = CAT_LBL[k];
+  if(e) return e[LANG === "en" ? "en" : "es"];
+  return String(c);
+}
+
 /* Un unico punto de intercepcion: cualquier innerHTML que se asigne en esta
    pagina pasa por el traductor. Envolver las 25 llamadas a mano era fragil
    (una expresion regular con comillas dentro basto para romper el parseo) y
@@ -1512,6 +1580,13 @@ function boot(){
     // dejaba al superadministrador sin su propia pestaña de usuarios.
     esAdmin = (r.d.role === "admin" || r.d.role === "super");
     esSuper = (r.d.role === "super");
+    // "Probar en mi sitio" abre el sitio con ?consentTheme=... para ver una
+    // apariencia antes de publicarla. Es una herramienta de diseno, no sirve
+    // de nada a una cuenta que solo viene a mirar estadisticas, y abrir el
+    // sitio del cliente con un parametro raro solo invita a preguntas.
+    // El boton nace oculto en el HTML y se descubre aqui: si algo fallara en
+    // esta funcion, una cuenta limitada sigue sin verlo.
+    if(esAdmin){ var bp = el("btn-probar"); if(bp) bp.classList.remove("hide"); }
     el("who").textContent = r.d.username;
     sites = r.d.sites || [];
     var existe = sites.filter(function(s){ return s.site_id===current; }).length;
@@ -1707,7 +1782,7 @@ function viewResumen(d){
         '</div>'+
         '<div class="card">'+
           '<h2>Atajos</h2>'+
-          '<button class="rs-atajo" onclick="temaProbar()">'+frase("Probar en mi sitio")+'</button>'+
+          (esAdmin ? '<button class="rs-atajo" onclick="temaProbar()">'+frase("Probar en mi sitio")+'</button>' : '')+
           '<button class="rs-atajo" onclick="rsCopiarCodigo()">'+frase("Copiar codigo de instalacion")+'</button>'+
           '<button class="rs-atajo" onclick="rsExportar()">'+frase("Exportar cookie audit")+'</button>'+
           '<p class="hint" id="rs-atajo-msg"></p>'+
@@ -1947,6 +2022,28 @@ var UI_GROUPS = [
   ]},
   { t:"Bloqueo de scripts", open:true, seccion:"cookies", items:[
     {p:"autoBlock", k:"bloqueo", l:""}
+  ]},
+  // Consent Mode va pegado al bloqueo de scripts porque las dos piezas se leen
+  // juntas: emitir el default sin sacar a Google del bloqueo no sirve de nada,
+  // porque no queda etiqueta viva que lo escuche.
+  { t:"Consent Mode (Google)", seccion:"cookies", items:[
+    {p:"consentMode.enabled", k:"bool", def:true,
+     l:"Emitir el estado por defecto",
+     n:"Con esto activado y Google fuera del bloqueo de scripts, GA4 carga igualmente "+
+       "y mide sin cookies hasta que el visitante decida. Si lo apagas, Google solo "+
+       "mide a quien acepta."},
+    {p:"consentMode.waitForUpdate", k:"num", l:"Margen de espera (ms)", ph:"500"},
+    {p:"consentMode.adsDataRedaction", k:"bool", def:true,
+     l:"Ocultar datos de clics de anuncio"},
+    {p:"consentMode.urlPassthrough", k:"bool", def:false,
+     l:"Pasar el identificador por la URL",
+     n:"Enlaza una pagina con la siguiente sin cookies, pero mete el identificador "+
+       "del visitante en la URL. Apagado por defecto: el EDPB lo considera acceso al "+
+       "equipo terminal. Sin esto el trafico por pagina se cuenta igual; lo que se "+
+       "pierde es la continuidad de sesion."},
+    {p:"consentMode.region", k:"lista", l:"Paises donde aplicar el default", ph:"ES, FR",
+     n:"Vacio = mismo trato para todo el mundo. Si pones paises, fuera de la lista NO "+
+       "se emite el default y esos visitantes se miden en modo pleno."}
   ]},
   { t:"Cookies que se borran", seccion:"cookies", items:[
     {p:"cookiePatterns", k:"patrones", l:""}
@@ -3034,7 +3131,7 @@ function temasHTML(o){
       '<button class="btn ghost sm" onclick="temaActivar()"'+(TEMA_EDIT===activo?' disabled':'')+
         '>Usar esta</button>'+
       '<button class="btn ghost sm" onclick="temaBorrar()">Borrar</button>' : '')+
-    '<button class="btn ghost sm" onclick="temaProbar()">Probar en mi sitio</button>'+
+    (esAdmin ? '<button class="btn ghost sm" onclick="temaProbar()">Probar en mi sitio</button>' : '')+
   '</div>';
 }
 
@@ -3524,7 +3621,7 @@ function patronesUI(lista){
     var match = esTexto ? r : (r.match || "");
     var cat = esTexto ? "" : (r.category || "");
     var opts = cats.map(function(c){
-      return '<option value="'+esc(c)+'"'+(cat===c?" selected":"")+'>'+esc(c)+'</option>';
+      return '<option value="'+esc(c)+'"'+(cat===c?" selected":"")+'>'+esc(catLabel(c))+'</option>';
     }).join('');
     var mala = cats.length && cat && cats.indexOf(cat) === -1;
     var vivo = usado(match);
@@ -3538,7 +3635,7 @@ function patronesUI(lista){
       marca+
       '<select onchange="cpSet('+i+',\'category\',this.value)">'+
         '<option value="">sin categoria</option>'+opts+
-        (mala ? '<option value="'+esc(cat)+'" selected>'+esc(cat)+' (no existe)</option>' : '')+
+        (mala ? '<option value="'+esc(cat)+'" selected>'+esc(catLabel(cat))+' (no existe)</option>' : '')+
       '</select>'+
       '<button class="btn ghost sm" onclick="cpQuitar('+i+')">&times;</button>'+
     '</div>';
@@ -3637,7 +3734,7 @@ function bloqueoUI(reglas){
   var cats = catsDelSitio();
   var filas = reglas.map(function(r, i){
     var opts = cats.map(function(c){
-      return '<option value="'+esc(c)+'"'+(r.category===c?" selected":"")+'>'+esc(c)+'</option>';
+      return '<option value="'+esc(c)+'"'+(r.category===c?" selected":"")+'>'+esc(catLabel(c))+'</option>';
     }).join('');
     var mala = cats.length && cats.indexOf(r.category) === -1;
     return '<div class="ab-row'+(mala?" ab-mala":"")+'">'+
@@ -3645,7 +3742,7 @@ function bloqueoUI(reglas){
         'oninput="abSet('+i+',\'match\',this.value)" />'+
       '<select onchange="abSet('+i+',\'category\',this.value)">'+
         '<option value="">sin categoria</option>'+opts+
-        (mala ? '<option value="'+esc(r.category)+'" selected>'+esc(r.category)+' (no existe)</option>' : '')+
+        (mala ? '<option value="'+esc(r.category)+'" selected>'+esc(catLabel(r.category))+' (no existe)</option>' : '')+
       '</select>'+
       '<button class="btn ghost sm" onclick="abQuitar('+i+')" title="Quitar">&times;</button>'+
     '</div>';
@@ -3851,6 +3948,11 @@ function control(obj, it){
   } else if(it.k==="area"){
     body = '<textarea id="'+id+'" rows="3" placeholder="'+esc(it.ph||"por defecto")+'" '+
       'oninput="onCtl(\''+it.p+'\',this.value)">'+esc(v==null?"":v)+'</textarea>';
+  } else if(it.k==="lista"){
+    // Lista de cadenas separadas por comas. Se guarda como array, no como
+    // texto: el bundle itera sobre ella y una cadena se recorreria letra a letra.
+    body = '<input type="text" id="'+id+'" value="'+esc(Array.isArray(v) ? v.join(", ") : (v==null?"":v))+'" '+
+      'placeholder="'+esc(it.ph||"por defecto")+'" oninput="onCtl(\''+it.p+'\', listaDe(this.value))" />';
   } else {
     body = '<input type="text" id="'+id+'" value="'+esc(v==null?"":v)+'" placeholder="'+esc(it.ph||"por defecto")+'" '+
       'oninput="onCtl(\''+it.p+'\',this.value)" />';
@@ -3860,9 +3962,23 @@ function control(obj, it){
   // Los editores con interfaz propia (categorias, patrones, bloqueo) ocupan
   // el ancho entero: la rejilla de dos columnas los aplastaria.
   var completo = (it.k === "cats" || it.k === "patrones" || it.k === "bloqueo");
+  // it.n: nota explicativa debajo del control. Para ajustes donde el nombre
+  // del campo no basta y equivocarse sale caro. La traduccion la hace tr()
+  // al pasar por innerHTML, igual que con el resto de la interfaz.
+  var nota = it.n ? '<p class="hint">'+esc(it.n)+'</p>' : '';
   return '<div class="ctl'+(completo ? ' ctl-full' : '')+'" data-p="'+it.p+'">'+
          '<span class="ctl-t"><label>'+esc(it.l)+'</label>'+
-         '<span class="ctl-p">'+esc(it.p)+'</span></span>'+ body +'</div>';
+         '<span class="ctl-p">'+esc(it.p)+'</span></span>'+ body + nota +'</div>';
+}
+
+// "ES, FR" -> ["ES","FR"]. Vacio devuelve "" para que onCtl borre la clave y
+// el bundle caiga a su valor por defecto, en vez de guardar un array vacio.
+function listaDe(s){
+  var out = [];
+  String(s == null ? "" : s).split(",").forEach(function(x){
+    x = x.trim(); if(x) out.push(x);
+  });
+  return out.length ? out : "";
 }
 
 var _prevTimer = null;
@@ -4250,14 +4366,98 @@ function saveCfg(){
   });
 }
 
-/* ---------------- INSTALAR ---------------- */
+/* ---------------- INSTALAR ----------------
+   Consent Mode v2: el estado por defecto. Va INLINE y antes que nada, igual
+   que el pre-bloqueador y por el mismo motivo, solo que aqui el que llega
+   tarde es Google: si la etiqueta carga sin un default puesto, no hay
+   escenario sin cookies que valga. Con el default denegado, GA4 carga
+   igualmente y mide sin cookies hasta que el visitante decida.
+
+   El mapa de senales sale de las categorias del sitio, no de una lista fija:
+   cada cliente nombra sus categorias como quiere ("analitica", "statistics")
+   y lo que importa es la senal que cuelga de cada una.
+
+   url_passthrough NO se activa. Sin cookies, Google meteria el client_id y el
+   estado de sesion en la URL (el parametro _gl) para enlazar una pagina con la
+   siguiente. El EDPB (Directrices 2/2023 v2.0) considera que anadir
+   identificadores a URLs con JavaScript es un acceso al equipo terminal bajo
+   el art. 5(3) de la ePrivacy, asi que propagar el id de quien acaba de
+   rechazar no es terreno seguro. Lo unico que se pierde es la continuidad de
+   SESION: el trafico por pagina se sigue contando igual.                   */
+/* Lee consentMode de la config del sitio y rellena con los mismos valores por
+   defecto que el bundle. Clave a clave, no con assign(): un false del cliente
+   tiene que ganarle a un true por defecto.                                   */
+var CM_DEFAULTS = { enabled:true, waitForUpdate:500, adsDataRedaction:true,
+                    urlPassthrough:false, region:null };
+function cmFrom(C){
+  var cm = (C && C.consentMode) || {}, out = {};
+  Object.keys(CM_DEFAULTS).forEach(function(k){
+    out[k] = cm[k] === undefined ? CM_DEFAULTS[k] : cm[k];
+  });
+  return out;
+}
+
+function bloqueConsentMode(d){
+  var C = d.config || {};
+  var cats = C.categories || [];
+  if(!cats.length) return "";
+  var cm = cmFrom(C);
+  if(!cm.enabled) return "";          // el sitio lo apaga a proposito
+  var mapa = {}, locked = [];
+  cats.forEach(function(c){
+    if(!c || !c.id) return;
+    mapa[c.id] = c.signals || [];
+    if(c.locked) locked = locked.concat(c.signals || []);
+  });
+  var ns  = C.namespace || "fwc_consent";
+  var ver = C.consentVersion || "";
+  var extra = "";
+  if(cm.waitForUpdate) extra += 'd.wait_for_update='+Number(cm.waitForUpdate)+';\n';
+  if(cm.region && cm.region.length) extra += 'd.region='+JSON.stringify(cm.region)+';\n';
+  var sets = "";
+  if(cm.adsDataRedaction) sets += 'gtag("set","ads_data_redaction",d.ad_storage!=="granted");\n';
+  if(cm.urlPassthrough)   sets += 'gtag("set","url_passthrough",true);\n';
+  return '<script>\n'+
+'(function(){\n'+
+'var NS="'+ns+'",VERSION="'+ver+'",MAP='+JSON.stringify(mapa)+';\n'+
+'var LOCKED='+JSON.stringify(locked)+';\n'+
+'var ALL=["ad_storage","ad_user_data","ad_personalization","analytics_storage",\n'+
+'"functionality_storage","personalization_storage","security_storage"];\n'+
+'window.dataLayer=window.dataLayer||[];\n'+
+'function gtag(){window.dataLayer.push(arguments)}\n'+
+'if(typeof window.gtag!=="function")window.gtag=gtag;\n'+
+'var prev=null;try{var m=document.cookie.match(new RegExp("(?:^|; )"+NS+"_cookie_consent=([^;]*)"));\n'+
+'if(m){var c=JSON.parse(decodeURIComponent(m[1]));if(c&&c.version===VERSION)prev=c}}catch(e){}\n'+
+'var d={};ALL.forEach(function(s){d[s]="denied"});\n'+
+'LOCKED.forEach(function(s){d[s]="granted"});\n'+
+'if(prev&&prev.categories){Object.keys(MAP).forEach(function(k){\n'+
+'if(prev.categories[k])MAP[k].forEach(function(s){d[s]="granted"})})}\n'+
+extra+
+'gtag("consent","default",d);\n'+
+sets+
+'window.__consentDefaultSet=true;\n'+
+'})();\n'+
+'<\/script>\n';
+}
+
 function buildSnippet(d){
   // El pre-bloqueador va INLINE y antes que nada: el bundle llega por red y
   // para entonces el parser del navegador ya habria lanzado las etiquetas.
   var rules = (d.config && d.config.autoBlock) || [];
+  // consentMode viaja tambien en la config inline. Hace falta para el caso en
+  // que el bloque de arriba NO se emite (enabled:false): sin esto, el bundle
+  // llegaria por su cuenta y emitiria el default que el sitio acaba de apagar.
+  var cmSite = (d.config && d.config.consentMode) || null;
   var cfgObj = '{siteId:"'+d.site_id+'",apiBase:"'+API+'"'+
-    (rules.length ? ',autoBlock:'+JSON.stringify(rules) : '')+'}';
-  var s = "<!-- Consent Banner. En el <head>, lo primero, una sola vez -->\n"+
+    (rules.length ? ',autoBlock:'+JSON.stringify(rules) : '')+
+    (cmSite ? ',consentMode:'+JSON.stringify(cmSite) : '')+'}';
+  // El snippet esta blindado contra el traductor (va dentro de .snippet, que
+  // tr() salta a proposito para no romper el codigo). Por eso el comentario se
+  // elige aqui, mirando LANG, en vez de dejarselo al DICT.
+  var comentario = (LANG === "en")
+    ? "<!-- Consent Banner. In the <head>, first thing, only once -->"
+    : "<!-- Consent Banner. En el <head>, lo primero, una sola vez -->";
+  var s = comentario + "\n" + bloqueConsentMode(d) +
     "<script>\nwindow.__consentConfig="+cfgObj+";\n";
   if(rules.length){
     s +=
@@ -4547,7 +4747,9 @@ function cats(raw){
   var ks = Object.keys(o);
   if(!ks.length) return vacio;
   return '<div class="cats">'+ks.map(function(k){
-    return '<span class="cat'+(o[k]?' on':'')+'">'+esc(k)+'</span>';
+    // El chip enseña la etiqueta traducida; la clave sigue en title por si
+    // alguien necesita saber que se guardo de verdad en el registro.
+    return '<span class="cat'+(o[k]?' on':'')+'" title="'+esc(k)+'">'+esc(catLabel(k))+'</span>';
   }).join('')+'</div>';
 }
 
@@ -4772,6 +4974,9 @@ function ckPestanas(){
     ["categorias", frase("Categorias"),        (cfg.categories||[]).length],
     ["detectadas", frase("Cookies detectadas"), rows ? rows.length : null],
     ["bloqueo",    frase("Bloqueo de scripts"), (cfg.autoBlock||[]).length],
+    // Consent Mode va pegado al bloqueo: las dos piezas se leen juntas, porque
+    // emitir el default sin sacar a Google del bloqueo no sirve de nada.
+    ["consentmode", frase("Consent Mode"),      null],
     ["borrado",    frase("Cookies que se borran"), (cfg.cookiePatterns||[]).length],
     ["deteccion",  frase("Deteccion"),          null]
   ];
@@ -4857,6 +5062,7 @@ function pintarCkSeccion(){
     return;
   }
   var titulos = {categorias:"Categorias", bloqueo:"Bloqueo de scripts",
+                 consentmode:"Consent Mode (Google)",
                  borrado:"Cookies que se borran", deteccion:"Deteccion de cookies"};
   var g = UI_GROUPS.filter(function(x){ return x.t === titulos[CK_TAB]; })[0];
   if(!g){ host.innerHTML = ""; return; }
@@ -4953,7 +5159,7 @@ function filaCookie(x, tipos){
 
   var sug = "";
   if (x.sugerida === "esencial")      sug = '<span class="sug">se sugiere: necesaria</span>';
-  else if (x.sugerida)                sug = '<span class="sug">se sugiere: no necesaria ('+esc(x.sugerida)+')</span>';
+  else if (x.sugerida)                sug = '<span class="sug">se sugiere: no necesaria ('+esc(catLabel(x.sugerida))+')</span>';
   else                                sug = '<span class="sug none">desconocida</span>';
 
   var desc = x.explicacion || "No esta en el catalogo. Averigua quien la escribe antes de decidir.";
@@ -4964,7 +5170,8 @@ function filaCookie(x, tipos){
     '<option value=""'+(sinDecidir?" selected":"")+'>Sin decidir</option>'+
     '<option value="esencial"'+(esNecesaria?" selected":"")+'>Esencial (no se borra)</option>'+
     tipos.map(function(c){
-      return '<option value="'+esc(c)+'"'+(x.category===c?" selected":"")+'>'+esc(c)+'</option>';
+      // El value es el slug que se guarda; el texto, solo lo que se lee.
+      return '<option value="'+esc(c)+'"'+(x.category===c?" selected":"")+'>'+esc(catLabel(c))+'</option>';
     }).join('');
 
   var clase = "ck-sel" + (esNecesaria ? " es-nec" : (esNoNecesaria ? " no-nec" : " sin-dec"));
