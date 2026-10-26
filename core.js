@@ -464,6 +464,31 @@ let _userConfig = null;
     else window.dataLayer.push(arguments);
   }
 
+  // Consent Mode v2: estado POR DEFECTO.
+  // Sin esto, Google no tiene nada contra lo que correr y el escenario
+  // cookieless no existe: o la etiqueta esta bloqueada y no manda nada, o
+  // corre con almacenamiento libre. El default denegado es lo que hace que
+  // GA4 cargue igualmente y mande pings sin cookies hasta que haya decision.
+  //
+  // Lo ideal es que esto lo emita el snippet en linea del <head>, ANTES de
+  // GTM. Este bloque es la red de seguridad para los sitios que no lo tengan:
+  // el bundle va async, asi que puede llegar tarde y por eso no sustituye al
+  // snippet. Si el snippet ya lo puso, aqui no se toca nada.
+  function emitDefaultConsent() {
+    if (window.__consentDefaultSet) return;
+    window.__consentDefaultSet = true;
+    var d = {};
+    ALL_SIGNALS.forEach(function (s) { d[s] = "denied"; });
+    // Las dos senales que no dependen de la decision del visitante.
+    d.security_storage = "granted";
+    d.functionality_storage = "granted";
+    d.wait_for_update = 500;
+    gtag("consent", "default", d);
+    gtag("set", "ads_data_redaction", true);
+    gtag("set", "url_passthrough", true);
+    log("default", JSON.stringify(d));
+  }
+
   function cookieName(C) { return C.namespace + "_cookie_consent"; }
 
   function readConsent(C) {
@@ -979,6 +1004,7 @@ let _userConfig = null;
     checkSafety(C);   // tambien tras decidir en esta misma carga, no solo al volver
     // 3. Consent Mode v2: update.
     gtag("consent", "update", signals);
+    gtag("set", "ads_data_redaction", signals.ad_storage !== "granted");
     log("update", JSON.stringify(signals));
     // 3b. Activar scripts bloqueados de las categorias concedidas (sitios sin GTM).
     // Primero se retiran las reglas de las categorias concedidas y despues se
@@ -1720,6 +1746,7 @@ let _userConfig = null;
   }
 
   function init() {
+    emitDefaultConsent();   // para quien use start() sin pasar por blockNow()
     var C = merged();
     if (C.siteId && C.apiBase && !_remoteLoaded) {
       loadRemoteThen(C, function () { proceed(merged()); });
@@ -1738,6 +1765,14 @@ let _userConfig = null;
       // Ya decidio: no mostrar banner, cargar toggles, limpiar si hace falta.
       state.chosen = prev.categories || {};
       log("init", "Decision previa encontrada (choice=" + prev.choice + ").");
+      // Consent Mode v2: update tambien al RESTAURAR, no solo al decidir.
+      // Faltaba, y con el default denegado era el fallo que dejaba a un
+      // visitante que ya habia aceptado en denied para siempre: la etiqueta
+      // arrancaba denegada y nadie le volvia a decir que ya tenia permiso.
+      var sigPrev = signalsFrom(C, state.chosen);
+      gtag("consent", "update", sigPrev);
+      gtag("set", "ads_data_redaction", sigPrev.ad_storage !== "granted");
+      log("update", "Decision previa restaurada: " + JSON.stringify(sigPrev));
       if (C.activeDeletion) {
         deleteAnalyticsCookies(state.chosen);
         startDeletionWatch(C, state.chosen);   // los terceros reescriben tras cargar
@@ -1759,7 +1794,7 @@ let _userConfig = null;
   // ---- API publica (ESM) ----------------------------------------------------
   // start(config) permite a un framework pasar la config por argumento en vez
   // de por window.__consentConfig. El resto es la misma API de siempre.
-export function blockNow() { installAutoBlock(); }
+export function blockNow() { emitDefaultConsent(); installAutoBlock(); }
 export function start(config) { if (config) { _userConfig = config; } init(); }
 export function open() { openPanel(merged()); }
 export function reset() {
