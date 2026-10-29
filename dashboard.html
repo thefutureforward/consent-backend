@@ -136,6 +136,7 @@
   /* filas del modo desarrollador: etiqueta y ruta a la izquierda, control a la derecha */
   .ctl-p{display:none}
   .wz .ctl:not(.ctl-full):not(.ctl-wide){display:grid;grid-template-columns:1fr 210px;align-items:center;gap:12px}
+  .wz .ctl > .hint{grid-column:1 / -1}
   .wz .ctl-full > .ctl-t{margin-bottom:8px}
   .wz .ctl-full > .ctl-t > label{font-size:13px}
   .wz .ctl-t{display:flex;flex-direction:column;gap:2px}
@@ -420,6 +421,10 @@
   .group[open] > summary::after{transform:rotate(180deg)}
   .group .body{padding:14px}
   .ctl{display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center;margin-bottom:9px}
+  /* La nota de un ajuste (it.n) explica por que importa, asi que va DEBAJO y
+     a ancho completo. Como hermana dentro de la rejilla caia en la columna de
+     130px y se leia en vertical, ocupando media pantalla. */
+  .ctl > .hint{grid-column:1 / -1;margin-top:0}
   .ctl:last-child{margin-bottom:0}
   .ctl > label{margin:0;font-size:12px}
   .ctl input[type=text]{padding:7px 9px;font-size:12.5px}
@@ -4192,7 +4197,7 @@ function rgUI(reg){
     return '<div class="ab-row">'+
       '<input type="text" list="rg-suger" value="'+esc(r.match||"")+'" placeholder="US-CA" '+
         'oninput="rgSet('+i+',\'match\',this.value)" style="max-width:170px" />'+
-      '<select onchange="rgSet('+i+',\'mode\',this.value)" style="max-width:260px">'+
+      '<select onchange="rgSet('+i+',\'mode\',this.value)" style="min-width:330px">'+
         '<option value="optin"'+(modo==="optin"?" selected":"")+'>Opt-in: pedir permiso antes</option>'+
         '<option value="optout"'+(modo==="optout"?" selected":"")+'>Opt-out: medir hasta que digan que no</option>'+
       '</select>'+
@@ -4215,7 +4220,7 @@ function rgUI(reg){
       '<b>servidor</b>, no el navegador, asi que no se puede falsear desde la pagina.</p>'+
     '<div class="ab-row" style="margin-bottom:12px">'+
       '<label style="min-width:210px">Para todos los demas paises</label>'+
-      '<select onchange="rgDefecto(this.value)" style="max-width:260px">'+
+      '<select onchange="rgDefecto(this.value)" style="min-width:330px">'+
         '<option value="optin"'+(def==="optin"?" selected":"")+'>Opt-in: pedir permiso antes</option>'+
         '<option value="optout"'+(def==="optout"?" selected":"")+'>Opt-out: medir hasta que digan que no</option>'+
       '</select>'+
