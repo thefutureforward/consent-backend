@@ -82,7 +82,10 @@ var DEFAULTS = {
   customCss: "",
   policyUrl: "",
   policyNewTab: true,
-  defaultLanguage: "es",
+  // Ingles por defecto: es el idioma base del producto y el mercado de los
+  // clientes. Solo manda cuando no hay config remota; los sitios dados de
+  // alta por el panel ya nacen con "en".
+  defaultLanguage: "en",
   // Recargar tras una decision. Rechazar es el caso que de verdad lo pide:
   // un script ya ejecutado no se puede "desejecutar", solo dejar de cargar
   // en la siguiente carga. Aceptar suele no necesitarlo porque el bundle
@@ -94,7 +97,7 @@ var DEFAULTS = {
   reloadAfter: "never",
   autoDetectLanguage: true,
   // mirar el idioma del navegador
-  languages: ["es", "en"],
+  languages: ["en", "es"],
   // idiomas que el sitio admite
   cookie: { lifetimeMonths: 6, domain: "" },
   // Prefijos de cookie que borra activeDeletion al denegar analitica.
@@ -1476,7 +1479,7 @@ function startDiscovery(C) {
     if (pasos >= segundos) clearInterval(timer);
   }, 1e3);
 }
-var state = { lang: "es", chosen: {}, modo: "optin" };
+var state = { lang: "en", chosen: {}, modo: "optin" };
 function persist(C, choice, chosen) {
   var signals = signalsFrom(C, chosen);
   var consent = {
@@ -1713,13 +1716,13 @@ function detectaIdioma(C) {
       }
     }
   }
-  if (!elegido) elegido = normalizaIdioma(C.defaultLanguage, disp) || C.defaultLanguage || "es";
+  if (!elegido) elegido = normalizaIdioma(C.defaultLanguage, disp) || C.defaultLanguage || "en";
   return elegido;
 }
 function lang(obj, C) {
   if (obj == null) return "";
   if (typeof obj === "string") return obj;
-  var candidatos = [state.lang, C && C.defaultLanguage, "es", "en"], i;
+  var candidatos = [state.lang, C && C.defaultLanguage, "en", "es"], i;
   for (i = 0; i < candidatos.length; i++) {
     var k = candidatos[i];
     if (k && obj[k] != null && obj[k] !== "") return obj[k];
@@ -1751,7 +1754,7 @@ function policyLink(C, L) {
 }
 function t() {
   var C = merged();
-  var base = COPY[state.lang] || COPY.es;
+  var base = COPY[state.lang] || COPY.en;
   var over = C.texts && C.texts[state.lang] || {};
   var out = {};
   var k;
@@ -2224,29 +2227,19 @@ function installTriggers(C) {
   }
 }
 function gtmLlegoAntes() {
-  var yo = document.getElementById("consent-banner-host");
-  var marca = null;
+  return _gtmArriba;
+}
+var _gtmArriba = function() {
   try {
-    marca = document.querySelector("script[src*='consent-banner']");
-  } catch (e) {
-  }
-  var guias = [];
-  try {
-    guias = Array.prototype.slice.call(document.querySelectorAll(
-      "script[src*='googletagmanager.com'],script[src*='gtm.js'],script[src*='gtag/js']"
-    ));
+    if (document.readyState !== "loading") return null;
+    var n = document.querySelector(
+      "script[src*='googletagmanager.com'],script[src*='gtag/js']"
+    );
+    return n ? n.getAttribute("src") : null;
   } catch (e) {
     return null;
   }
-  if (!guias.length) return null;
-  var ref = marca || yo;
-  if (!ref) return null;
-  for (var i = 0; i < guias.length; i++) {
-    var pos = ref.compareDocumentPosition(guias[i]);
-    if (pos & 2) return guias[i].getAttribute("src");
-  }
-  return null;
-}
+}();
 function avisaOrdenDeGtm(C) {
   if (C.safety && C.safety.gtmOrder === false) return;
   setTimeout(function() {
@@ -2316,6 +2309,7 @@ function init() {
 }
 function proceed(C) {
   installTriggers(C);
+  state.lang = detectaIdioma(C);
   try {
     montaEnlaceExclusion(C);
   } catch (e) {

@@ -1559,7 +1559,165 @@ var DICT = {
     "Meta (Facebook) Pixel: advertising and measurement.",
   "Google Ads: atribucion de campanas.": "Google Ads: campaign attribution.",
   "Hotjar: grabacion y mapas de calor.": "Hotjar: recordings and heatmaps.",
-  "Vimeo: reproduccion y medicion de video.": "Vimeo: video playback and measurement."
+  "Vimeo: reproduccion y medicion de video.": "Vimeo: video playback and measurement.",
+
+  /* --- Anadido al poner el ingles por defecto: Regiones, Enlace de
+         exclusion (CPRA), GPC, senales y cabeceras de Registros, que
+         entraron sin pasar por el diccionario. --- */
+  "Enlace de exclusion (CPRA)": "Opt-out link (CPRA)",
+  "Enlace de exclusion": "Opt-out link",
+  "Mostrar el enlace de exclusion": "Show the opt-out link",
+  "Es el derecho a que no vendan ni cedan tus datos. Solo tiene sentido si alguna categoria esta marcada como que vende o cede, en Categorias.":
+    "It is the right to stop your data being sold or shared. It only makes sense if some category is marked as selling or sharing, under Categories.",
+  "Enlace unico: Your Privacy Choices (art. 7015)": "Single link: Your Privacy Choices (art. 7015)",
+  "Dos enlaces: no vender y limitar (art. 7013 y 7014)":
+    "Two links: do not sell and limit (art. 7013 and 7014)",
+  "URL del icono oficial": "Official icon URL",
+  "El estilo unico EXIGE el icono oficial de la agencia de privacidad de California. Tiene una forma concreta: uno parecido hecho a mano no cumple, y es peor que no poner ninguno porque te creerias cubierto. En el estilo doble no hace falta.":
+    "The single style REQUIRES the official icon from the California privacy agency. It has a specific shape: a hand-made lookalike does not comply, and is worse than none at all because you would believe yourself covered. The dual style does not need it.",
+  "Enlace alternativo": "Alternative link",
+  "vacio: abre el panel": "empty: opens the panel",
+  "Dejalo vacio salvo que tengas una pagina propia de exclusion. El articulo pide pocos pasos, y abrir el panel es el camino mas corto.":
+    "Leave it empty unless you have your own opt-out page. The article asks for few steps, and opening the panel is the shortest path.",
+  "Pintarlo flotante si la pagina no tiene hueco": "Draw it floating if the page has no slot",
+  "Lo normal es poner &lt;span data-consent-optout&gt;&lt;/span&gt; en el pie del sitio. Esto es el respaldo para cuando no se puede tocar el HTML: lo dibuja el banner abajo a la izquierda.":
+    "The usual thing is to put &lt;span data-consent-optout&gt;&lt;/span&gt; in the site footer. This is the fallback for when the HTML can't be touched: the banner draws one at the bottom left.",
+  "Regiones": "Regions",
+  "Anadir region": "Add region",
+  "Quitar todas las reglas": "Remove all rules",
+  "Sin reglas: todos caen en el regimen de arriba.":
+    "No rules: everyone falls under the regime above.",
+  "La regla mas concreta manda:": "The most specific rule wins:",
+  "pesa mas que": "outweighs",
+  ". Si el borde no sabe de donde viene alguien (proxy, Tor, o Cloudflare mandando":
+    ". If the edge does not know where someone is coming from (a proxy, Tor, or Cloudflare sending",
+  "pase lo que pase.": "no matter what.",
+  "De donde viene el visitante lo resuelve el": "Where the visitor comes from is resolved by the",
+  "servidor": "server",
+  ", no el navegador, asi que no se puede falsear desde la pagina.":
+    ", not the browser, so it cannot be faked from the page.",
+  "Para todos los demas paises": "For all other countries",
+  "Opt-out: medir hasta que digan que no": "Opt-out: measure until they say no",
+  "Estados Unidos (todo el pais)": "United States (whole country)",
+  "Union Europea y EEE": "European Union and EEA",
+  "Reino Unido": "United Kingdom",
+  "Categorias que apaga la senal": "Categories the signal turns off",
+  "Vacio = todas las que se pueden rechazar, que es lo prudente mientras no se sepa que hace cada categoria. Si pones una lista, las demas NO se apagan con la senal. Las tres senales de publicidad se deniegan siempre, pongas lo que pongas.":
+    "Empty = every category that can be rejected, which is the prudent default while nobody knows what each one does. If you set a list, the rest are NOT turned off by the signal. The three advertising signals are always denied, whatever you put.",
+  "Senales de Google": "Google signals",
+  "Publicidad: almacenamiento": "Advertising: storage",
+  "Publicidad: datos del usuario": "Advertising: user data",
+  "Publicidad: personalizacion": "Advertising: personalization",
+  "Personalizacion del sitio": "Site personalization",
+  "vende o cede": "sells or shares",
+  "datos personales (CPRA)": "personal data (CPRA)",
+  ") y las": ") and the",
+  "Vigilar este sitio solo": "Watch this site only",
+  "Escanea sin que pulses nada y solo avisa si algo ha cambiado. Necesita el worker del escaner en marcha.":
+    "Scans without you pressing anything and only warns if something changed. Needs the scanner worker running.",
+  "cada": "every",
+  "dias": "days",
+  "Pagina": "Page",
+  "Regimen": "Regime",
+  "Los 25 registros mas recientes. Cada fila es la prueba de una decision concreta: cuando, desde donde, bajo que regimen, en que pagina, y con que texto exacto delante. Pulsa el hash del texto para verlo entero.":
+    "The 25 most recent records. Each row is the proof of one specific decision: when, from where, under which regime, on which page, and with exactly which text in front of them. Click the text hash to see it in full.",
+
+  /* --- Mensajes de error que devuelve el backend. Llegan al panel por
+         msg(), que ya pasa por frase(), asi que basta con la entrada. --- */
+  "accion debe ser aprobar o rechazar": "action must be approve or reject",
+  "accion desconocida": "unknown action",
+  "clave de worker invalida": "invalid worker key",
+  "config invalida": "invalid config",
+  "cookies debe ser una lista": "cookies must be a list",
+  "demasiadas detecciones, espera un poco": "too many detections, wait a moment",
+  "demasiadas peticiones": "too many requests",
+  "demasiadas solicitudes, espera un rato": "too many requests, wait a while",
+  "el nombre del sitio es obligatorio": "the site name is required",
+  "el nombre no puede pasar de 80 caracteres": "the name cannot be longer than 80 characters",
+  "es el unico super administrador que queda": "is the only super admin left",
+  "ese escaneo no tiene informe": "that scan has no report",
+  "ese sitio no existe": "that site does not exist",
+  "ese usuario no existe": "that user does not exist",
+  "ese usuario ya existe": "that user already exists",
+  "hace falta ser administrador": "you need to be an admin",
+  "items debe ser una lista": "items must be a list",
+  "la contrasena actual no coincide": "the current password does not match",
+  "la contrasena debe tener al menos 8 caracteres": "the password must be at least 8 characters",
+  "la contrasena nueva necesita 8 caracteres o mas": "the new password needs 8 characters or more",
+  "no hay ninguna solicitud con ese nombre": "there is no request with that name",
+  "no puedes borrarte a ti mismo": "you cannot delete yourself",
+  "origen no autorizado para este site_id": "origin not allowed for this site_id",
+  "sitio sin config": "site has no config",
+  "solo el super administrador puede hacer esto": "only the super admin can do this",
+  "tipo desconocido": "unknown type",
+  "usuario: de 3 a 32 caracteres, letras, numeros, punto, guion o guion bajo":
+    "username: 3 to 32 characters, letters, numbers, dot, hyphen or underscore",
+  "No se pudo leer la pagina:": "Could not read the page:",
+  "este sitio no tiene dominio configurado;": "this site has no domain configured;",
+
+  /* --- Catalogo propio de cookies. Las descripciones las escribe el
+         backend en espanol y se ven en la tabla de Cookies detectadas. --- */
+  "ASP.NET: identificador de sesion.": "ASP.NET: session id.",
+  "AWS: balanceo de carga.": "AWS: load balancing.",
+  "Amplitude: analitica de producto.": "Amplitude: product analytics.",
+  "Balanceador de carga: mantiene el servidor asignado.": "Load balancer: keeps the assigned server.",
+  "Banner de consentimiento: guarda la decision.": "Consent banner: stores the decision.",
+  "Cloudflare: identificacion de seguridad (obsoleta).": "Cloudflare: security id (deprecated).",
+  "Cloudflare: recuerda que se supero la verificacion.": "Cloudflare: remembers the check was passed.",
+  "Cookie de seguridad del navegador.": "Browser security cookie.",
+  "DoubleClick de Google: publicidad y remarketing.":
+    "Google DoubleClick: advertising and remarketing.",
+  "DoubleClick: comprueba si el navegador acepta cookies.":
+    "DoubleClick: checks whether the browser accepts cookies.",
+  "Este banner: guarda la decision del visitante.": "This banner: stores the visitor's decision.",
+  "Google Ads: atribucion de clics en campanas.": "Google Ads: campaign click attribution.",
+  "Google Ads: datos de campana.": "Google Ads: campaign data.",
+  "Google Analytics clasico (Urchin).": "Classic Google Analytics (Urchin).",
+  "Google Analytics: identifica al visitante durante 24 h.":
+    "Google Analytics: identifies the visitor for 24 h.",
+  "Google: control tecnico de envio de cookies.": "Google: technical control of cookie delivery.",
+  "Google: estadisticas de uso de sus servicios.": "Google: usage statistics for its services.",
+  "Google: preferencias y anuncios personalizados.": "Google: preferences and personalized ads.",
+  "Hotjar: mapas de calor y grabacion de sesion.": "Hotjar: heatmaps and session recording.",
+  "HubSpot: identifica al usuario del chat.": "HubSpot: identifies the chat user.",
+  "HubSpot: recuerda el rechazo del propio banner de HubSpot.":
+    "HubSpot: remembers the rejection of HubSpot's own banner.",
+  "HubSpot: recuerda la peticion de no seguimiento.": "HubSpot: remembers the do-not-track request.",
+  "Java: identificador de sesion del servidor.": "Java: server session id.",
+  "Laravel: sesion del servidor.": "Laravel: server session.",
+  "LinkedIn: seguimiento e insight tag.": "LinkedIn: tracking and insight tag.",
+  "MODX: sesion del gestor de contenidos.": "MODX: content manager session.",
+  "Matomo: analitica.": "Matomo: analytics.",
+  "Meta: publicidad y remarketing.": "Meta: advertising and remarketing.",
+  "Microsoft Ads UET: identificador persistente.": "Microsoft Ads UET: persistent id.",
+  "Microsoft Ads UET: seguimiento de conversiones.": "Microsoft Ads UET: conversion tracking.",
+  "Microsoft Clarity: identificador de analitica.": "Microsoft Clarity: analytics id.",
+  "Microsoft Clarity: une las visitas de una sesion.":
+    "Microsoft Clarity: joins the visits in one session.",
+  "Microsoft: identificador publicitario.": "Microsoft: advertising id.",
+  "Mixpanel: analitica de producto.": "Mixpanel: product analytics.",
+  "Pinterest: medicion de conversiones.": "Pinterest: conversion measurement.",
+  "PrestaShop: sesion de la tienda.": "PrestaShop: shop session.",
+  "Proteccion contra falsificacion de peticiones.": "Cross-site request forgery protection.",
+  "Segment: analitica.": "Segment: analytics.",
+  "Stripe: prevencion de fraude en el pago.": "Stripe: payment fraud prevention.",
+  "TikTok Pixel: medicion de campanas.": "TikTok Pixel: campaign measurement.",
+  "Vimeo: identificador de analitica del reproductor.": "Vimeo: player analytics id.",
+  "Vimeo: preferencias del reproductor.": "Vimeo: player preferences.",
+  "WhatConverts: ata la visita a la llamada o el formulario.":
+    "WhatConverts: ties the visit to the call or form.",
+  "WhatConverts: identifica al visitante entre sesiones.":
+    "WhatConverts: identifies the visitor across sessions.",
+  "WhatConverts: identificador de sesion del seguimiento.": "WhatConverts: tracking session id.",
+  "WhatConverts: marca la visita que acabo en contacto.":
+    "WhatConverts: marks the visit that ended in contact.",
+  "WooCommerce: contenido del carrito.": "WooCommerce: cart contents.",
+  "WooCommerce: sesion de compra.": "WooCommerce: shopping session.",
+  "WordPress: preferencias del escritorio.": "WordPress: dashboard preferences.",
+  "WordPress: sesion iniciada.": "WordPress: logged-in session.",
+  "YouTube/Google: preferencias del reproductor.": "YouTube/Google: player preferences.",
+  "YouTube: estima el ancho de banda y personaliza.": "YouTube: estimates bandwidth and personalizes.",
+  "YouTube: seguimiento de videos vistos.": "YouTube: tracking of watched videos.",
 };
 
 /* Claves ordenadas de mas larga a mas corta: si "Contrasena" fuese antes que
@@ -1633,13 +1791,21 @@ function tr(h){
   // El codigo para copiar y pegar NUNCA se traduce. Un reemplazo dentro de
   // "document.documentElement" o de un nombre de clase deja al cliente con un
   // snippet roto, y eso no se ve hasta que falla en su sitio.
+  // El marcador TIENE que parecer una etiqueta. Con un sentinela plano
+  // (\u0000N\u0000) el texto de alrededor dejaba de estar delimitado por < y >,
+  // asi que el reemplazo de abajo fusionaba la frase entera en un solo nodo:
+  // "que no sean <code>HttpOnly</code>. Las de terceros (...) y las trae el"
+  // pasaba a ser UNA cadena, que no casa exacta con ninguna clave y encima cae
+  // en el bucle por subcadena, que ignora las claves de menos de 12 caracteres.
+  // Resultado: "que no sean" y "las trae el" estaban en el DICT y no se
+  // aplicaban nunca. Con una etiqueta de pega, los nodos siguen separados.
   var guardados = [];
   h = h.replace(/<(div class="snippet"|code|textarea)([\s\S]*?)<\/(div|code|textarea)>/g,
-    function(m){ guardados.push(m); return "\u0000" + (guardados.length - 1) + "\u0000"; });
+    function(m){ guardados.push(m); return '<tr-ph n="' + (guardados.length - 1) + '"></tr-ph>'; });
 
   h = h.replace(/>([^<>]+)</g, function(m, txt){ return ">" + frase(txt) + "<"; });
   h = h.replace(/placeholder="([^"]*)"/g, function(m, t){ return 'placeholder="' + frase(t) + '"'; });
-  h = h.replace(/\u0000(\d+)\u0000/g, function(m, i){ return guardados[Number(i)]; });
+  h = h.replace(/<tr-ph n="(\d+)"><\/tr-ph>/g, function(m, i){ return guardados[Number(i)]; });
   return h;
 }
 
@@ -1651,17 +1817,13 @@ function idiomaInicial(){
     var g = localStorage.getItem("dash_lang");
     if(g === "es" || g === "en") return g;
   }catch(e){}
-  var n = [];
-  try{ n = navigator.languages && navigator.languages.length
-            ? navigator.languages : [navigator.language || ""]; }catch(e){}
-  for(var i = 0; i < n.length; i++){
-    var b = String(n[i]).toLowerCase().split("-")[0];
-    if(b === "es") return "es";
-    if(b === "en") return "en";
-  }
-  // Ingles por defecto: solo se llega aqui si el navegador no pide ni espanol
-  // ni ingles (un aleman, por ejemplo), o si no se pudo leer la lista. El
-  // ingles es la apuesta mas segura para alguien de fuera.
+  // El ingles es el idioma base del panel: se entra en ingles salvo que
+  // alguien haya elegido espanol a mano, y esa eleccion se recuerda arriba.
+  // Antes mandaba el idioma del navegador, asi que un administrador con el
+  // navegador en espanol entraba en espanol sin pedirlo, y ensenar el panel a
+  // un cliente de EE.UU. obligaba a cambiarlo cada vez. El selector de idioma
+  // de la barra superior sigue estando para volver al espanol cuando se
+  // quiera.
   return "en";
 }
 
@@ -4017,9 +4179,13 @@ function patronesUI(lista){
     '<div class="ab-list">'+ (filas || '<span class="ck-desc">Sin patrones.</span>') +'</div>'+
     '<div class="row mt">'+
       '<button class="btn ghost sm" onclick="cpAnadir()">Anadir patron</button>'+
-      (faltan.length ? ' <button class="btn ghost sm" onclick="cpTraer()">Traer '+faltan.length+
+      // El verbo va por frase() aparte: con el numero en medio, el nodo de
+      // texto es "Quitar 5 no detectada(s)" y no casa exacto con ninguna
+      // clave. El resto de la frase si se traduce por subcadena, asi que sin
+      // esto el boton quedaba medio en ingles ("Quitar 5 not detected").
+      (faltan.length ? ' <button class="btn ghost sm" onclick="cpTraer()">'+frase("Traer")+' '+faltan.length+
         ' clasificada(s)</button>' : '')+
-      (huerfanos ? ' <button class="btn ghost sm" onclick="cpLimpiar()">Quitar '+huerfanos+
+      (huerfanos ? ' <button class="btn ghost sm" onclick="cpLimpiar()">'+frase("Quitar")+' '+huerfanos+
         ' no detectada(s)</button>' : '')+
     '</div>'+
     (sinCat ? '<p class="hint">'+sinCat+' patron(es) sin categoria: solo se borran si se '+

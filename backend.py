@@ -88,7 +88,16 @@ DEFAULT_CONFIG = {
     # Reglas de bloqueo automatico por URL. El snippet de instalacion las
     # incrusta inline para que actuen antes de que el parser lance las etiquetas.
     "autoBlock": [],
-    "texts": {"es": {"panelEyebrow": "Tu control", "panelTitle": "Gestiona tus cookies",
+    # Los dos idiomas, y el ingles primero porque es el idioma base. Antes solo
+    # se sembraba "es": el banner en ingles no se rompia, porque cae a los
+    # textos por defecto del bundle, pero un cliente que retocara su texto en
+    # espanol se encontraba con que la version inglesa seguia diciendo lo
+    # generico, sin un aviso de que faltaba la otra mitad.
+    "texts": {"en": {"panelEyebrow": "Your control", "panelTitle": "Manage your cookies",
+                     "panelIntro": "Essential cookies can't be turned off. Everything else is up to you.",
+                     "rejectOptional": "Reject optional", "accept": "Accept all",
+                     "save": "Save preferences"},
+              "es": {"panelEyebrow": "Tu control", "panelTitle": "Gestiona tus cookies",
                      "panelIntro": "Las esenciales no se pueden desactivar. Lo demas lo decides tu.",
                      "rejectOptional": "Rechazar las opcionales", "accept": "Aceptar todas",
                      "save": "Guardar preferencias"}},
@@ -1135,7 +1144,7 @@ def seed(c):
               ("admin", hash_pw(pw, salt), salt, now(), "super", "activo"))
     site_id = "site_" + secrets.token_hex(4)
     key = "pk_" + secrets.token_hex(16)
-    c.execute("INSERT INTO sites VALUES(?,?,?,?,?)", (site_id, "Sitio demo", "localhost", "pro", now()))
+    c.execute("INSERT INTO sites VALUES(?,?,?,?,?)", (site_id, "Demo site", "localhost", "pro", now()))
     c.execute("INSERT INTO api_keys VALUES(?,?,?,?,?)", (key, site_id, "public", 1, now()))
     c.execute("INSERT INTO site_config VALUES(?,?,?,?)", (site_id, 1, json.dumps(DEFAULT_CONFIG), now()))
     c.execute("INSERT INTO site_owners VALUES(?,?)", ("admin", site_id))

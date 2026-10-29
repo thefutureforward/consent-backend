@@ -49,12 +49,12 @@ IDENTIFICADORES = ("cid", "did", "sid", "sld", "uid", "_ga", "gclid", "fbp", "fb
 # sin cookies. La seccion 7 del informe se construye con esto: resolucion,
 # arquitectura de CPU, bitness, version del sistema operativo.
 HUELLA = {
-    "sr": "resolucion de pantalla", "vp": "tamano de ventana",
-    "ul": "idioma del navegador", "sd": "profundidad de color",
-    "uaa": "arquitectura de CPU", "uab": "bitness", "uafvl": "version del navegador",
-    "uap": "sistema operativo", "uapv": "version del sistema operativo",
-    "uamb": "movil si/no", "uaw": "Windows-on-Windows", "uam": "modelo de dispositivo",
-    "screen_resolution": "resolucion de pantalla", "viewport_size": "tamano de ventana",
+    "sr": "screen resolution", "vp": "viewport size",
+    "ul": "browser language", "sd": "color depth",
+    "uaa": "CPU architecture", "uab": "bitness", "uafvl": "browser version",
+    "uap": "operating system", "uapv": "operating system version",
+    "uamb": "mobile yes/no", "uaw": "Windows-on-Windows", "uam": "device model",
+    "screen_resolution": "screen resolution", "viewport_size": "viewport size",
 }
 # Solo las cabeceras de ENTROPIA ALTA. Chrome manda sec-ch-ua, sec-ch-ua-mobile
 # y sec-ch-ua-platform a todo el mundo por defecto, asi que contarlas marcaria a
@@ -550,10 +550,13 @@ def _recorre(ctx, url, etiqueta, hosts, principales, trafico, tope, callar,
     return galletas, hosts, quien, motivo, trafico
 
 
-FASES_ES = {"frio": "Sin decidir (nadie ha consentido)",
-            "rechazado": "Tras rechazar",
-            "aceptado": "Tras aceptar",
-            "gpc": "Con senal GPC (lo que ve una herramienta externa)"}
+# Rotulos de las fases para el INFORME, que va en ingles como el resto de lo
+# que ve el cliente. Las claves ("frio", "rechazado") son identificadores y
+# no se tocan: viajan al backend y se guardan en la columna "fases".
+FASES_ETIQ = {"frio": "Undecided (nobody has consented)",
+              "rechazado": "After rejecting",
+              "aceptado": "After accepting",
+              "gpc": "With a GPC signal (what an external tool sees)"}
 
 
 def foto_del_sitio(analisis, hosts_por_escenario, hallazgos, murado):
@@ -600,50 +603,50 @@ def escribe_informe(ruta, url, propio, canario, escenarios, analisis,
     se haya observado: cada fila sale de una peticion registrada."""
     L = []
     w = L.append
-    w("# Informe tecnico de cesion de datos a terceros\n")
-    w("Sitio: **%s**  \nFecha: %s  \n" % (url, time.strftime("%Y-%m-%d %H:%M")))
-    w("Termino de busqueda usado para detectar filtraciones: `%s`\n" % canario)
-    w("\nEste informe recoge lo observado por un navegador real en varias "
-      "visitas al sitio, una por cada estado de consentimiento. No es un "
-      "dictamen legal.\n")
+    w("# Technical report on data sharing with third parties\n")
+    w("Site: **%s**  \nDate: %s  \n" % (url, time.strftime("%Y-%m-%d %H:%M")))
+    w("Search term used to detect leaks: `%s`\n" % canario)
+    w("\nThis report collects what a real browser observed across several "
+      "visits to the site, one per consent state. It is not a legal "
+      "opinion.\n")
 
     if murado:
-        w("\n> **Aviso.** El sitio devolvio un muro anti-bot en alguna visita "
-          "(%s). Lo que sigue puede ser del muro y no del sitio.\n"
+        w("\n> **Warning.** The site returned an anti-bot wall on some visit "
+          "(%s). What follows may come from the wall and not from the site.\n"
           % "; ".join(m for _e, m in murado))
 
     sin_permiso = analisis.get("frio", {})
     tras_rechazo = analisis.get("rechazado", {})
 
-    w("\n## Resumen\n")
-    w("| Dato | Valor |")
+    w("\n## Summary\n")
+    w("| Item | Value |")
     w("|---|---|")
-    w("| Terceros contactados sin que nadie consienta | **%d** |" % len(sin_permiso))
-    w("| Terceros que siguen activos tras rechazar | **%d** |" % len(tras_rechazo))
-    w("| Terceros que reciben el termino buscado | **%d** |"
+    w("| Third parties contacted with nobody consenting | **%d** |" % len(sin_permiso))
+    w("| Third parties still active after rejecting | **%d** |" % len(tras_rechazo))
+    w("| Third parties receiving the searched term | **%d** |"
       % len([1 for d in sin_permiso.values() if d["busqueda"]]))
-    w("| Terceros que reciben datos de huella | **%d** |"
+    w("| Third parties receiving fingerprint data | **%d** |"
       % len([1 for d in sin_permiso.values() if len(d["huella"]) >= 3]))
-    w("| Cookies distintas observadas | %d |" % len(hallazgos))
+    w("| Distinct cookies observed | %d |" % len(hallazgos))
 
-    w("\n## 1. Cronologia: primer contacto con cada tercero, por fase\n")
+    w("\n## 1. Timeline: first contact with each third party, by phase\n")
     for etq, _g, _gpc in escenarios:
         d = analisis.get(etq)
         if not d:
             continue
-        w("\n**%s**\n" % FASES_ES.get(etq, etq))
-        w("| Segundo | Dominio | Peticiones |")
+        w("\n**%s**\n" % FASES_ETIQ.get(etq, etq))
+        w("| Second | Domain | Requests |")
         w("|---|---|---|")
         for h, x in sorted(d.items(), key=lambda kv: kv[1]["primera"])[:25]:
             w("| %.1f s | %s | %d |" % (x["primera"], h, x["peticiones"]))
         if not d:
-            w("| | ninguno | |")
+            w("| | none | |")
 
-    w("\n## 2. Que recibio cada tercero antes de que nadie consintiera\n")
+    w("\n## 2. What each third party received before anyone consented\n")
     if not sin_permiso:
-        w("Ningun tercero fue contactado antes de consentir.\n")
+        w("No third party was contacted before consent.\n")
     else:
-        w("| Dominio | Identificadores | Huella | Termino buscado |")
+        w("| Domain | Identifiers | Fingerprint | Searched term |")
         w("|---|---|---|---|")
         # Primero los que recibieron algo: en un sitio grande son 4 filas entre
         # 26, y enterradas en orden alfabetico no las ve nadie.
@@ -658,48 +661,48 @@ def escribe_informe(ruta, url, propio, canario, escenarios, analisis,
                 ", ".join(sorted(x["huella"])) or "-",
                 ", ".join(c for c, _v in x["busqueda"]) or "-"))
 
-    w("\n## 3. Filtracion del termino de busqueda\n")
+    w("\n## 3. Leak of the search term\n")
     fil = {h: x for h, x in sin_permiso.items() if x["busqueda"]}
     if not fil:
-        w("No se observo el termino de busqueda saliendo hacia ningun tercero.\n")
+        w("The search term was not observed leaving towards any third party.\n")
     else:
-        w("Se busco `%s` en el sitio. Aparecio en peticiones a:\n" % canario)
-        w("| Dominio | Campo | Valor observado |")
+        w("`%s` was searched on the site. It appeared in requests to:\n" % canario)
+        w("| Domain | Field | Observed value |")
         w("|---|---|---|")
         for h, x in sorted(fil.items()):
             for campo, val in x["busqueda"]:
                 w("| %s | `%s` | %s |" % (h, campo, val))
 
-    w("\n## 4. Cookies observadas y en que fase aparecen\n")
+    w("\n## 4. Cookies observed and in which phase they appear\n")
     if not hallazgos:
-        w("No se observo ninguna cookie en ninguna de las fases.\n")
+        w("No cookie was observed in any of the phases.\n")
     else:
-        w("| Cookie | Dominio | Parte | HttpOnly | Fases |")
+        w("| Cookie | Domain | Party | HttpOnly | Phases |")
         w("|---|---|---|---|---|")
         for v in sorted(hallazgos.values(),
                         key=lambda x: (x["party"] != "third", x["name"])):
             w("| %s | %s | %s | %s | %s |" % (
                 v["name"], v["domain"],
-                "tercero" if v["party"] == "third" else "propia",
-                "si" if v["httpOnly"] else "no",
+                "third party" if v["party"] == "third" else "first party",
+                "yes" if v["httpOnly"] else "no",
                 ", ".join(v["fases"])))
 
-    w("\n## 5. Huella digital\n")
+    w("\n## 5. Device fingerprinting\n")
     hue = {h: x for h, x in sin_permiso.items() if len(x["huella"]) >= 3}
     if not hue:
-        w("No se observo envio de caracteristicas de dispositivo antes de "
-          "consentir.\n")
+        w("No device characteristics were observed being sent before "
+          "consent.\n")
     else:
-        w("Caracteristicas del dispositivo enviadas sin consentimiento. "
-          "Combinadas permiten reconocer el navegador sin cookies.\n")
+        w("Device characteristics sent without consent. Combined, they allow "
+          "the browser to be recognized without cookies.\n")
         for h, x in sorted(hue.items()):
             w("\n**%s**\n" % h)
-            w("| Caracteristica | Valor observado |")
+            w("| Characteristic | Observed value |")
             w("|---|---|")
             for k, v in sorted(x["huella"].items()):
                 w("| %s | %s |" % (k, v))
 
-    w("\n## 6. Sirve de algo rechazar\n")
+    w("\n## 6. Does rejecting achieve anything\n")
     ac = set(analisis.get("aceptado", {}))
     re_ = set(tras_rechazo)
     fr = set(sin_permiso)
@@ -709,11 +712,11 @@ def escribe_informe(ruta, url, propio, canario, escenarios, analisis,
                 if x["identificadores"] or x["huella"] or x["busqueda"]}
 
     fr_datos, re_datos = con_datos(sin_permiso), con_datos(tras_rechazo)
-    w("| Fase | Terceros contactados | De ellos, reciben datos |")
+    w("| Phase | Third parties contacted | Of those, receiving data |")
     w("|---|---|---|")
-    w("| Sin decidir | %d | **%d** |" % (len(fr), len(fr_datos)))
-    w("| Tras rechazar | %d | **%d** |" % (len(re_), len(re_datos)))
-    w("| Tras aceptar | %d | |" % len(ac))
+    w("| Undecided | %d | **%d** |" % (len(fr), len(fr_datos)))
+    w("| After rejecting | %d | **%d** |" % (len(re_), len(re_datos)))
+    w("| After accepting | %d | |" % len(ac))
 
     # La comparacion que pesa en una reclamacion no es aceptar contra rechazar,
     # sino rechazar contra no haber decidido: si decir que no no cambia nada, la
@@ -722,22 +725,22 @@ def escribe_informe(ruta, url, propio, canario, escenarios, analisis,
     if re_datos:
         siguen = sorted(re_datos & fr_datos)
         if siguen:
-            w("\n> **Rechazar no detiene la cesion de datos.** %d tercero(s) "
-              "siguen recibiendo identificadores, huella o lo que el visitante "
-              "busco **despues de un rechazo explicito**: %s. Es el hallazgo con "
-              "mas peso en una reclamacion, por encima de cualquier cookie.\n"
+            w("\n> **Rejecting does not stop data sharing.** %d third part(ies) "
+              "keep receiving identifiers, fingerprint data or what the visitor "
+              "searched for **after an explicit rejection**: %s. This is the "
+              "heaviest finding in a claim, above any cookie.\n"
               % (len(siguen), ", ".join(siguen)))
         else:
-            w("\n> **Hay terceros que reciben datos tras rechazar** (%s) y que no "
-              "los recibian antes de decidir. Apunta a un error de "
-              "configuracion.\n" % ", ".join(sorted(re_datos)))
+            w("\n> **Some third parties receive data after rejecting** (%s) and did "
+              "not receive it before the decision. This points to a "
+              "configuration error.\n" % ", ".join(sorted(re_datos)))
     elif fr_datos:
-        w("\n> Rechazar **si** corta la cesion: %d tercero(s) recibian datos sin "
-          "consentimiento y ninguno los recibe tras el rechazo.\n" % len(fr_datos))
+        w("\n> Rejecting **does** stop the sharing: %d third part(ies) received data "
+          "without consent and none receives it after the rejection.\n" % len(fr_datos))
     elif re_ and fr and re_ == fr:
-        w("\n> Se contactan los mismos terceros antes y despues de rechazar, pero "
-          "**ninguno recibe datos identificativos**. Conviene revisar por que se "
-          "contactan igualmente, sin presentarlo como una cesion de datos.\n")
+        w("\n> The same third parties are contacted before and after rejecting, but "
+          "**none receives identifying data**. It is worth reviewing why they are "
+          "contacted at all, without presenting it as data sharing.\n")
 
     texto = "\n".join(L) + "\n"
     if ruta:

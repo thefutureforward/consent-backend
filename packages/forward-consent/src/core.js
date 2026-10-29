@@ -67,7 +67,10 @@ let _userConfig = null;
     customCss: "",
     policyUrl: "",
     policyNewTab: true,
-    defaultLanguage: "es",
+    // Ingles por defecto: es el idioma base del producto y el mercado de los
+    // clientes. Solo manda cuando no hay config remota; los sitios dados de
+    // alta por el panel ya nacen con "en".
+    defaultLanguage: "en",
     // Recargar tras una decision. Rechazar es el caso que de verdad lo pide:
     // un script ya ejecutado no se puede "desejecutar", solo dejar de cargar
     // en la siguiente carga. Aceptar suele no necesitarlo porque el bundle
@@ -78,7 +81,7 @@ let _userConfig = null;
     //   always -> ante cualquier decision
     reloadAfter: "never",
     autoDetectLanguage: true,          // mirar el idioma del navegador
-    languages: ["es", "en"],           // idiomas que el sitio admite
+    languages: ["en", "es"],           // idiomas que el sitio admite
     cookie: { lifetimeMonths: 6, domain: "" },
     // Prefijos de cookie que borra activeDeletion al denegar analitica.
     // Ampliable por sitio desde la config remota.
@@ -1888,7 +1891,7 @@ let _userConfig = null;
   }
 
   // ---- Estado y persist -----------------------------------------------------
-  var state = { lang: "es", chosen: {}, modo: "optin" };
+  var state = { lang: "en", chosen: {}, modo: "optin" };
 
   // El corazon del sistema. Orden fijo (ver spec seccion 3).
   function persist(C, choice, chosen) {
@@ -2356,7 +2359,7 @@ let _userConfig = null;
       }
     }
 
-    if (!elegido) elegido = normalizaIdioma(C.defaultLanguage, disp) || C.defaultLanguage || "es";
+    if (!elegido) elegido = normalizaIdioma(C.defaultLanguage, disp) || C.defaultLanguage || "en";
     return elegido;
   }
 
@@ -2366,7 +2369,7 @@ let _userConfig = null;
   function lang(obj, C) {
     if (obj == null) return "";
     if (typeof obj === "string") return obj;          // admite label:"Texto"
-    var candidatos = [state.lang, C && C.defaultLanguage, "es", "en"], i;
+    var candidatos = [state.lang, C && C.defaultLanguage, "en", "es"], i;
     for (i = 0; i < candidatos.length; i++) {
       var k = candidatos[i];
       if (k && obj[k] != null && obj[k] !== "") return obj[k];
@@ -2427,7 +2430,7 @@ let _userConfig = null;
 
   function t() {
     var C = merged();
-    var base = COPY[state.lang] || COPY.es;
+    var base = COPY[state.lang] || COPY.en;
     var over = (C.texts && C.texts[state.lang]) || {};
     var out = {}; var k;
     for (k in base) out[k] = base[k];
