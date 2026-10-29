@@ -1718,6 +1718,26 @@ var DICT = {
   "YouTube/Google: preferencias del reproductor.": "YouTube/Google: player preferences.",
   "YouTube: estima el ancho de banda y personaliza.": "YouTube: estimates bandwidth and personalizes.",
   "YouTube: seguimiento de videos vistos.": "YouTube: tracking of watched videos.",
+
+  /* --- Etiquetas sueltas que el barrido por marcadores de idioma no
+         pillaba, por ser una sola palabra sin nada que delate el idioma. --- */
+  "Estilo": "Style",
+  "Analitica": "Analytics",
+  "Funcionamiento": "Functionality",
+  "Seguridad": "Security",
+  "Brasil": "Brazil",
+  "Version del consentimiento": "Consent version",
+  "Al cambiarla, TODO visitante que ya habia decidido vuelve a ver el banner. Se sube cuando cambian las categorias o los textos, porque entonces lo que aceptaron ya no es lo que hay. El panel avisa al publicar si hace falta.":
+    "Changing it makes EVERY visitor who had already decided see the banner again. You raise it when the categories or the texts change, because then what they accepted is no longer what is there. The panel warns on publish if it is needed.",
+
+  /* --- Encontradas comparando los nodos que se pintan en ES con los que
+         se pintan en EN: lo que sale identico en los dos, o no se traduce
+         (nombres propios) o esta sin traducir. --- */
+  "Avisos": "Notices",
+  "Encenderla": "Turning it on",
+  "Territorios habituales": "Common territories",
+  "Opt-in: pedir permiso antes": "Opt-in: ask for permission first",
+  "), cae en": "), falls back to",
 };
 
 /* Claves ordenadas de mas larga a mas corta: si "Contrasena" fuese antes que
@@ -4374,9 +4394,14 @@ function rgUI(reg){
 
   var puestas = {};
   reglas.forEach(function(r){ if(r && r.match) puestas[String(r.match)] = 1; });
+  // El nombre pasa por frase() aqui en vez de dejarselo a tr(): pegado al "+ "
+  // el nodo es "+ Brasil", que no casa exacto con ninguna clave, y la regla de
+  // subcadena salta las claves de menos de 12 caracteres. "Reino Unido" mide
+  // 11 y "Brasil" 6, asi que esos botones se quedaban sin traducir mientras
+  // "Estados Unidos (todo el pais)" si se traducia. Parecia aleatorio.
   var sug = RG_SUGER.filter(function(x){ return !puestas[x[0]]; }).map(function(x){
     return '<button class="btn ghost sm" onclick="rgAnadir(\''+esc(x[0])+'\')">+ '+
-      esc(x[1])+'</button>';
+      esc(frase(x[1]))+'</button>';
   }).join("");
 
   return '<div class="ctl ctl-wide">'+
