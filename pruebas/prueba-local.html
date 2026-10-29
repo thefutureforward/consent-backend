@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<title>Prueba local del banner</title>
+<style>
+ body{font:15px/1.6 system-ui,sans-serif;margin:0;padding:24px;max-width:860px}
+ h1{font-size:22px;margin:0 0 4px} h2{font-size:15px;margin:26px 0 8px}
+ .av{background:#FFF4E5;border:1px solid #F0D9AE;padding:12px 14px;border-radius:8px;font-size:13.5px}
+ table{border-collapse:collapse;width:100%;font-size:13.5px;margin-top:6px}
+ td,th{text-align:left;padding:7px 9px;border-bottom:1px solid #eee;vertical-align:top}
+ th{background:#f6f6f6;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+ .si{color:#1E6B36;font-weight:600}.no{color:#A5342A;font-weight:600}
+ code{background:#f0f0f0;padding:1px 5px;border-radius:4px;font-size:12.5px}
+ button{font:inherit;padding:8px 14px;cursor:pointer;margin-right:6px}
+ iframe{border:1px solid #ddd}
+</style></head><body>
+
+<h1>Prueba local del banner</h1>
+<p>Abre esta pagina servida por <b>tu backend</b> (no con doble clic: tiene que
+ser <code>http://localhost:PUERTO/...</code>) y mira la tabla de abajo.</p>
+
+<div class="av"><b>Antes de nada:</b> pon aqui tu <code>siteId</code> y tu
+<code>apiBase</code>, en el script del final de este archivo. Sin eso el banner
+no carga la configuracion de tu sitio.</div>
+
+<h2>1. Contenido embebido (prueba P3 y P7)</h2>
+<p>Con marketing <b>denegado</b> debe verse un <b>marcador</b> con un boton, no
+un hueco en blanco. Al pulsarlo, el video aparece <b>sin recargar</b>.</p>
+<iframe id="video" width="420" height="236" src="https://player.vimeo.com/video/76979871"></iframe>
+
+<h2>2. Estado en vivo</h2>
+<table id="tabla"><thead><tr><th>Que se mira</th><th>Estado</th><th>Que deberia pasar</th></tr></thead>
+<tbody></tbody></table>
+
+<h2>3. Acciones</h2>
+<button onclick="escribir()">Escribir cookies de prueba</button>
+<button onclick="pedir()">Lanzar peticiones a terceros</button>
+<button onclick="location.reload()">Recargar</button>
+<button onclick="olvidar()">Olvidar mi decision</button>
+
+<h2>4. Google Consent Mode</h2>
+<p>Con el modo <b>avanzado</b> debe aparecer un <code>consent default</code>
+con todo denegado <b>antes</b> de decidir, y un <code>consent update</code>
+despues. En <b>basico</b> solo el update.</p>
+<pre id="dl" style="background:#12233a;color:#dbe6f2;padding:12px;border-radius:8px;
+ font-size:12px;overflow:auto;max-height:220px"></pre>
+
+<script>
+// ---------- PON AQUI LO TUYO ----------
+window.__consentConfig = {
+  siteId:  "PON_TU_SITE_ID",
+  apiBase: "http://localhost:8000"
+};
+// --------------------------------------
+window.dataLayer = window.dataLayer || [];
+</script>
+<script src="/consent-banner.js"></script>
+
+<script>
+function escribir(){
+  ["_ga=GA1.1.prueba","sessionid=NO_TOCAR","PHPSESSID=NO_TOCAR","_trk=rastreo"]
+    .forEach(function(c){ document.cookie = c + "; path=/"; });
+  pintar();
+}
+function pedir(){
+  ["https://www.google-analytics.com/collect?v=1","https://connect.facebook.net/px.gif"]
+    .forEach(function(u){ var i=new Image(); i.src=u; });
+  fetch("https://www.google-analytics.com/g/collect",{mode:"no-cors"}).catch(function(){});
+  setTimeout(pintar, 600);
+}
+function olvidar(){
+  document.cookie = "fwc_consent_cookie_consent=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+  location.reload();
+}
+function fila(q, ok, bien){
+  return "<tr><td>"+q+"</td><td class='"+(ok?"si":"no")+"'>"+(ok?"SI":"NO")+
+         "</td><td>"+bien+"</td></tr>";
+}
+function pintar(){
+  var sr = (document.querySelector("#consent-banner-host")||{}).shadowRoot;
+  var ck = document.cookie;
+  var f = document.getElementById("video");
+  var ph = document.querySelector("[data-consent-ph]");
+  var h = "";
+  h += fila("El banner aparece", !!(sr && sr.querySelector(".cb-inner")),
+            "Si ya decidiste, no sale. Pulsa 'Olvidar mi decision'");
+  h += fila("Marcador en vez del hueco", !!ph,
+            "Debe salir mientras la categoria del video este denegada");
+  h += fila("El video carga", f && (f.getAttribute("src")||"").indexOf("vimeo")>=0,
+            "Solo despues de aceptar esa categoria");
+  h += fila("Cookie de sesion a salvo", ck.indexOf("sessionid")>=0 || ck.indexOf("PHPSESSID")>=0,
+            "Pulsa 'Escribir cookies'. NUNCA debe bloquearse, rechaces o no");
+  h += fila("Cookie de rastreo escrita", ck.indexOf("_ga=")>=0,
+            "Solo si aceptaste analitica");
+  document.querySelector("#tabla tbody").innerHTML = h;
+  document.getElementById("dl").textContent =
+    (window.dataLayer||[]).map(function(a){
+      var x = Array.prototype.slice.call(a);
+      return (x[0]==="consent"||x[0]==="set") ? JSON.stringify(x) : null;
+    }).filter(Boolean).join("\n") || "(nada todavia)";
+}
+setInterval(pintar, 1200); pintar();
+</script>
+</body></html>

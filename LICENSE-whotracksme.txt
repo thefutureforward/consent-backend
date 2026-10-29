@@ -1,0 +1,60 @@
+Datos de rastreadores: whotracks.me
+===================================
+
+El archivo dominios-rastreo.json se genera a partir de la base de datos de
+whotracks.me con el script generar-dominios-rastreo.py.
+
+FUENTE
+    whotracks.me — https://whotracks.me/
+    Repositorio   https://github.com/whotracksme/whotracks.me
+
+LICENCIA DE LOS DATOS
+    Creative Commons Attribution 4.0 International (CC BY 4.0)
+    Texto completo: https://creativecommons.org/licenses/by/4.0/legalcode
+    Resumen:        https://creativecommons.org/licenses/by/4.0/
+
+    Permite uso comercial, redistribucion y obras derivadas.
+    La unica condicion es la atribucion. NO lleva clausula de compartir
+    igual (share-alike) ni restriccion no comercial.
+
+    (El codigo fuente del proyecto whotracks.me va aparte bajo licencia MIT.
+    Aqui solo se usan los datos.)
+
+ATRIBUCION QUE HAY QUE CONSERVAR
+    "Data from whotracks.me, by Ghostery / Cliqz contributors,
+     licensed under CC BY 4.0."
+
+    Va incluida dentro de dominios-rastreo.json, en las claves "fuente",
+    "licencia" y "atribucion". Si ese archivo se regenera o se edita a mano,
+    esas claves se conservan.
+
+MODIFICACIONES QUE HACEMOS SOBRE LOS DATOS ORIGINALES
+    CC BY 4.0 pide indicar si se han hecho cambios. Se han hecho estos:
+
+    1. Se extraen solo los dominios, su categoria y la empresa. El resto de
+       la base (estadisticas de uso, URLs de politicas, paises) se descarta.
+    2. Las 11 categorias originales se traducen a dos decisiones propias:
+       "marketing", "analitica", o ninguna cuando el dominio se reconoce
+       pero no conviene proponer su bloqueo.
+    3. Se descartan los subdominios redundantes cuando el dominio padre ya
+       los cubre y dice lo mismo.
+
+    El mapeo exacto esta en la constante MAPA de generar-dominios-rastreo.py.
+
+POR QUE ESTA FUENTE Y NO EASYPRIVACY
+    Se midio sobre 28 hosts de terceros que aparecen de verdad en sitios de
+    clientes: EasyPrivacy reconocia 4 (14%), esta reconoce 27 (96%).
+    EasyPrivacy casi nunca bloquea un host entero — para Google Analytics,
+    Hotjar o Segment usa reglas de ruta — porque es un bloqueador de
+    navegacion general y tumbar el host completo rompe sitios. Justo los
+    nombres que mas importan aqui son los que deja fuera.
+
+    Ademas, EasyPrivacy es GPLv3 o CC BY-SA 3.0, las dos con compartir igual.
+    Esta es atribucion y nada mas, el mismo trato que la Open Cookie Database
+    (Apache-2.0) que ya usa el catalogo de cookies.
+
+DONDE VIVE ESTE ARCHIVO
+    dominios-rastreo.json va JUNTO a backend.py, en el servidor.
+    NO entra en el bundle que se sirve al navegador del visitante.
+    Lo que llega al cliente son los dominios ya aprobados a mano para ese
+    sitio, que son un punado, no la base.

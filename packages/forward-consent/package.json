@@ -52,5 +52,8 @@
   "devDependencies": {
     "esbuild": "^0.23.0"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "dependencies": {
+    "jsdom": "^29.1.1"
+  }
 }

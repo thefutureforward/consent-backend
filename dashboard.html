@@ -136,6 +136,7 @@
   /* filas del modo desarrollador: etiqueta y ruta a la izquierda, control a la derecha */
   .ctl-p{display:none}
   .wz .ctl:not(.ctl-full):not(.ctl-wide){display:grid;grid-template-columns:1fr 210px;align-items:center;gap:12px}
+  .wz .ctl > .hint{grid-column:1 / -1}
   .wz .ctl-full > .ctl-t{margin-bottom:8px}
   .wz .ctl-full > .ctl-t > label{font-size:13px}
   .wz .ctl-t{display:flex;flex-direction:column;gap:2px}
@@ -420,6 +421,10 @@
   .group[open] > summary::after{transform:rotate(180deg)}
   .group .body{padding:14px}
   .ctl{display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center;margin-bottom:9px}
+  /* La nota de un ajuste (it.n) explica por que importa, asi que va DEBAJO y
+     a ancho completo. Como hermana dentro de la rejilla caia en la columna de
+     130px y se leia en vertical, ocupando media pantalla. */
+  .ctl > .hint{grid-column:1 / -1;margin-top:0}
   .ctl:last-child{margin-bottom:0}
   .ctl > label{margin:0;font-size:12px}
   .ctl input[type=text]{padding:7px 9px;font-size:12.5px}
@@ -460,6 +465,69 @@
   .ck-t em{font-style:normal;font-weight:400;opacity:.65;margin-left:4px}
   .ck-pend{margin-left:auto;font-size:12px;font-weight:600;color:#8A5A00;
            background:#FFF4E5;border-radius:999px;padding:5px 11px}
+  .sug-deducida{background:#FFF4E5;color:#8A5A00;border-color:#F0D9AE}
+  /* El modal se centra en la ventana. Antes iba con margin:3vh auto, que en
+     pantallas bajas lo pegaba al borde de arriba y la caja blanca se solapaba
+     con la barra oscura: parecia que el modal estaba cortado. */
+  .inf-modal{display:none;position:fixed;inset:0;z-index:9000;
+    align-items:center;justify-content:center;padding:4vh 16px}
+  .inf-fondo{position:absolute;inset:0;background:rgba(10,20,30,.45)}
+  .inf-caja{position:relative;width:100%;max-width:900px;margin:0;background:#fff;
+    border-radius:12px;box-shadow:0 18px 50px rgba(10,20,30,.35);
+    max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+  .inf-top{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:12px 16px;border-bottom:1px solid #e3e8ec}
+  .inf-cuerpo{overflow:auto;padding:4px 20px 20px;font-size:13.5px;line-height:1.55}
+  .inf-cuerpo .inf-h{color:#1F3A52;margin:18px 0 6px;font-size:15px}
+  .inf-cuerpo h3.inf-h{font-size:18px}
+  .inf-cuerpo p{margin:6px 0}
+  .inf-cita{margin:8px 0;padding:8px 12px;background:#FDECEC;border-left:3px solid #9B1C1C;
+    color:#7A1616}
+  .inf-tabla{border-collapse:collapse;width:100%;margin:8px 0;font-size:12.5px}
+  .inf-tabla th{background:#1F3A52;color:#fff;text-align:left;padding:6px 8px;font-size:11.5px}
+  .inf-tabla td{border-bottom:1px solid #e9edf0;padding:5px 8px;vertical-align:top}
+  .inf-tabla tr:nth-child(even) td{background:#F7F9FA}
+  /* P6. La campana. El numero solo sale si hay algo sin leer: una campana con
+     un cero permanente se deja de mirar en una semana, y entonces el dia que
+     trae algo tampoco se mira. */
+  /* El numero va DENTRO del boton. Flotando por encima con position:absolute
+     se salia por arriba y la barra lo recortaba por la mitad: un contador a
+     medias es peor que ninguno, porque no se sabe si pone 3 o 8. */
+  .campana{display:inline-flex;align-items:center;gap:7px}
+  /* La clase se llama av-n y no pt: .pt ya existe en la barra como el puntito
+     verde de "Publicado", con width y height de 8px fijos, y el contador salia
+     aplastado dentro de un circulo de 8 pixeles. */
+  .campana .av-n{background:#C0392B;color:#fff;font-size:10.5px;font-weight:700;
+    border-radius:9px;padding:1px 6px;line-height:1.7;display:inline-block;
+    min-width:9px;text-align:center}
+  .av-fila{border:1px solid #e9edf0;border-left:3px solid #c9d2d8;border-radius:8px;
+    padding:10px 12px;margin:8px 0;background:#fff}
+  .av-fila.alta{border-left-color:#9B1C1C;background:#FDF6F6}
+  .av-fila.media{border-left-color:#B45309}
+  .av-fila.visto{opacity:.5}
+  .av-t{font-weight:600;font-size:13.5px;color:#1F3A52}
+  .av-d{font-size:12.5px;color:#4a5a66;margin-top:4px;line-height:1.55}
+  .av-c{font-size:11.5px;color:#8a97a1;margin-top:5px}
+  .vig{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;
+    color:#4a5a66;margin:10px 0 0;padding:9px 11px;background:#F7F9FA;
+    border:1px solid #e9edf0;border-radius:8px}
+  .vig .vig-nota{flex:1 1 320px;min-width:0}
+  /* La fecha del ultimo escaneo programado, en su propia linea: pegada al
+     final del parrafo estiraba la caja hasta el borde de la pantalla. */
+  .vig .vig-ult{flex:1 1 100%;font-size:11.5px;color:#8a97a1;margin-top:2px}
+  .vig input[type=number]{width:52px;font:12.5px inherit;padding:4px 6px;
+    border:1px solid #d8dde2;border-radius:6px}
+  .esc-url{font:13px/1.3 inherit;padding:7px 10px;border:1px solid var(--linea,#d8dde2);
+    border-radius:7px;min-width:0;flex:0 1 250px;max-width:280px}
+  .sin-permiso{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;
+    font-weight:700;background:#FDE8E8;color:#9B1C1C;border:1px solid #F5C2C2;
+    margin-left:6px;cursor:help}
+  .sug-deducida em{font-style:normal;opacity:.8;font-weight:600}
+  .esc-caja{margin:0 0 14px;padding:11px 14px;border-radius:8px;font-size:13.5px;
+            background:#EEF3F8;border:1px solid #CFDDE9;color:#2B4257}
+  .esc-caja .sub{opacity:.7;font-size:12.5px}
+  .esc-ok{background:#ECF6EF;border-color:#C5E3D0;color:#1E5131}
+  .esc-muro{background:#FDEEEC;border-color:#F2C9C3;color:#8C2F22}
   /* ---------- cookies detectadas ---------- */
   .ck-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
            flex-wrap:wrap;margin-bottom:14px}
@@ -481,6 +549,23 @@
   .trig-txt{font-size:14px;color:#1c2531}
   .trig-prev button{font:inherit}
   .cat-card{border:1px solid var(--linea,#e5e3dd);border-radius:8px;padding:10px;margin-bottom:10px}
+  /* Selector de senales de Google por categoria. */
+  .sen-caja{margin-top:9px;padding-top:9px;border-top:1px dashed var(--linea,#e5e3dd)}
+  .sen-tit{display:block;font-size:11.5px;font-weight:700;letter-spacing:.04em;
+    text-transform:uppercase;color:#7b8794;margin-bottom:6px}
+  .sen-ops{display:flex;flex-wrap:wrap;gap:6px}
+  .sen-op{display:inline-flex;align-items:center;gap:5px;font-size:12px;
+    padding:4px 9px;border:1px solid var(--linea,#d8dde2);border-radius:999px;
+    background:#fff;cursor:pointer;white-space:nowrap}
+  .sen-op:hover{border-color:#9aa6b2}
+  .sen-op.sen-on{background:#E8F1EC;border-color:#2F7E6C;color:#1F3A52;font-weight:600}
+  .sen-op input{margin:0}
+  .sen-vacia{margin:7px 0 0;color:#8a5a00}
+  .sen-venta{display:inline-flex;align-items:center;gap:6px;margin-top:9px;
+    font-size:12px;padding:5px 9px;border:1px solid #D3D8DE;border-radius:999px;
+    cursor:pointer}
+  .sen-venta.sen-on{border-color:#2F7E6C;background:#E1EBE3;color:#1f4d41}
+  .sen-sug-venta{margin:7px 0 0;color:#8a5a00}
 .cat-lock{display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap}
 .ab-row{display:flex;gap:8px;align-items:center;margin-bottom:7px}
   .ab-row input[type=text]{flex:1 1 auto;padding:7px 9px;font-size:12.5px;
@@ -558,10 +643,13 @@
     <div class="site-picker" id="picker"></div>
     <div class="spacer"></div>
     <span class="pub-estado" id="pub-estado"></span>
-    <button class="btn ghost sm" onclick="temaProbar()">Probar en mi sitio</button>
+    <button class="btn ghost sm hide" id="btn-probar" onclick="temaProbar()">Probar en mi sitio</button>
     <button class="btn sm" id="btn-publicar" onclick="saveCfg()">Publicar</button>
     <span class="who" id="who"></span>
     <div class="modes lang-sw" id="lang-sw"></div>
+    <button class="icon-btn campana" id="campana" onclick="verAvisos()"
+            title="Cambios detectados desde el escaneo anterior">Avisos<span
+            class="av-n" id="campana-n" style="display:none">0</span></button>
     <button class="icon-btn" onclick="logout()">Salir</button>
   </div>
   <div class="marco">
@@ -620,6 +708,11 @@ var DICT = {
   "Cuenta": "Account",
   "Sitios": "Sites",
   "Nuevo sitio": "New site",
+  // Los dos botones llevan el "+" pegado al texto. frase() busca primero la
+  // frase exacta y solo reemplaza por subcadena con claves de 12 letras o mas;
+  // "Nuevo sitio" tiene 11, asi que sin esta entrada se quedaban en espanol
+  // dentro del panel en ingles.
+  "+ Nuevo sitio": "+ New site",
   "Crear sitio": "Create site",
   "Crear primer sitio": "Create first site",
   "Borrar sitio": "Delete site",
@@ -662,21 +755,6 @@ var DICT = {
     "no script is blocked, cookies are only deleted afterwards.",
   "autoBlock vacio": "empty autoBlock",
   "webfont activo": "webfont on",
-
-  /* --- Consent Mode --- */
-  "Consent Mode (Google)": "Consent Mode (Google)",
-  "Consent Mode": "Consent Mode",
-  "Emitir el estado por defecto": "Emit the default state",
-  "Margen de espera (ms)": "Wait for update (ms)",
-  "Ocultar datos de clics de anuncio": "Redact ad click data",
-  "Pasar el identificador por la URL": "Pass the identifier in the URL",
-  "Paises donde aplicar el default": "Countries where the default applies",
-  "Con esto activado y Google fuera del bloqueo de scripts, GA4 carga igualmente y mide sin cookies hasta que el visitante decida. Si lo apagas, Google solo mide a quien acepta.":
-    "With this on and Google out of the script blocking list, GA4 still loads and measures without cookies until the visitor decides. Turn it off and Google only measures those who accept.",
-  "Enlaza una pagina con la siguiente sin cookies, pero mete el identificador del visitante en la URL. Apagado por defecto: el EDPB lo considera acceso al equipo terminal. Sin esto el trafico por pagina se cuenta igual; lo que se pierde es la continuidad de sesion.":
-    "Links one page to the next without cookies, but puts the visitor's identifier in the URL. Off by default: the EDPB treats it as access to terminal equipment. Without it, per-page traffic is still counted; what is lost is session continuity.",
-  "Vacio = mismo trato para todo el mundo. Si pones paises, fuera de la lista NO se emite el default y esos visitantes se miden en modo pleno.":
-    "Empty = same treatment for everyone. If you list countries, no default is emitted outside the list and those visitors are measured in full mode.",
 
   /* --- grupos de apariencia --- */
   "Idioma": "Language",
@@ -1004,6 +1082,10 @@ var DICT = {
   "Dominios": "Allowed domains",
   "Ver codigo": "View code",
   "Registros de consentimiento": "Consent records",
+  "Senal GPC": "GPC signal",
+  "Otros": "Other",
+  "Cada registro es la prueba de una decision: cuando, que acepto y con que version del texto. Los de Senal GPC los decidio el navegador del visitante, sin preguntarle.":
+    "Each record proves one decision: when, what was accepted and with which text version. GPC signal ones were decided by the visitor's browser, without asking them.",
   "Ver registros": "View records",
   "Como se ve hoy": "How it looks today",
   "Atajos": "Shortcuts",
@@ -1049,6 +1131,66 @@ var DICT = {
   "Mayusculas": "Uppercase",
   "Familia": "Family",
   "General": "General",
+  "Respetar la senal GPC del navegador": "Respect the browser's GPC signal",
+  "Global Privacy Control": "Global Privacy Control",
+  "Algunos navegadores envian una senal de \u201cno vendas ni compartas mis datos\u201d. Desde enero de 2026 es exigible en una docena de estados de EEUU. Con esto activado, a esos visitantes no se les pregunta: se deniega todo lo que se puede denegar y queda registrado como prueba. Pueden cambiarlo luego desde el pill o el enlace del pie.": "Some browsers send a \u201cdo not sell or share my data\u201d signal. Since January 2026 it is enforceable in a dozen US states. With this on, those visitors are not asked: everything that can be denied is denied, and it is recorded as proof. They can change it later from the pill or the footer link.",
+  "Si ya habia decidido antes": "If they had already decided",
+  "La senal manda: se revoca": "The signal wins: revoke",
+  "Preguntar de nuevo": "Ask again",
+  "Mantener su decision anterior": "Keep their earlier choice",
+  "El segundo ajuste solo entra cuando alguien ya habia decidido en este sitio": "The second setting only applies when someone had already decided on this site",
+  "de activar la senal en su navegador: dos instrucciones suyas que se contradicen. Revocar es lo mas defendible; preguntar es lo mas respetuoso; mantener es lo que menos analitica te hace perder.": "before turning the signal on in their browser: two instructions from the same person that contradict each other. Revoking is the most defensible; asking is the most respectful; keeping loses the least analytics.",
+  "Bloqueo endurecido": "Hard blocking",
+  "Bloquear tambien iframes, pixeles y peticiones": "Also block iframes, pixels and requests",
+  "El bloqueo de serie solo frena etiquetas &lt;script&gt;. Un tercero tiene otras cuatro vias: un iframe, un pixel de imagen, fetch o XHR, y sendBeacon. Esto las cierra todas y ademas impide que se escriba la cookie, en vez de borrarla despues. Viene apagado porque toca fetch y document.cookie: enciendelo y prueba el sitio antes de dejarlo puesto.": "The default blocking only stops &lt;script&gt; tags. A third party has four more ways in: an iframe, an image pixel, fetch or XHR, and sendBeacon. This closes all of them and also stops the cookie from being written, instead of deleting it afterwards. It ships off because it patches fetch and document.cookie: turn it on and test the site before leaving it on.",
+  "Marcador del contenido bloqueado": "Blocked content placeholder",
+  "Tamano del texto": "Text size",
+  "Ancho del texto": "Text width",
+  "Clase CSS propia": "Own CSS class",
+  "Boton: fondo": "Button: background",
+  "Boton: texto": "Button: text",
+  "Boton: borde": "Button: border",
+  "Boton: radio": "Button: radius",
+  "Boton: padding": "Button: padding",
+  "Boton: peso": "Button: weight",
+  "Boton: clase CSS": "Button: CSS class",
+  "ya se bloquea": "already blocked",
+  "Bloquear": "Block",
+  "Sin categorias que asignar": "No categories to assign",
+  "Anadido a bloqueo:": "Added to blocking:",
+  "Pulsa Publicar y copia de nuevo el codigo de Instalar.": "Press Publish and copy the Install code again.",
+  "Ese dominio ya estaba en la lista.": "That domain was already on the list.",
+  "No se propone bloquearlo": "Not proposed for blocking",
+  "dominio(s) anadidos al bloqueo": "domain(s) added to blocking",
+  "ya cubiertos por una regla mas corta": "already covered by a shorter rule",
+  "Copia de nuevo el codigo de Instalar.": "Copy the Install code again.",
+  "Sin cambios": "No changes",
+  "Guardando...": "Saving...",
+  "No se pudo aplicar.": "Could not apply.",
+  "Google Consent Mode": "Google Consent Mode",
+  "Modo": "Mode",
+  "Basico: los tags se bloquean hasta que acepten": "Basic: tags are blocked until they accept",
+  "Avanzado: se cargan denegados y Google recibe pings sin cookies": "Advanced: loaded denied, Google gets cookieless pings",
+  "Espera a la decision (ms)": "Wait for the decision (ms)",
+  "Redactar identificadores de clic": "Redact ad click identifiers",
+  "Pasar la campana por la URL": "Pass the campaign through the URL",
+  "deducido, confirmalo": "deduced, confirm it",
+  "aparece sin permiso": "appears without consent",
+  "El escaner la vio antes de que nadie consintiera. Es lo primero que mira una auditoria.":
+    "The scanner saw it before anyone consented. It is the first thing an audit looks at.",
+  "Escanear el sitio": "Scan the site",
+  "Escaneo encolado.": "Scan queued.",
+  "Ya habia un escaneo en marcha.": "A scan was already running.",
+  "No se pudo pedir el escaneo.": "Could not request the scan.",
+  "Escaneo en cola.": "Scan queued.",
+  "Esperando al worker.": "Waiting for the worker.",
+  "No hay worker escuchando: define SCANNER_KEY y arranca el escaner con --worker.": "No worker listening: set SCANNER_KEY and start the scanner with --worker.",
+  "Escaneando": "Scanning",
+  "tarda un par de minutos por sitio.": "takes a couple of minutes per site.",
+  "No se pudo escanear:": "Could not scan:",
+  "Lo que se vio es un muro anti-bot, no el sitio. No se guardo nada.": "What it saw was an anti-bot wall, not the site. Nothing was saved.",
+  "El escaneo fallo:": "The scan failed:",
+  "Ultimo escaneo:": "Last scan:",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
   "bloqueada": "locked",
@@ -1311,6 +1453,18 @@ var DICT = {
   "Clasifica cada una. Las esenciales nunca se borran.":
     "Classify each one. Essential cookies are never deleted.",
   "Aplicar sugerencias": "Apply suggestions",
+  "Pagina por la que empieza el escaneo": "Page the scan starts from",
+  "Ver el informe": "View report",
+  "Informe del escaneo": "Scan report",
+  "Descargar .md": "Download .md",
+  "Cerrar": "Close",
+  "No hay informe.": "No report available.",
+  "sin aplicar: su categoria no existe en este sitio":
+    "not applied: their category does not exist on this site",
+  "son deducciones marcadas en ambar: repasalas antes de guardar.":
+    "are deductions marked in amber: review them before saving.",
+  "Sin aplicar por falta de categoria en este sitio":
+    "Not applied, category missing on this site",
   "Refrescar": "Refresh",
   "Guardar clasificacion": "Save classification",
   "Detectadas": "Detected",
@@ -1339,12 +1493,18 @@ var DICT = {
   "cookie(s) respondidas. Revisa y pulsa Guardar.":
     "cookie(s) answered. Review and press Save.",
   "patron(es) anadidos a la configuracion (version": "pattern(s) added to the settings (version",
-  "Aqui solo aparecen las cookies de": "Only cookies from",
+  "El banner, por si solo, ve las cookies de": "On its own, the banner sees cookies from",
   "tu propio dominio": "your own domain",
-  "no son visibles desde JavaScript, asi que ningun banner puede detectarlas ni borrarlas. Para el informe de auditoria hay que anotarlas a mano desde DevTools":
-    "are not visible to JavaScript, so no banner can detect or delete them. For the audit report they must be noted by hand from DevTools",
+  "que no sean": "that are not",
   "Las de terceros": "Third party ones",
-  "y las marcadas": "and those marked",
+  "y las": "and",
+  "las trae el": "are brought in by the",
+  "escaner": "scanner",
+  ", que usa un navegador real: pulsa": ", which uses a real browser: press",
+  "Escanear el sitio": "Scan the site",
+  ". Detectarlas no es poder bloquearlas: una cookie": ". Detecting them is not the same as blocking them: an",
+  "la pone el servidor en una cabecera, y ni el banner ni ningun script pueden evitarla ni borrarla":
+    "cookie is set by the server in a header, and neither the banner nor any script can prevent or delete it",
 
   /* --- cuenta --- */
   "Cambiar contrasena": "Change password",
@@ -1575,6 +1735,13 @@ function boot(){
     // dejaba al superadministrador sin su propia pestaña de usuarios.
     esAdmin = (r.d.role === "admin" || r.d.role === "super");
     esSuper = (r.d.role === "super");
+    // "Probar en mi sitio" abre el sitio del cliente con ?consentTheme=... para
+    // ver una apariencia antes de publicarla. Es una herramienta de diseno: no
+    // sirve de nada a una cuenta que solo viene a mirar estadisticas, y abrir su
+    // sitio con un parametro raro solo invita a preguntas. Nace oculto en el HTML
+    // y se descubre aqui, para que un fallo en esta funcion deje a una cuenta
+    // limitada sin verlo en vez de al reves.
+    if(esAdmin){ var bp = el("btn-probar"); if(bp) bp.classList.remove("hide"); }
     el("who").textContent = r.d.username;
     sites = r.d.sites || [];
     var existe = sites.filter(function(s){ return s.site_id===current; }).length;
@@ -1582,6 +1749,7 @@ function boot(){
     renderPicker();
     renderTabs();
     openTab(tab);
+    cargarAvisos();
   });
 }
 
@@ -1622,7 +1790,7 @@ document.addEventListener("click", function(){ if(menuOpen){ menuOpen=false; ren
 function pickSite(id){
   current = id; menuOpen = false;
   window._ckDetectadas = undefined;   // son de otro sitio: hay que volver a pedirlas
-  renderPicker(); openTab(tab);
+  renderPicker(); openTab(tab); cargarAvisos();
 }
 
 /* ---------------- pestanas ---------------- */
@@ -1770,7 +1938,7 @@ function viewResumen(d){
         '</div>'+
         '<div class="card">'+
           '<h2>Atajos</h2>'+
-          '<button class="rs-atajo" onclick="temaProbar()">'+frase("Probar en mi sitio")+'</button>'+
+          (esAdmin ? '<button class="rs-atajo" onclick="temaProbar()">'+frase("Probar en mi sitio")+'</button>' : '')+
           '<button class="rs-atajo" onclick="rsCopiarCodigo()">'+frase("Copiar codigo de instalacion")+'</button>'+
           '<button class="rs-atajo" onclick="rsExportar()">'+frase("Exportar cookie audit")+'</button>'+
           '<p class="hint" id="rs-atajo-msg"></p>'+
@@ -1874,14 +2042,27 @@ function rsLogs(){
     var c = r.d.counts || {}, t = r.d.total || 0;
     CONTADORES.registros = t || null;
     renderTabs();
+    // El banner escribe cuatro decisiones posibles, no tres: ademas de all,
+    // custom y none esta "gpc", que es la que toma sola al llegar la senal. Con
+    // solo tres cajas, esas quedaban dentro del total y fuera de todas, los
+    // numeros no sumaban, y encima se ocultaba justo la categoria que es
+    // obligacion legal. La caja de GPC sale solo si hay alguna; "otros" solo si
+    // aun asi falta algo, para que ningun registro desaparezca en silencio.
+    var gpc = c.gpc||0;
+    var otros = t - ((c.all||0)+(c.custom||0)+(c.none||0)+gpc);
     host.innerHTML =
       '<div class="stat"><div class="n">'+t+'</div><div class="l">Total</div></div>'+
       '<div class="stat acc"><div class="n">'+(c.all||0)+'</div><div class="l">Aceptan todo</div></div>'+
       '<div class="stat cus"><div class="n">'+(c.custom||0)+'</div><div class="l">Personalizan</div></div>'+
-      '<div class="stat rej"><div class="n">'+(c.none||0)+'</div><div class="l">Rechazan</div></div>';
+      '<div class="stat rej"><div class="n">'+(c.none||0)+'</div><div class="l">Rechazan</div></div>'+
+      (gpc ? '<div class="stat rej"><div class="n">'+gpc+'</div><div class="l">'+
+             frase("Senal GPC")+'</div></div>' : '')+
+      (otros > 0 ? '<div class="stat"><div class="n">'+otros+'</div><div class="l">'+
+             frase("Otros")+'</div></div>' : '');
     var pie = el("rs-logs-pie");
     if(pie) pie.textContent = t
-      ? frase("Cada registro es la prueba de una decision: cuando, que acepto y con que version del texto.")
+      ? frase(c.gpc ? "Cada registro es la prueba de una decision: cuando, que acepto y con que version del texto. Los de Senal GPC los decidio el navegador del visitante, sin preguntarle."
+                    : "Cada registro es la prueba de una decision: cuando, que acepto y con que version del texto.")
       : frase("Todavia no hay registros. Cada uno sera la prueba de una decision concreta.");
   });
 }
@@ -2008,30 +2189,25 @@ var UI_GROUPS = [
     {p:"autoDetectLanguage", k:"bool",   l:"Detectar el idioma del navegador", def:true},
     {p:"defaultLanguage",    k:"select", l:"Idioma de respaldo", opts:[["es","Espanol"],["en","Ingles"]]}
   ]},
+  { t:"Enlace de exclusion (CPRA)", seccion:"cookies", items:[
+    {p:"optOut.enabled", k:"bool", l:"Mostrar el enlace de exclusion", def:false,
+     n:"Es el derecho a que no vendan ni cedan tus datos. Solo tiene sentido si alguna categoria esta marcada como que vende o cede, en Categorias."},
+    {p:"optOut.style", k:"select", l:"Estilo", opts:[
+      ["single","Enlace unico: Your Privacy Choices (art. 7015)"],
+      ["dual","Dos enlaces: no vender y limitar (art. 7013 y 7014)"]]},
+    {p:"optOut.icon", k:"text", l:"URL del icono oficial",
+     ph:"/iconos/privacy-choices.svg",
+     n:"El estilo unico EXIGE el icono oficial de la agencia de privacidad de California. Tiene una forma concreta: uno parecido hecho a mano no cumple, y es peor que no poner ninguno porque te creerias cubierto. En el estilo doble no hace falta."},
+    {p:"optOut.href", k:"text", l:"Enlace alternativo", ph:"vacio: abre el panel",
+     n:"Dejalo vacio salvo que tengas una pagina propia de exclusion. El articulo pide pocos pasos, y abrir el panel es el camino mas corto."},
+    {p:"optOut.render", k:"bool", l:"Pintarlo flotante si la pagina no tiene hueco", def:false,
+     n:"Lo normal es poner <span data-consent-optout></span> en el pie del sitio. Esto es el respaldo para cuando no se puede tocar el HTML: lo dibuja el banner abajo a la izquierda."}
+  ]},
+  { t:"Regiones", seccion:"cookies", items:[
+    {p:"regions", k:"regiones", l:""}
+  ]},
   { t:"Bloqueo de scripts", open:true, seccion:"cookies", items:[
     {p:"autoBlock", k:"bloqueo", l:""}
-  ]},
-  // Consent Mode va pegado al bloqueo de scripts porque las dos piezas se leen
-  // juntas: emitir el default sin sacar a Google del bloqueo no sirve de nada,
-  // porque no queda etiqueta viva que lo escuche.
-  { t:"Consent Mode (Google)", seccion:"cookies", items:[
-    {p:"consentMode.enabled", k:"bool", def:true,
-     l:"Emitir el estado por defecto",
-     n:"Con esto activado y Google fuera del bloqueo de scripts, GA4 carga igualmente "+
-       "y mide sin cookies hasta que el visitante decida. Si lo apagas, Google solo "+
-       "mide a quien acepta."},
-    {p:"consentMode.waitForUpdate", k:"num", l:"Margen de espera (ms)", ph:"500"},
-    {p:"consentMode.adsDataRedaction", k:"bool", def:true,
-     l:"Ocultar datos de clics de anuncio"},
-    {p:"consentMode.urlPassthrough", k:"bool", def:false,
-     l:"Pasar el identificador por la URL",
-     n:"Enlaza una pagina con la siguiente sin cookies, pero mete el identificador "+
-       "del visitante en la URL. Apagado por defecto: el EDPB lo considera acceso al "+
-       "equipo terminal. Sin esto el trafico por pagina se cuenta igual; lo que se "+
-       "pierde es la continuidad de sesion."},
-    {p:"consentMode.region", k:"lista", l:"Paises donde aplicar el default", ph:"ES, FR",
-     n:"Vacio = mismo trato para todo el mundo. Si pones paises, fuera de la lista NO "+
-       "se emite el default y esos visitantes se miden en modo pleno."}
   ]},
   { t:"Cookies que se borran", seccion:"cookies", items:[
     {p:"cookiePatterns", k:"patrones", l:""}
@@ -2257,6 +2433,55 @@ var UI_GROUPS = [
     {p:"chip.background",k:"color",  l:"Fondo"},
     {p:"chip.color",     k:"color",  l:"Texto"},
     {p:"chip.border",    k:"text",   l:"Borde", ph:"1px solid ..."}
+  ]},
+  { t:"Google Consent Mode", seccion:"cookies", items:[
+    {p:"gcm.mode", k:"select", l:"Modo", opts:[
+      ["basic","Basico: los tags se bloquean hasta que acepten"],
+      ["advanced","Avanzado: se cargan denegados y Google recibe pings sin cookies"]]},
+    {p:"gcm.waitForUpdate", k:"num", l:"Espera a la decision (ms)", ph:"1500"},
+    {p:"gcm.adsDataRedaction", k:"bool", l:"Redactar identificadores de clic", def:true},
+    {p:"gcm.urlPassthrough", k:"bool", l:"Pasar la campana por la URL", def:false}
+  ]},
+  { t:"Bloqueo endurecido", seccion:"cookies", items:[
+    {p:"hardBlocking", k:"bool", l:"Bloquear tambien iframes, pixeles y peticiones", def:true}
+  ]},
+  { t:"Marcador del contenido bloqueado", items:[
+    {p:"placeholder.background", k:"color", l:"Fondo"},
+    {p:"placeholder.color",      k:"color", l:"Texto"},
+    {p:"placeholder.border",     k:"text",  l:"Borde", ph:"1px dashed ..."},
+    {p:"placeholder.radius",     k:"text",  l:"Radio", ph:"0"},
+    {p:"placeholder.padding",    k:"text",  l:"Padding", ph:"16px"},
+    {p:"placeholder.gap",        k:"text",  l:"Separacion", ph:"12px"},
+    {p:"placeholder.fontSize",   k:"text",  l:"Tamano del texto", ph:"14px"},
+    {p:"placeholder.family",     k:"select", l:"Tipografia", opts:[["","texto"],["heading","titulos"],["mono","mono"]]},
+    {p:"placeholder.textMaxWidth", k:"text", l:"Ancho del texto", ph:"40ch"},
+    {p:"placeholder.className",  k:"text",  l:"Clase CSS propia", ph:"mi-marcador"},
+    {p:"placeholder.button.background", k:"color", l:"Boton: fondo"},
+    {p:"placeholder.button.color",      k:"color", l:"Boton: texto"},
+    {p:"placeholder.button.border",     k:"text",  l:"Boton: borde", ph:"0"},
+    {p:"placeholder.button.radius",     k:"text",  l:"Boton: radio", ph:"6px"},
+    {p:"placeholder.button.padding",    k:"text",  l:"Boton: padding", ph:"10px 18px"},
+    {p:"placeholder.button.weight",     k:"text",  l:"Boton: peso", ph:"600"},
+    {p:"placeholder.buttonClassName",   k:"text",  l:"Boton: clase CSS", ph:"mi-boton"}
+  ]},
+  { t:"Version del consentimiento", seccion:"cookies", items:[
+    {p:"consentVersion", k:"txt", l:"Version", ph:"2025-01",
+     n:"Al cambiarla, TODO visitante que ya habia decidido vuelve a ver el banner. "+
+       "Se sube cuando cambian las categorias o los textos, porque entonces lo que "+
+       "aceptaron ya no es lo que hay. El panel avisa al publicar si hace falta."}
+  ]},
+  { t:"Global Privacy Control", seccion:"cookies", items:[
+    {p:"gpc.enabled", k:"bool", l:"Respetar la senal GPC del navegador", def:true},
+    {p:"gpc.onConflict", k:"select", l:"Si ya habia decidido antes", opts:[
+      ["revoke","La senal manda: se revoca"],
+      ["ask","Preguntar de nuevo"],
+      ["keep","Mantener su decision anterior"]]},
+    {p:"gpc.categories", k:"lista", l:"Categorias que apaga la senal",
+     ph:"marketing, analitica",
+     n:"Vacio = todas las que se pueden rechazar, que es lo prudente mientras "+
+       "no se sepa que hace cada categoria. Si pones una lista, las demas NO se "+
+       "apagan con la senal. Las tres senales de publicidad se deniegan siempre, "+
+       "pongas lo que pongas."}
   ]},
   { t:"Deteccion de cookies", seccion:"cookies", items:[
     {p:"cookieDiscovery",   k:"bool", l:"Detectar cookies", def:false},
@@ -3119,7 +3344,7 @@ function temasHTML(o){
       '<button class="btn ghost sm" onclick="temaActivar()"'+(TEMA_EDIT===activo?' disabled':'')+
         '>Usar esta</button>'+
       '<button class="btn ghost sm" onclick="temaBorrar()">Borrar</button>' : '')+
-    '<button class="btn ghost sm" onclick="temaProbar()">Probar en mi sitio</button>'+
+    (esAdmin ? '<button class="btn ghost sm" onclick="temaProbar()">Probar en mi sitio</button>' : '')+
   '</div>';
 }
 
@@ -3160,14 +3385,35 @@ function temaBorrar(){
 }
 
 /* Abre el sitio del cliente con el parametro puesto. A partir de ahi el bundle
-   recuerda el modo en ese navegador y enseña su propio selector. */
+   recuerda el modo en ese navegador y ensena su propio selector.
+
+   El enlace lleva un token firmado por el servidor que caduca en cuatro horas.
+   Sin el, el bundle ignora ?consentTheme: antes cualquiera que conociera el
+   parametro le cambiaba el banner a los visitantes de un sitio instalado, y
+   como el modo se guardaba en localStorage se quedaba puesto en las visitas
+   siguientes, sin parametro ya a la vista que explicara por que.
+
+   La ventana se abre ANTES de pedir el token, aunque sea a una pagina en
+   blanco: si se abriera despues, el navegador la trataria como emergente no
+   pedida y la bloquearia. */
 function temaProbar(){
   var d = _datosSitio || {};
   var dom = d.domain || "";
   if(!dom){ alert(frase("Este sitio no tiene dominio configurado.")); return; }
   if(!/^https?:/.test(dom)) dom = "https://" + dom;
-  window.open(dom + (dom.indexOf("?") >= 0 ? "&" : "?") + "consentTheme=" +
-              encodeURIComponent(TEMA_EDIT || (temaBase()||{}).theme || ""), "_blank");
+  var tema = TEMA_EDIT || (temaBase()||{}).theme || "";
+  var w = window.open("", "_blank");
+  j("GET", "/dash/site/preview-token?site_id=" + encodeURIComponent(current)).then(function(r){
+    if(!r.ok || !r.d.token){
+      if(w) w.close();
+      alert(frase("No se pudo crear el enlace de vista previa."));
+      return;
+    }
+    var url = dom + (dom.indexOf("?") >= 0 ? "&" : "?") +
+              "consentTheme=" + encodeURIComponent(tema) +
+              "&consentPreview=" + encodeURIComponent(r.d.token);
+    if(w) w.location = url; else window.open(url, "_blank");
+  });
 }
 
 
@@ -3521,6 +3767,7 @@ function catsUI(lista){
         '<input type="text" value="'+esc(des.en||"")+'" placeholder="Description (en)" '+
           'oninput="catSetTxt('+i+',\'desc\',\'en\',this.value)" />'+
       '</div>'+
+      senalesUI(c, i)+
     '</div>';
   }).join('');
   var sinBloq = !lista.some(function(c){ return c.locked; });
@@ -3531,6 +3778,94 @@ function catsUI(lista){
     (filas || '<span class="ck-desc">Sin categorias.</span>')+
     '<div class="row mt"><button class="btn ghost sm" onclick="catAnadir()">Anadir categoria</button></div>'+
     (sinBloq ? '<p class="hint">Ninguna categoria esta bloqueada. Conviene que las esenciales lo esten.</p>' : '')+
+  '</div>';
+}
+
+/* Las senales de Google que cuelgan de cada categoria. Sin esto, una
+   categoria no concede NADA: el visitante la enciende, el panel lo guarda y a
+   Google no le llega. Era invisible porque el banner se veia correcto.        */
+// Las tres que, puestas juntas, suelen significar que hay cesion a un tercero.
+// Se usan para SUGERIR la marca, nunca para ponerla sola.
+var ADS_CPRA = ["ad_storage", "ad_user_data", "ad_personalization"];
+var SENALES = [
+  ["analytics_storage",      "Analitica"],
+  ["ad_storage",             "Publicidad: almacenamiento"],
+  ["ad_user_data",           "Publicidad: datos del usuario"],
+  ["ad_personalization",     "Publicidad: personalizacion"],
+  ["personalization_storage","Personalizacion del sitio"],
+  ["functionality_storage",  "Funcionamiento"],
+  ["security_storage",       "Seguridad"]
+];
+/* Lo que suele querer cada id. Es una SUGERENCIA al crear la categoria, no una
+   regla: el cliente puede cambiarla. Las claves cubren los nombres en los dos
+   idiomas porque cada cliente las llama a su manera.                          */
+var SENALES_SUGERIDAS = {
+  marketing:   ["ad_storage","ad_user_data","ad_personalization"],
+  publicidad:  ["ad_storage","ad_user_data","ad_personalization"],
+  advertising: ["ad_storage","ad_user_data","ad_personalization"],
+  ads:         ["ad_storage","ad_user_data","ad_personalization"],
+  analitica:   ["analytics_storage"],
+  analiticas:  ["analytics_storage"],
+  analytics:   ["analytics_storage"],
+  estadisticas:["analytics_storage"],
+  statistics:  ["analytics_storage"],
+  medicion:    ["analytics_storage"],
+  preferencias:["personalization_storage"],
+  preferences: ["personalization_storage"],
+  personalizacion:["personalization_storage"],
+  esencial:    ["functionality_storage","security_storage"],
+  esenciales:  ["functionality_storage","security_storage"],
+  necessary:   ["functionality_storage","security_storage"],
+  necesarias:  ["functionality_storage","security_storage"],
+  essential:   ["functionality_storage","security_storage"]
+};
+function sugerirSenales(id){
+  var k = String(id||"").trim().toLowerCase();
+  // hasOwnProperty: sin esto, un id llamado "constructor" o "toString" devuelve
+  // algo del prototipo, no tiene .slice y revienta. Y como esto lo llama el
+  // pintado de cada tarjeta, se cae el editor de categorias ENTERO.
+  if(!Object.prototype.hasOwnProperty.call(SENALES_SUGERIDAS, k)) return [];
+  return SENALES_SUGERIDAS[k].slice();
+}
+
+function senalesUI(c, i){
+  var puestas = Array.isArray(c.signals) ? c.signals : [];
+  var cajas = SENALES.map(function(par){
+    var marcada = puestas.indexOf(par[0]) !== -1;
+    return '<label class="sen-op'+(marcada?" sen-on":"")+'" title="'+esc(par[0])+'">'+
+      '<input type="checkbox"'+(marcada?" checked":"")+
+        ' onchange="catSenal('+i+',\''+par[0]+'\',this.checked)" /> '+esc(par[1])+
+    '</label>';
+  }).join("");
+  var sug = sugerirSenales(c.id);
+  var falta = !puestas.length;
+  // Venta o cesion. Se marca A MANO y no se deduce de las senales: son cosas
+  // distintas. Conceder ad_storage solo para no repetirle el mismo anuncio a
+  // la misma persona no es una venta, y un pixel de un agregador de datos
+  // vende sin tocar ninguna senal de Google. Lo que si se hace es sugerirlo,
+  // porque aqui hay alguien mirando que puede decir que no.
+  var vende = c.sellOrShare === true;
+  var huele = ADS_CPRA.some(function(x){ return puestas.indexOf(x) !== -1; });
+  return '<div class="sen-caja">'+
+    '<span class="sen-tit">Senales de Google</span>'+
+    '<div class="sen-ops">'+cajas+'</div>'+
+    (falta
+      ? '<p class="hint sen-vacia"><b>Sin senales: esta categoria no concede nada.</b> '+
+        'El visitante puede encenderla y a Google no le llegara nada.'+
+        (sug.length ? ' <a href="#" onclick="catSenalesSugeridas('+i+');return false">'+
+          'Poner las habituales para &quot;'+esc(c.id)+'&quot;</a>' : '')+'</p>'
+      : '')+
+    '<label class="sen-venta'+(vende?" sen-on":"")+'">'+
+      '<input type="checkbox"'+(vende?" checked":"")+
+        ' onchange="catVenta('+i+',this.checked)" /> '+
+      'Encenderla <b>vende o cede</b> datos personales (CPRA)'+
+    '</label>'+
+    (!vende && huele
+      ? '<p class="hint sen-sug-venta">Tiene senales de publicidad. Si esos anuncios '+
+        'se eligen con datos que salen a un tercero, para la CPRA es una cesion y hay '+
+        'que marcarlo: es lo que decide que apaga el enlace de exclusion y la senal GPC. '+
+        '<a href="#" onclick="catVenta('+i+',true);return false">Marcarla</a></p>'
+      : '')+
   '</div>';
 }
 
@@ -3546,6 +3881,28 @@ function catGuardar(o){
 function catSet(i, campo, valor){
   var o = catLista(); if(!o || !o.categories[i]) return;
   o.categories[i][campo] = valor;
+  catGuardar(o);
+}
+function catSenal(i, senal, puesta){
+  var o = catLista(); if(!o || !o.categories[i]) return;
+  var c = o.categories[i];
+  if(!Array.isArray(c.signals)) c.signals = [];
+  var n = c.signals.indexOf(senal);
+  if(puesta && n === -1) c.signals.push(senal);
+  if(!puesta && n !== -1) c.signals.splice(n, 1);
+  catGuardar(o);
+}
+function catVenta(i, puesta){
+  var o = catLista(); if(!o || !o.categories[i]) return;
+  // Se borra en vez de guardar false: una config llena de "sellOrShare": false
+  // no dice nada y solo hace mas dificil ver las que si.
+  if(puesta) o.categories[i].sellOrShare = true;
+  else delete o.categories[i].sellOrShare;
+  catGuardar(o);
+}
+function catSenalesSugeridas(i){
+  var o = catLista(); if(!o || !o.categories[i]) return;
+  o.categories[i].signals = sugerirSenales(o.categories[i].id);
   catGuardar(o);
 }
 function catSetTxt(i, campo, idioma, valor){
@@ -3570,12 +3927,23 @@ function catSetId(i, valor){
   }
   (o.autoBlock||[]).forEach(function(r){ if(r && r.category===viejo) r.category = valor; });
   (o.cookiePatterns||[]).forEach(function(r){ if(r && r.category===viejo) r.category = valor; });
+  // Si la categoria aun no tiene senales, se ponen las habituales para ese id.
+  // Es el momento en que se sabe que es: antes de escribir el id no hay nada
+  // que sugerir, y despues suele olvidarse.
+  var cc = o.categories[i];
+  if(!Array.isArray(cc.signals) || !cc.signals.length){
+    var sug = sugerirSenales(valor);
+    if(sug.length) cc.signals = sug;
+  }
   o.categories[i].id = valor;
   catGuardar(o);
 }
 function catAnadir(){
   var o = catLista(); if(!o) return;
-  o.categories.push({id:"", label:{es:"",en:""}, desc:{es:"",en:""}});
+  // signals: [] a proposito, no ausente. Antes nacia sin la clave y la
+  // categoria quedaba muda sin que nada lo dijera; con el array vacio el
+  // editor pinta el aviso de "no concede nada".
+  o.categories.push({id:"", label:{es:"",en:""}, desc:{es:"",en:""}, signals:[]});
   catGuardar(o);
 }
 function catQuitar(i){
@@ -3718,6 +4086,155 @@ function cpQuitar(i){
   abGuardar(o);
 }
 
+/* ---------------------------------------------------------------------
+   Regimen por region: opt-in frente a opt-out.
+
+   Opt-in es "no se mide hasta que la persona diga que si" (Europa). Opt-out
+   es "se mide hasta que la persona diga que no" (California y companeras).
+   Es la decision que mas caro sale equivocar, y hasta ahora solo se podia
+   escribir a mano en el JSON, que no es una interfaz: quien la necesita no
+   es quien sabe JSON.
+
+   La regla MAS CONCRETA manda: "US-CA" pesa mas que "US". Por eso las filas
+   se muestran ordenadas por concrecion y no por orden de escritura, que era
+   lo que confundia al leerlas.
+   --------------------------------------------------------------------- */
+var RG_SUGER = [
+  ["EU",    "Union Europea y EEE"],
+  ["GB",    "Reino Unido"],
+  ["US",    "Estados Unidos (todo el pais)"],
+  ["US-CA", "California"],
+  ["US-VA", "Virginia"],
+  ["US-CO", "Colorado"],
+  ["US-CT", "Connecticut"],
+  ["US-UT", "Utah"],
+  ["US-TX", "Texas"],
+  ["US-OR", "Oregon"],
+  ["US-MT", "Montana"],
+  ["BR",    "Brasil"],
+  ["CA",    "Canada"]
+];
+
+function rgNombre(m){
+  for(var i=0;i<RG_SUGER.length;i++) if(RG_SUGER[i][0]===m) return RG_SUGER[i][1];
+  return "";
+}
+
+function rgLista(){
+  var o = objActual(); if(!o) return null;
+  if(!o.regions || typeof o.regions !== "object" || Array.isArray(o.regions)){
+    o.regions = {"default":"optin", rules:[]};
+  }
+  if(!Array.isArray(o.regions.rules)) o.regions.rules = [];
+  return o;
+}
+
+function rgGuardar(o){
+  el("cfg").value = JSON.stringify(o, null, 2);
+  validarCfg(); pintaEstado(); repintarEditores();
+}
+
+function rgDefecto(v){ var o = rgLista(); if(!o) return; o.regions["default"] = v; rgGuardar(o); }
+
+function rgSet(i, campo, valor){
+  var o = rgLista(); if(!o || !o.regions.rules[i]) return;
+  o.regions.rules[i][campo] = valor;
+  // Igual que en el bloqueo: no se repinta mientras se teclea, o el campo
+  // perderia el foco en cada letra. Pero si se avisa del cambio.
+  el("cfg").value = JSON.stringify(o, null, 2);
+  validarCfg(); pintaEstado();
+}
+
+function rgAnadir(m){
+  var o = rgLista(); if(!o) return;
+  o.regions.rules.push({match: m || "", mode: "optout"});
+  rgGuardar(o);
+}
+
+function rgQuitar(i){
+  var o = rgLista(); if(!o) return;
+  o.regions.rules.splice(i,1);
+  rgGuardar(o);
+}
+
+function rgApagar(){
+  var o = objActual(); if(!o) return;
+  // Quitar la clave entera, no dejarla vacia: sin regions el backend aplica
+  // opt-in a todo el mundo, que es lo estricto. Un {rules:[]} dice lo mismo
+  // pero obliga a leerlo para saberlo.
+  delete o.regions;
+  rgGuardar(o);
+}
+
+function rgUI(reg){
+  var activo = !!(reg && typeof reg === "object" && !Array.isArray(reg));
+  var def = (activo && reg["default"]) || "optin";
+  var reglas = (activo && Array.isArray(reg.rules)) ? reg.rules : [];
+
+  if(!activo){
+    return '<div class="ctl ctl-wide">'+
+      '<p class="sub" style="margin:0 0 10px">Ahora mismo <b>todos los visitantes van en opt-in</b>: '+
+        'no se mide nada hasta que aceptan. Es lo estricto y nunca es un incumplimiento.</p>'+
+      '<p class="ck-desc" style="display:block;margin:0 0 12px">Enciende esto solo si quieres '+
+        'tratar distinto a los visitantes de territorios de opt-out, como California, donde la '+
+        'norma permite medir hasta que la persona dice que no.</p>'+
+      '<button class="btn ghost sm" onclick="rgAnadir(\'US-CA\')">Activar reglas por region</button>'+
+    '</div>';
+  }
+
+  // Mas concreta primero, que es el orden en que las aplica el servidor.
+  var orden = reglas.map(function(r,i){ return {r:r, i:i}; }).sort(function(a,b){
+    var ca = String((a.r && a.r.match) || "").split("-").length;
+    var cb = String((b.r && b.r.match) || "").split("-").length;
+    if(ca !== cb) return cb - ca;
+    return String((a.r&&a.r.match)||"").localeCompare(String((b.r&&b.r.match)||""));
+  });
+
+  var filas = orden.map(function(x){
+    var r = x.r || {}, i = x.i;
+    var nom = rgNombre(String(r.match||""));
+    var modo = (r.mode === "optout") ? "optout" : "optin";
+    return '<div class="ab-row">'+
+      '<input type="text" list="rg-suger" value="'+esc(r.match||"")+'" placeholder="US-CA" '+
+        'oninput="rgSet('+i+',\'match\',this.value)" style="max-width:170px" />'+
+      '<select onchange="rgSet('+i+',\'mode\',this.value)" style="min-width:330px">'+
+        '<option value="optin"'+(modo==="optin"?" selected":"")+'>Opt-in: pedir permiso antes</option>'+
+        '<option value="optout"'+(modo==="optout"?" selected":"")+'>Opt-out: medir hasta que digan que no</option>'+
+      '</select>'+
+      (nom ? '<span class="pat-ok">'+esc(nom)+'</span>' : '<span class="ck-desc">codigo libre</span>')+
+      '<button class="btn ghost sm" onclick="rgQuitar('+i+')" title="Quitar">&times;</button>'+
+    '</div>';
+  }).join("");
+
+  var puestas = {};
+  reglas.forEach(function(r){ if(r && r.match) puestas[String(r.match)] = 1; });
+  var sug = RG_SUGER.filter(function(x){ return !puestas[x[0]]; }).map(function(x){
+    return '<button class="btn ghost sm" onclick="rgAnadir(\''+esc(x[0])+'\')">+ '+
+      esc(x[1])+'</button>';
+  }).join("");
+
+  return '<div class="ctl ctl-wide">'+
+    '<datalist id="rg-suger">'+ RG_SUGER.map(function(x){
+        return '<option value="'+esc(x[0])+'">'+esc(x[1])+'</option>'; }).join("") +'</datalist>'+
+    '<p class="sub" style="margin:0 0 10px">De donde viene el visitante lo resuelve el '+
+      '<b>servidor</b>, no el navegador, asi que no se puede falsear desde la pagina.</p>'+
+    '<div class="ab-row" style="margin-bottom:12px">'+
+      '<label style="min-width:210px">Para todos los demas paises</label>'+
+      '<select onchange="rgDefecto(this.value)" style="min-width:330px">'+
+        '<option value="optin"'+(def==="optin"?" selected":"")+'>Opt-in: pedir permiso antes</option>'+
+        '<option value="optout"'+(def==="optout"?" selected":"")+'>Opt-out: medir hasta que digan que no</option>'+
+      '</select>'+
+    '</div>'+
+    '<div class="ab-list">'+ (filas || '<span class="ck-desc">Sin reglas: todos caen en el regimen de arriba.</span>') +'</div>'+
+    '<div class="row mt"><button class="btn ghost sm" onclick="rgAnadir(\'\')">Anadir region</button>'+
+      '<button class="btn ghost sm" onclick="rgApagar()">Quitar todas las reglas</button></div>'+
+    (sug ? '<p class="sub" style="margin:14px 0 6px">Territorios habituales</p>'+
+           '<div class="ab-sug">'+sug+'</div>' : "")+
+    '<p class="hint" style="margin-top:12px">La regla mas concreta manda: <code>US-CA</code> pesa '+
+      'mas que <code>US</code>. Si el borde no sabe de donde viene alguien (proxy, Tor, o '+
+      'Cloudflare mandando <code>XX</code>), cae en <b>opt-in</b> pase lo que pase.</p>'+
+  '</div>';
+}
 function bloqueoUI(reglas){
   var cats = catsDelSitio();
   var filas = reglas.map(function(r, i){
@@ -3931,6 +4448,8 @@ function control(obj, it){
     return catsUI(Array.isArray(v) ? v : []);
   } else if(it.k==="patrones"){
     return patronesUI(Array.isArray(v) ? v : []);
+  } else if(it.k==="regiones"){
+    return rgUI(v);
   } else if(it.k==="bloqueo"){
     return bloqueoUI(Array.isArray(v) ? v : []);
   } else if(it.k==="area"){
@@ -3938,7 +4457,7 @@ function control(obj, it){
       'oninput="onCtl(\''+it.p+'\',this.value)">'+esc(v==null?"":v)+'</textarea>';
   } else if(it.k==="lista"){
     // Lista de cadenas separadas por comas. Se guarda como array, no como
-    // texto: el bundle itera sobre ella y una cadena se recorreria letra a letra.
+    // texto: quien la lee la recorre, y una cadena se recorreria letra a letra.
     body = '<input type="text" id="'+id+'" value="'+esc(Array.isArray(v) ? v.join(", ") : (v==null?"":v))+'" '+
       'placeholder="'+esc(it.ph||"por defecto")+'" oninput="onCtl(\''+it.p+'\', listaDe(this.value))" />';
   } else {
@@ -3949,10 +4468,11 @@ function control(obj, it){
   // cuales se han puesto a mano (modo desarrollador).
   // Los editores con interfaz propia (categorias, patrones, bloqueo) ocupan
   // el ancho entero: la rejilla de dos columnas los aplastaria.
-  var completo = (it.k === "cats" || it.k === "patrones" || it.k === "bloqueo");
-  // it.n: nota explicativa debajo del control. Para ajustes donde el nombre
-  // del campo no basta y equivocarse sale caro. La traduccion la hace tr()
-  // al pasar por innerHTML, igual que con el resto de la interfaz.
+  var completo = (it.k === "cats" || it.k === "patrones" || it.k === "bloqueo" ||
+                  it.k === "regiones");
+  // it.n: nota explicativa debajo del control, para los ajustes donde el nombre
+  // del campo no basta y equivocarse sale caro. La traduce tr() al pasar por
+  // innerHTML, igual que el resto de la interfaz.
   var nota = it.n ? '<p class="hint">'+esc(it.n)+'</p>' : '';
   return '<div class="ctl'+(completo ? ' ctl-full' : '')+'" data-p="'+it.p+'">'+
          '<span class="ctl-t"><label>'+esc(it.l)+'</label>'+
@@ -3960,7 +4480,7 @@ function control(obj, it){
 }
 
 // "ES, FR" -> ["ES","FR"]. Vacio devuelve "" para que onCtl borre la clave y
-// el bundle caiga a su valor por defecto, en vez de guardar un array vacio.
+// se caiga al valor por defecto, en vez de guardar un array vacio.
 function listaDe(s){
   var out = [];
   String(s == null ? "" : s).split(",").forEach(function(x){
@@ -4166,7 +4686,31 @@ function validarCfg(){
     fatal = true;
   }
   if(obj){
-    var cats = (obj.categories||[]).map(function(c){ return c.id; });
+    // Un null o un numero sueltos dentro de categories tiraban aqui la
+    // excepcion, y con ella la caja de comprobaciones ENTERA: el usuario se
+    // quedaba sin ningun aviso, que es peor que el aviso que falta. La lista
+    // de la que tiran los demas validadores se limpia una sola vez.
+    if(!Array.isArray(obj.categories)) obj.categories = [];
+    obj.categories = obj.categories.filter(function(c){
+      return c && typeof c === "object" && c.id;
+    });
+    // Lo mismo para las otras dos listas. Escribir autoBlock como una cadena
+    // es facil de hacer a mano, y no es inofensivo: el bundle hace .filter
+    // sobre ella dentro de persist(), DESPUES de guardar la decision, asi que
+    // el visitante se queda con el banner cerrado y los scripts sin
+    // desbloquear. Si ademas se cae esta validacion, el unico aviso que lo
+    // habria dicho no llega a pintarse.
+    ["autoBlock", "cookiePatterns"].forEach(function(k){
+      if(!Array.isArray(obj[k])){
+        if(obj[k] !== undefined && obj[k] !== null){
+          res.push({s:"fail", t:"<b>"+esc(k)+" tiene que ser una lista</b>, y esta escrito "+
+            "como "+esc(typeof obj[k])+". Tal cual, al aceptar no se desbloquea ningun "+
+            "script en el sitio del cliente."});
+        }
+        obj[k] = [];
+      }
+    });
+    var cats = obj.categories.map(function(c){ return c.id; });
     if(!cats.length){
       res.push({s:"fail", t:"No hay <b>categories</b> definidas."}); fatal = true;
     } else {
@@ -4196,10 +4740,23 @@ function validarCfg(){
       t:"<b>"+sinCat+" patron(es) sin categoria</b>: formato antiguo, se borran solo si la analitica queda denegada."});
     if(obj.webfont) res.push({s:"warn",
       t:"<b>webfont activo</b>: el banner pide tipografias a Google, generando una conexion a un tercero."});
-    avisosApariencia(obj, res);
-  avisosIdioma(obj, res);
-  avisosPolitica(obj, res);
-  avisosCss(obj, res);
+    // Cada validador en su propia red. Antes, una excepcion en cualquiera se
+    // llevaba por delante el pintado de la caja ENTERA: se quedaban a la vista
+    // los avisos de la config anterior, que es peor que no ver ninguno, y el
+    // boton de publicar seguia encendido.
+    [["apariencia", avisosApariencia], ["idioma", avisosIdioma],
+     ["politica", avisosPolitica], ["consent mode", avisosConsentMode],
+     ["senales", avisosSenales], ["simetria", avisosSimetria],
+     ["etiquetas", avisosEtiquetas], ["venta y exclusion", avisosVenta],
+     ["regiones", avisosRegiones], ["css", avisosCss]
+    ].forEach(function(par){
+      try { par[1](obj, res); }
+      catch(e){
+        res.push({s:"fail", t:"<b>No se pudo comprobar "+esc(par[0])+"</b>: "+
+          esc(e.message)+". Hay algo en el JSON que esa comprobacion no esperaba, "+
+          "asi que da por no revisada esa parte."});
+      }
+    });
   }
   el("ed-wrap").classList.toggle("bad", fatal);
   var b = el("btn-save"); if(b) b.disabled = fatal;
@@ -4262,6 +4819,287 @@ function avisosCss(o, res){
   if(fuera)
     res.push({s:"warn", t:"<b>El CSS a medida carga recursos de otro dominio</b>: "+fuera+
       ". Esa peticion sale antes de que el visitante acepte. Mejor incrustarlos como data URI."});
+}
+
+/* El fallo que se le escapo a un cliente entero y motivo su informe: Consent
+   Mode en basico Y Google fuera del bloqueo. Con esa combinacion nadie bloquea
+   a Google y nadie le deniega nada, asi que mide a todo el mundo sin
+   consentimiento. Cada pieza por separado es valida; es el par lo que falla, y
+   por eso no salta mirando una sola pantalla.                               */
+/* Solo las dos etiquetas que ESCUCHAN el consentimiento. Bloquear
+   doubleclick.net o googlesyndication.com es correcto en avanzado; lo que no
+   se puede bloquear es quien recibe el consent update. La lista mezclada
+   producia las dos equivocaciones: con doubleclick bloqueado se callaba aunque
+   GA corriera libre, y en avanzado empujaba a desbloquear lo que debe seguir
+   bloqueado.                                                              */
+var ETIQUETAS_GOOGLE = ["googletagmanager.com", "google-analytics.com",
+                        "analytics.google.com"];
+/* Senales de que el sitio usa Google. Sin ninguna el aviso no aplica: hay
+   clientes que no miden con Google y no deben ver un error eterno.        */
+var PISTAS_GOOGLE = ["google", "doubleclick", "googleadservices", "gstatic"];
+function avisosSenales(o, res){
+  var mudas = (o.categories || []).filter(function(c){
+    return c && c.id && !(Array.isArray(c.signals) && c.signals.length);
+  }).map(function(c){ return c.id; });
+  if(mudas.length){
+    res.push({s:"fail", t:"<b>Categoria sin senales de Google</b>: "+
+      mudas.map(esc).join(", ")+
+      ". El visitante puede encenderla y a Google no le llegara nada. Ponle sus senales "+
+      "en Categorias, o deja la categoria sin interruptor si no mide nada de Google."});
+  }
+  // Una categoria bloqueada con senales de publicidad se concede SIEMPRE, no se
+  // puede rechazar y GPC no la apaga. Si eso es a proposito hay que saberlo.
+  var ads = ["ad_storage", "ad_user_data", "ad_personalization"];
+  (o.categories || []).forEach(function(c){
+    if(!c || !c.locked) return;
+    // Array.isArray y no `|| []`: con signals escrito como cadena, .filter no
+    // existe, la excepcion sube hasta validarCfg y se lleva por delante toda la
+    // validacion y el repintado del editor.
+    var tiene = (Array.isArray(c.signals) ? c.signals : [])
+      .filter(function(x){ return ads.indexOf(x) !== -1; });
+    if(tiene.length){
+      res.push({s:"fail", t:"<b>"+esc(c.id)+" esta bloqueada y concede publicidad</b> ("+
+        tiene.map(esc).join(", ")+"). Una categoria bloqueada no se puede rechazar, no se "+
+        "borra y la senal GPC no la apaga. Para publicidad eso no se sostiene."});
+    }
+  });
+}
+
+/* Rechazar tiene que costar lo mismo que aceptar. No es cuestion de gusto: la
+   CPRA mide el "coste" de rechazar, y un boton fantasma al lado de uno solido
+   lo sube aunque los dos textos sean impecables. Los sitios nuevos nacen con
+   equalWeight puesto; este aviso es para los que ya existian. */
+function avisosSimetria(o, res){
+  var bt = (o.buttons && typeof o.buttons === "object") ? o.buttons : {};
+  // === true y no truthy: "false" escrito como cadena en la pestana JSON es
+  // truthy y silenciaba el aviso diciendo que estaba bien.
+  if(bt.equalWeight === true) return;
+  res.push({s:"fail", t:"<b>Rechazar no pesa lo mismo que aceptar</b>: en Diseno &gt; "+
+    "Botones, pon los dos con el mismo peso. Un boton de rechazo mas debil que el "+
+    "de aceptar cuenta como poner trabas, aunque el texto sea correcto."});
+}
+
+/* Una etiqueta que promete mas de lo que la categoria hace. "Anonima" es la
+   tipica: casi ninguna analitica lo es (GA guarda un identificador en una
+   cookie de dos anos), y prometerlo en el banner convierte un texto de diseno
+   en una declaracion falsa sobre el tratamiento. */
+var PALABRAS_PROMETIDAS = [
+  ["anonim", "anonima"], ["anonym", "anonymous"],
+  ["no te identifica", "no te identifica"], ["sin rastrear", "sin rastrear"],
+  ["sin seguimiento", "sin seguimiento"], ["not tracked", "not tracked"],
+  ["no personal data", "no personal data"], ["sin datos personales", "sin datos personales"]
+];
+function avisosEtiquetas(o, res){
+  var pillados = [];
+  (o.categories || []).forEach(function(c){
+    if(!c || !c.id || c.locked) return;
+    // Solo importa en una categoria que SI concede algo: si no concede nada, el
+    // aviso correcto es el de "categoria sin senales", no este.
+    var sg = Array.isArray(c.signals) ? c.signals : [];
+    if(!sg.length) return;
+    var txt = "";
+    [c.label, c.desc].forEach(function(obj){
+      if(!obj) return;
+      if(typeof obj === "string"){ txt += " " + obj; return; }
+      // Object.prototype.hasOwnProperty.call y no obj.hasOwnProperty: una
+      // etiqueta con un idioma llamado "hasOwnProperty" (se escribe a mano en
+      // la pestana JSON) lo tapa y deja de ser una funcion.
+      for(var k in obj) if(Object.prototype.hasOwnProperty.call(obj, k)) txt += " " + obj[k];
+    });
+    txt = txt.toLowerCase();
+    for(var i=0;i<PALABRAS_PROMETIDAS.length;i++){
+      if(txt.indexOf(PALABRAS_PROMETIDAS[i][0]) !== -1){
+        pillados.push(c.id + " (\u201c" + PALABRAS_PROMETIDAS[i][1] + "\u201d)");
+        break;
+      }
+    }
+  });
+  if(!pillados.length) return;
+  res.push({s:"fail", t:"<b>Una etiqueta promete anonimato</b>: "+
+    pillados.map(esc).join(", ")+". Comprueba que es verdad antes de dejarlo: "+
+    "Google Analytics guarda un identificador en una cookie de dos anos, asi que "+
+    "para esa categoria no lo es. Prometerlo en el banner no es un texto de "+
+    "diseno, es una declaracion sobre el tratamiento."});
+}
+
+/* Venta o cesion y el enlace de exclusion (CPRA).
+
+   Los titulos del enlace unico estan fijados por el articulo 7015 y no se
+   pueden adornar: o es uno de los dos, o no es ese enlace. */
+var TITULOS_7015 = ["your privacy choices", "your california privacy choices"];
+
+function avisosVenta(o, res){
+  var cats = Array.isArray(o.categories) ? o.categories : [];
+  var venden = cats.filter(function(c){ return c && c.sellOrShare === true; });
+  var oo = (o.optOut && typeof o.optOut === "object") ? o.optOut : {};
+  var activo = oo.enabled === true;
+
+  // 1. Una categoria bloqueada que vende es una contradiccion: el visitante no
+  //    la puede apagar, asi que no puede ejercer la exclusion sobre ella.
+  var presas = venden.filter(function(c){ return c.locked; }).map(function(c){ return c.id; });
+  if(presas.length){
+    res.push({s:"fail", t:"<b>Categoria bloqueada marcada como venta o cesion</b>: "+
+      presas.map(esc).join(", ")+". El visitante no puede apagarla, asi que no puede "+
+      "ejercer la exclusion que la CPRA le da. O se desbloquea, o no vende."});
+  }
+
+  // 2. El enlace encendido sin nada marcado no apaga nada: el visitante pulsa,
+  //    se abre el panel y no hay ninguna fila que corresponda.
+  if(activo && !venden.length){
+    res.push({s:"fail", t:"<b>El enlace de exclusion no apaga nada</b>: esta encendido "+
+      "pero ninguna categoria esta marcada como venta o cesion. Marcalas en Categorias, "+
+      "o apaga el enlace."});
+  }
+
+  // 3. Lo contrario: hay venta marcada y no hay por donde excluirse.
+  if(!activo && venden.length){
+    res.push({s:"fail", t:"<b>Hay venta o cesion y no hay enlace de exclusion</b>: "+
+      venden.map(function(c){ return esc(c.id); }).join(", ")+". La CPRA exige un "+
+      "enlace visible en la portada. Enciendelo con <code>optOut.enabled</code>."});
+  }
+
+  // 3b. gpc.categories es una lista explicita de lo que la senal apaga, y
+  //     manda sobre la marca de venta por compatibilidad. Si esa lista se
+  //     escribio antes de marcar las ventas, puede dejar fuera justo lo que la
+  //     senal GPC existe para apagar, y en silencio.
+  var g = (o.gpc && typeof o.gpc === "object") ? o.gpc : {};
+  if(Array.isArray(g.categories) && g.categories.length && venden.length){
+    var fuera = venden.filter(function(c){ return g.categories.indexOf(c.id) === -1; })
+                      .map(function(c){ return c.id; });
+    if(fuera.length){
+      res.push({s:"fail", t:"<b>La senal GPC no apaga lo que se vende</b>: "+
+        fuera.map(esc).join(", ")+" esta marcada como venta o cesion pero no esta en "+
+        "<code>gpc.categories</code>, que es la lista explicita de lo que la senal apaga "+
+        "y manda sobre la marca. Anadela a esa lista, o borra la lista entera para que "+
+        "se use la marca."});
+    }
+  }
+
+  if(!activo) return;
+
+  // 4. El icono. Para el enlace unico del 7015 es obligatorio, al lado del
+  //    titulo. No lo dibujamos nosotros: es una marca oficial con una forma
+  //    concreta, y una aproximacion parecida no cumple y ademas haria creer al
+  //    cliente que si.
+  var estilo = oo.style === "dual" ? "dual" : "single";
+  if(estilo === "single" && !String(oo.icon || "").trim()){
+    res.push({s:"fail", t:"<b>Falta el icono oficial de exclusion</b>. El enlace unico "+
+      "&quot;Your Privacy Choices&quot; lo exige al lado del titulo. Descargalo de "+
+      "<code>cppa.ca.gov</code>, sirvelo desde tu dominio y pon su URL en "+
+      "<code>optOut.icon</code>. Si prefieres no usarlo, cambia a "+
+      "<code>optOut.style: \"dual\"</code>, que son los dos enlaces de siempre y ahi "+
+      "no es obligatorio."});
+  }
+
+  // 5. El titulo en ingles es texto de ley, no texto de diseno.
+  var tEn = String((o.texts && o.texts.en && o.texts.en.optOutTitle) || "").trim().toLowerCase();
+  if(estilo === "single" && tEn && TITULOS_7015.indexOf(tEn) === -1){
+    res.push({s:"fail", t:"<b>El titulo del enlace no es uno de los dos permitidos</b>: "+
+      "pusiste &quot;"+esc(tEn)+"&quot;. El articulo 7015 obliga a titularlo "+
+      "&quot;Your Privacy Choices&quot; o &quot;Your California Privacy Choices&quot;, "+
+      "literalmente."});
+  }
+}
+
+/* Regimen por region (B2). El regimen lo decide el SERVIDOR con la cabecera
+   geo del borde; aqui solo se comprueba que las reglas digan algo coherente. */
+var MODOS = ["optin", "optout"];
+
+function avisosRegiones(o, res){
+  var r = (o.regions && typeof o.regions === "object") ? o.regions : null;
+  if(!r) return;
+  var def = r.default;
+  if(def !== undefined && MODOS.indexOf(def) === -1){
+    res.push({s:"fail", t:"<b>regions.default no es un modo valido</b>: pusiste "+
+      "&quot;"+esc(String(def))+"&quot;. Solo valen <code>optin</code> y "+
+      "<code>optout</code>."});
+  }
+  var reglas = Array.isArray(r.rules) ? r.rules : [];
+  if(r.rules !== undefined && !Array.isArray(r.rules)){
+    res.push({s:"fail", t:"<b>regions.rules tiene que ser una lista</b>."});
+    return;
+  }
+  var vistos = {}, malas = [], repes = [];
+  reglas.forEach(function(x){
+    if(!x || typeof x !== "object"){ malas.push("(entrada vacia)"); return; }
+    var m = String(x.match || "").trim().toUpperCase();
+    if(!m || MODOS.indexOf(x.mode) === -1){ malas.push(m || "(sin match)"); return; }
+    if(vistos[m]) repes.push(m); else vistos[m] = 1;
+  });
+  if(malas.length){
+    res.push({s:"fail", t:"<b>Reglas de region incompletas</b>: "+malas.map(esc).join(", ")+
+      ". Cada una necesita <code>match</code> (como <code>EU</code>, <code>US</code> o "+
+      "<code>US-CA</code>) y <code>mode</code> (<code>optin</code> u <code>optout</code>)."});
+  }
+  if(repes.length){
+    res.push({s:"fail", t:"<b>Reglas de region repetidas</b>: "+repes.map(esc).join(", ")+
+      ". Manda la primera y las demas no se miran nunca; borra las que sobran para que "+
+      "no parezca que hacen algo."});
+  }
+  // El caso que de verdad se le escapa a la gente: opt-out para el EEE.
+  var euOptOut = reglas.some(function(x){
+    return x && String(x.match||"").trim().toUpperCase() === "EU" && x.mode === "optout";
+  });
+  if(euOptOut || (def === "optout" && !vistos["EU"])){
+    res.push({s:"fail", t:"<b>El EEE quedaria en opt-out</b>"+
+      (euOptOut ? " por una regla explicita." : " porque el valor por defecto es opt-out "+
+       "y no hay regla para <code>EU</code>.")+
+      " Alli el consentimiento tiene que ser previo y explicito: anade una regla "+
+      "<code>{\"match\": \"EU\", \"mode\": \"optin\"}</code>."});
+  }
+}
+
+function avisosConsentMode(o, res){
+  var gcm = o.gcm || {};
+  var avanzado = gcm.mode === "advanced";
+  var reglas = (o.autoBlock || []).map(function(r){
+    return String((r && r.match) || r || "").toLowerCase();
+  });
+  var bloqueaEtiqueta = reglas.some(function(m){
+    return m && ETIQUETAS_GOOGLE.some(function(g){ return m.indexOf(g) !== -1; });
+  });
+  // El sitio usa Google si lo nombra en el bloqueo, si borra cookies suyas, o
+  // si alguien ya configuro Consent Mode a proposito.
+  var patrones = (o.cookiePatterns || []).map(function(r){
+    return String((r && r.match) || r || "").toLowerCase();
+  });
+  var usaGoogle = !!gcm.mode ||
+    reglas.some(function(m){
+      return m && PISTAS_GOOGLE.some(function(g){ return m.indexOf(g) !== -1; });
+    }) ||
+    patrones.some(function(m){
+      return m.indexOf("_ga") === 0 || m.indexOf("_gcl") === 0 ||
+             m.indexOf("_gid") === 0 || m.indexOf("__utm") === 0;
+    });
+  if(!usaGoogle) return;
+
+  if(!avanzado && !bloqueaEtiqueta){
+    res.push({s:"fail", t:"<b>Google mide sin consentimiento</b>: Consent Mode esta en "+
+      "<b>basico</b> y ni <code>googletagmanager.com</code> ni "+
+      "<code>google-analytics.com</code> estan en Bloqueo de scripts. En basico no se emite "+
+      "ningun estado por defecto, asi que las etiquetas arrancan como si tuvieran permiso. "+
+      "Elige una de las dos: bloquearlas, o pasar Consent Mode a <b>avanzado</b>."});
+    return;
+  }
+  // Las dos a la vez se contradicen. OJO CON EL TEXTO: la version anterior
+  // decia "no se mide a nadie, ni siquiera a quien acepta", y eso es FALSO.
+  // Medido: con el modo avanzado y googletagmanager bloqueado, quien acepta
+  // si carga la etiqueta, porque activateScripts la restaura. Seguir aquel
+  // consejo -- sacar Google del bloqueo -- habria dejado al cliente MENOS
+  // protegido a cambio de nada. Un aviso que exagera se acaba desactivando, y
+  // entonces no avisa de lo que si importa.
+  if(avanzado && bloqueaEtiqueta){
+    res.push({s:"fail", t:"<b>Consent Mode avanzado con la etiqueta de Google bloqueada</b>: "+
+      "las dos cosas se contradicen. El modo avanzado existe para que la etiqueta "+
+      "corra siempre y mande se\u00f1ales sin cookies de quien no consiente; "+
+      "bloqueandola no manda ninguna, asi que pagas la complejidad del avanzado y "+
+      "te comportas como el basico. Ademas, a quien acepta se le empieza a medir "+
+      "tarde, cuando ya ha decidido, asi que su primera pagina se pierde. "+
+      "<b>Elige una:</b> saca googletagmanager del bloqueo y deja que Consent Mode "+
+      "haga su trabajo (los dominios de publicidad, doubleclick y googlesyndication, "+
+      "pueden seguir bloqueados), o pon el modo en basico, que es donde bloquear "+
+      "es justo lo que toca."});
+  }
 }
 
 function avisosPolitica(o, res){
@@ -4347,6 +5185,11 @@ function saveCfg(){
       WIZ_PUBLICADA = r.d.version;
       marcarPublicado(cfg);
       _trasRecargar = "Guardado. Version " + r.d.version + ".";
+      // El backend compara una huella de categorias y textos: si cambiaron y
+      // consentVersion no, lo que el visitante acepto ya no es lo que hay, pero
+      // nadie volvera a verlo porque su cookie sigue valiendo. Hasta ahora esta
+      // senal se devolvia y el panel la tiraba.
+      if(r.d.texto_cambiado) setTimeout(function(){ avisoReconsentir(cfg); }, 400);
       // Volver siempre a Apariencia sacaba al cliente de donde estaba.
       openTab(tab === "textos" || tab === "cookies" ? tab : "config");
     }
@@ -4354,114 +5197,212 @@ function saveCfg(){
   });
 }
 
-/* ---------------- INSTALAR ----------------
-   Consent Mode v2: el estado por defecto. Va INLINE y antes que nada, igual
-   que el pre-bloqueador y por el mismo motivo, solo que aqui el que llega
-   tarde es Google: si la etiqueta carga sin un default puesto, no hay
-   escenario sin cookies que valga. Con el default denegado, GA4 carga
-   igualmente y mide sin cookies hasta que el visitante decida.
-
-   El mapa de senales sale de las categorias del sitio, no de una lista fija:
-   cada cliente nombra sus categorias como quiere ("analitica", "statistics")
-   y lo que importa es la senal que cuelga de cada una.
-
-   url_passthrough NO se activa. Sin cookies, Google meteria el client_id y el
-   estado de sesion en la URL (el parametro _gl) para enlazar una pagina con la
-   siguiente. El EDPB (Directrices 2/2023 v2.0) considera que anadir
-   identificadores a URLs con JavaScript es un acceso al equipo terminal bajo
-   el art. 5(3) de la ePrivacy, asi que propagar el id de quien acaba de
-   rechazar no es terreno seguro. Lo unico que se pierde es la continuidad de
-   SESION: el trafico por pagina se sigue contando igual.                   */
-/* Lee consentMode de la config del sitio y rellena con los mismos valores por
-   defecto que el bundle. Clave a clave, no con assign(): un false del cliente
-   tiene que ganarle a un true por defecto.                                   */
-var CM_DEFAULTS = { enabled:true, waitForUpdate:500, adsDataRedaction:true,
-                    urlPassthrough:false, region:null };
-function cmFrom(C){
-  var cm = (C && C.consentMode) || {}, out = {};
-  Object.keys(CM_DEFAULTS).forEach(function(k){
-    out[k] = cm[k] === undefined ? CM_DEFAULTS[k] : cm[k];
-  });
-  return out;
+/* Cambiaron las categorias o los textos y la version no. Quien ya decidio no
+   volvera a ver el banner, asi que su consentimiento se queda dado sobre una
+   redaccion que ya no existe. No se sube sola: volver a preguntar a todo el
+   mundo tiene un coste y un retoque de una coma no lo merece. Se pregunta.  */
+function avisoReconsentir(cfg){
+  var hoy = new Date().toISOString().slice(0,10);
+  var actual = cfg.consentVersion || "";
+  if(!confirm(frase("Has cambiado las categorias o los textos del banner.")+"\n\n"+
+     frase("Quien ya habia decidido NO volvera a ver el banner: su consentimiento "+
+           "queda dado sobre una redaccion que ya no existe.")+"\n\n"+
+     frase("Subir la version y volver a preguntar a todo el mundo?")+"\n"+
+     frase("Version actual")+": "+(actual||frase("sin definir")))) return;
+  var nueva = prompt(frase("Nueva version del consentimiento:"), hoy);
+  if(!nueva || nueva === actual) return;
+  var o = objActual(); if(!o) return;
+  o.consentVersion = nueva;
+  catGuardar(o);
+  saveCfg();
 }
 
-function bloqueConsentMode(d){
-  var C = d.config || {};
-  var cats = C.categories || [];
-  if(!cats.length) return "";
-  var cm = cmFrom(C);
-  if(!cm.enabled) return "";          // el sitio lo apaga a proposito
-  var mapa = {}, locked = [];
-  cats.forEach(function(c){
-    if(!c || !c.id) return;
-    mapa[c.id] = c.signals || [];
-    if(c.locked) locked = locked.concat(c.signals || []);
-  });
-  var ns  = C.namespace || "fwc_consent";
-  var ver = C.consentVersion || "";
-  var extra = "";
-  if(cm.waitForUpdate) extra += 'd.wait_for_update='+Number(cm.waitForUpdate)+';\n';
-  if(cm.region && cm.region.length) extra += 'd.region='+JSON.stringify(cm.region)+';\n';
-  var sets = "";
-  if(cm.adsDataRedaction) sets += 'gtag("set","ads_data_redaction",d.ad_storage!=="granted");\n';
-  if(cm.urlPassthrough)   sets += 'gtag("set","url_passthrough",true);\n';
-  return '<script>\n'+
-'(function(){\n'+
-'var NS="'+ns+'",VERSION="'+ver+'",MAP='+JSON.stringify(mapa)+';\n'+
-'var LOCKED='+JSON.stringify(locked)+';\n'+
-'var ALL=["ad_storage","ad_user_data","ad_personalization","analytics_storage",\n'+
-'"functionality_storage","personalization_storage","security_storage"];\n'+
-'window.dataLayer=window.dataLayer||[];\n'+
-'function gtag(){window.dataLayer.push(arguments)}\n'+
-'if(typeof window.gtag!=="function")window.gtag=gtag;\n'+
-'var prev=null;try{var m=document.cookie.match(new RegExp("(?:^|; )"+NS+"_cookie_consent=([^;]*)"));\n'+
-'if(m){var c=JSON.parse(decodeURIComponent(m[1]));if(c&&c.version===VERSION)prev=c}}catch(e){}\n'+
-'var d={};ALL.forEach(function(s){d[s]="denied"});\n'+
-'LOCKED.forEach(function(s){d[s]="granted"});\n'+
-'if(prev&&prev.categories){Object.keys(MAP).forEach(function(k){\n'+
-'if(prev.categories[k])MAP[k].forEach(function(s){d[s]="granted"})})}\n'+
-extra+
-'gtag("consent","default",d);\n'+
-sets+
-'window.__consentDefaultSet=true;\n'+
-'})();\n'+
-'<\/script>\n';
-}
-
+/* ---------------- INSTALAR ---------------- */
 function buildSnippet(d){
   // El pre-bloqueador va INLINE y antes que nada: el bundle llega por red y
   // para entonces el parser del navegador ya habria lanzado las etiquetas.
   var rules = (d.config && d.config.autoBlock) || [];
-  // consentMode viaja tambien en la config inline. Hace falta para el caso en
-  // que el bloque de arriba NO se emite (enabled:false): sin esto, el bundle
-  // llegaria por su cuenta y emitiria el default que el sitio acaba de apagar.
-  var cmSite = (d.config && d.config.consentMode) || null;
+  // consentVersion viaja en la config: el bloque de Consent Mode de abajo la
+  // necesita para saber si la decision guardada en la cookie sigue valiendo.
+  // Dos cosas distintas. `verCfg` es lo que hay configurado, y solo eso viaja
+  // en __consentConfig: escribir ahi un valor inventado seria peor que no
+  // ponerlo. `ver` es con lo que el bloque en linea compara la cookie, y cae al
+  // mismo valor por defecto que usa el bundle, para que los dos acepten o
+  // rechacen la misma cookie.
+  var verCfg = (d.config && d.config.consentVersion) || "";
+  var ver = verCfg || "2025-01";
   var cfgObj = '{siteId:"'+d.site_id+'",apiBase:"'+API+'"'+
-    (rules.length ? ',autoBlock:'+JSON.stringify(rules) : '')+
-    (cmSite ? ',consentMode:'+JSON.stringify(cmSite) : '')+'}';
+    (verCfg ? ',consentVersion:'+JSON.stringify(verCfg).replace(/</g,"\\u003c") : '')+
+    (rules.length ? ',autoBlock:'+JSON.stringify(rules) : '')+'}';
   // El snippet esta blindado contra el traductor (va dentro de .snippet, que
   // tr() salta a proposito para no romper el codigo). Por eso el comentario se
   // elige aqui, mirando LANG, en vez de dejarselo al DICT.
   var comentario = (LANG === "en")
     ? "<!-- Consent Banner. In the <head>, first thing, only once -->"
     : "<!-- Consent Banner. En el <head>, lo primero, una sola vez -->";
-  var s = comentario + "\n" + bloqueConsentMode(d) +
+  var s = comentario + "\n"+
     "<script>\nwindow.__consentConfig="+cfgObj+";\n";
-  if(rules.length){
+  // Consent Mode avanzado: el "default" tiene que salir ANTES que cualquier
+  // tag de Google, asi que va aqui inline y no en el bundle, que llega por red.
+  // wait_for_update le dice al tag que espere a la decision antes de disparar.
+  var gcm = (d.config && d.config.gcm) || {};
+  if(gcm.mode === "advanced"){
+    var espera = (gcm.waitForUpdate === undefined || gcm.waitForUpdate === null)
+                 ? 1500 : gcm.waitForUpdate;
+    // El mapa sale de LAS CATEGORIAS DEL SITIO, no de una lista fija: cada
+    // cliente las nombra como quiere ("analitica", "statistics") y lo que
+    // importa es la senal que cuelga de cada una.
+    var mapa = {}, fijas = [];
+    ((d.config && d.config.categories) || []).forEach(function(c){
+      if(!c || !c.id) return;
+      // Array.isArray y no `|| []`: si signals llegara como cadena (se puede
+      // escribir a mano en la pestana JSON), MAP[k].forEach lanzaria en la
+      // pagina del cliente y se llevaria por delante el pre-bloqueador.
+      var sg = Array.isArray(c.signals) ? c.signals : [];
+      mapa[c.id] = sg;
+      if(c.locked) fijas = fijas.concat(sg);
+    });
+    var ns = (d.config && d.config.namespace) || "fwc_consent";
+    // JSON.stringify NO escapa la barra, asi que un valor que lleve una
+    // etiqueta de cierre de script cerraria la nuestra y meteria HTML en la
+    // pagina del cliente. Se neutraliza el "<".
+    function jsSeguro(v){ return JSON.stringify(v).replace(/</g, "\\u003c"); }
+    // El namespace va dentro de un RegExp: un parentesis lo rompe (y el fallo
+    // se lo traga el try, asi que la lectura de la cookie dejaria de funcionar
+    // en silencio) y un punto casaria la cookie equivocada.
+    // UNA barra, no dos. Con "\\\\$&" el reemplazo metia dos barras y la regex
+    // pedia una barra literal seguida de cualquier caracter: no casaba con
+    // NINGUNA cookie. En un sitio cuyo namespace llevara un punto o un
+    // parentesis, el bloque en linea no encontraba nunca la decision anterior
+    // y emitia el default denegado en cada visita, que es justo lo que ese
+    // bloque existe para evitar.
+    var nsRe = String(ns).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Si waitForUpdate llega como texto desde la pestana JSON, concatenarlo a
+    // pelo deja `d.wait_for_update=;`, que es un error de sintaxis y tumba el
+    // bloque entero, pre-bloqueador incluido.
+    // Vacio NO es cero: cero significa que la etiqueta no espera nada a la
+    // decision, que es lo contrario de lo que quiere quien dejo el campo en
+    // blanco. Solo un numero valido y positivo se respeta.
+    var esperaN = (espera === "" || espera === null || espera === undefined)
+                  ? 1500 : Number(espera);
+    if(!isFinite(esperaN) || esperaN < 0) esperaN = 1500;
     s +=
-'(function(){var C=window.__consentConfig||{},R=C.autoBlock||[];if(!R.length)return;\n'+
-'var B={observer:null,blocked:[]};window.__consentBlocker=B;\n'+
+'window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}\n'+
+'(function(){var NS='+jsSeguro(nsRe)+',V='+jsSeguro(ver)+
+',MAP='+jsSeguro(mapa)+',FIJAS='+jsSeguro(fijas)+';\n'+
+'var TODAS=["ad_storage","ad_user_data","ad_personalization","analytics_storage",\n'+
+'"functionality_storage","personalization_storage","security_storage"];\n'+
+'/* La decision anterior, si la hay. Sin esto el visitante que YA acepto\n'+
+'   arranca denegado en cada visita y solo se corrige cuando el bundle llega\n'+
+'   por red: entre una cosa y otra, su etiqueta ya disparo sin permiso. */\n'+
+'var prev=null;try{var m=document.cookie.match(new RegExp("(?:^|; )"+NS+"_cookie_consent=([^;]*)"));\n'+
+'if(m){var c=JSON.parse(decodeURIComponent(m[1]));if(c&&(!V||c.version===V))prev=c}}catch(e){}\n'+
+'var d={};TODAS.forEach(function(x){d[x]="denied"});\n'+
+'d.security_storage="granted";\n'+
+'FIJAS.forEach(function(x){d[x]="granted"});\n'+
+'if(prev&&prev.categories){Object.keys(MAP).forEach(function(k){\n'+
+'if(prev.categories[k])MAP[k].forEach(function(x){d[x]="granted"})})}\n'+
+'d.wait_for_update='+esperaN+';\n'+
+'gtag("consent","default",d);\n'+
+'gtag("set","ads_data_redaction",'+(gcm.adsDataRedaction !== false)+');\n'+
+'gtag("set","url_passthrough",'+(gcm.urlPassthrough === true)+');\n'+
+'/* Marca para que el bundle no emita un SEGUNDO default denegado detras,\n'+
+'   que deshacia lo que acabamos de conceder. */\n'+
+'window.__consentDefaultSet=true;})();\n';
+  }
+  if(rules.length){
+    /* El pre-bloqueador. Tres cosas que antes no hacia y que importan:
+
+       1. PARCHEA LA INSERCION, no solo observa. Un <script> al que se le pone
+          src y luego se inserta queda "preparado" por el navegador en ese mismo
+          instante, y el callback de un MutationObserver corre despues, cuando
+          la peticion ya salio. Un observer solo basta para lo que escribe el
+          parser; no para lo que inyecta codigo, que es justo como se cargan
+          GTM, HubSpot y casi todo. Es el mismo agujero que causo la fuga del
+          informe.
+       2. MIRA IFRAME e IMG, no solo SCRIPT. Un pixel es una imagen.
+       3. PUBLICA `patched` y `rules`, que es lo que el bundle espera. Sin
+          `rules`, al conceder UNA categoria el bundle no podia vaciar la lista
+          del inline, y el observer seguia matando scripts ya consentidos.    */
+    s +=
+'(function(){var C=window.__consentConfig||{};\n'+
+/* `instanceof Array` y no `.slice()`: con autoBlock escrito como cadena
+   (facil de teclear en la pestana JSON) .slice devolvia OTRA CADENA, R.length
+   era el numero de caracteres, el parche se instalaba y no bloqueaba nada. */
+/* Las reglas en modo "notify" no bloquean: el proveedor se encarga por su
+   cuenta y el bundle solo le avisa. Si entraran aqui se le cortaria la
+   etiqueta ademas de avisarle. */
+'var R=(C.autoBlock instanceof Array)?C.autoBlock.filter(function(r){return r&&r.mode!=="notify"}):[];\n'+
+'var B={observer:null,blocked:[],rules:R,patched:true};window.__consentBlocker=B;\n'+
+'if(!R.length)return;\n'+
+'var TAGS={SCRIPT:1,IFRAME:1,IMG:1};\n'+
 'function H(s){try{return new URL(s,location.href).hostname.toLowerCase()}catch(e){return ""}}\n'+
+/* La ruta solo ESTRECHA una regla que ya caso por host. Comparar contra la
+   URL entera es como se cuelan los bloqueos: "https://malo/?x=/wc.js" la
+   contiene. Con el host primero, una regla con path bloquea menos, nunca algo
+   distinto. */
+/* RUTA y no P: mas abajo hay un `var P=Node.prototype` para parchear la
+   insercion, y esa asignacion pisaba esta funcion. A partir de ahi hit()
+   lanzaba al llegar a una regla con path, el try/catch de revisa() se lo
+   tragaba en silencio, y el pre-bloqueador dejaba de bloquear ENTERO. Dos
+   nombres de una letra en el mismo ambito. */
+'function RUTA(s){try{return new URL(s,location.href).pathname.toLowerCase()}catch(e){return ""}}\n'+
 'function hit(s){if(!s)return null;var h=H(s);if(!h||h===location.hostname.toLowerCase())return null;\n'+
+'var ruta=null;\n'+
 'for(var i=0;i<R.length;i++){var r=R[i];if(!r||!r.match)continue;var m=String(r.match).toLowerCase().replace(/^\\*?\\.?/,"");\n'+
-'if(h===m||h.slice(-(m.length+1))==="."+m)return r}return null}\n'+
-'function kill(n,r){var s=n.getAttribute("src");n.type="text/plain";n.setAttribute("type","text/plain");\n'+
-'n.setAttribute("data-consent-src",s);n.setAttribute("data-consent-category",r.category);n.removeAttribute("src");B.blocked.push(s)}\n'+
-'B.observer=new MutationObserver(function(m){m.forEach(function(x){Array.prototype.forEach.call(x.addedNodes,function(n){\n'+
-'if(n.tagName==="SCRIPT"){var r=hit(n.getAttribute("src"));if(r)kill(n,r)}})})});\n'+
+'if(!(h===m||h.slice(-(m.length+1))==="."+m))continue;\n'+
+'if(r.path){if(ruta===null)ruta=RUTA(s);var pre=String(r.path).toLowerCase();\n'+
+'if(pre.charAt(0)!=="/")pre="/"+pre;if(ruta.indexOf(pre)!==0)continue}\n'+
+'return r}return null}\n'+
+'function kill(n,r){var s=n.getAttribute("src")||"";\n'+
+'if(n.tagName==="SCRIPT"){n.type="text/plain";n.setAttribute("type","text/plain")}\n'+
+'n.setAttribute("data-consent-src",s);n.setAttribute("data-consent-category",r.category||"");\n'+
+'n.removeAttribute("src");B.blocked.push(s);return n}\n'+
+'function barre(n){var q=n.querySelectorAll("script[src],iframe[src],img[src]");\n'+
+'for(var i=0;i<q.length;i++){var rr=hit(q[i].getAttribute("src"));if(rr)kill(q[i],rr)}}\n'+
+'function mira(n){if(!n)return;\n'+
+/* nodeType 11 es un DocumentFragment, que es como se insertan varias
+   etiquetas de una vez. Sin esto bastaba con meter el script en un fragmento
+   para esquivar el parche entero. El del bundle si lo contemplaba, pero como
+   aqui se publica patched:true, el del bundle ya no se instala. */
+'if(n.nodeType===11){if(n.querySelectorAll)barre(n);return}\n'+
+'if(n.nodeType!==1)return;\n'+
+'if(TAGS[n.tagName]){var r=hit(n.getAttribute("src"));if(r)kill(n,r)}\n'+
+'if(n.querySelectorAll)barre(n)}\n'+
+/* Esto corre dentro de appendChild, que usa la pagina ENTERA del cliente, no
+   solo nosotros: si algo aqui lanza, lanza su insercion. Y cuando el visitante
+   concede, el bundle vacia R; a partir de ahi hay que salir en la primera
+   linea en vez de recorrer cada subarbol que se inserte el resto de la
+   sesion. */
+'function revisa(n){if(!R.length)return;try{mira(n)}catch(e){}}\n'+
+'var P=Node.prototype,ap=P.appendChild,ib=P.insertBefore,rc=P.replaceChild;\n'+
+'P.appendChild=function(n){revisa(n);return ap.call(this,n)};\n'+
+'P.insertBefore=function(n,r){revisa(n);return ib.apply(this,arguments)};\n'+
+'P.replaceChild=function(n,o){revisa(n);return rc.call(this,n,o)};\n'+
+/* Las otras formas de insertar. append/prepend/before/after/replaceWith
+   aceptan varios nodos y tambien texto suelto, que mira() ignora solo. */
+'var E=window.Element&&Element.prototype;\n'+
+'if(E){["append","prepend","before","after","replaceWith"].forEach(function(k){\n'+
+'var o=E[k];if(!o)return;E[k]=function(){for(var i=0;i<arguments.length;i++)revisa(arguments[i]);\n'+
+'return o.apply(this,arguments)}});\n'+
+'var ia=E.insertAdjacentElement;\n'+
+'if(ia)E.insertAdjacentElement=function(p,n){revisa(n);return ia.call(this,p,n)}}\n'+
+/* El observer se queda detras como segunda red: para un <script src> llega
+   tarde por definicion, pero recoge lo que no pasa por ninguna via de arriba
+   (innerHTML sobre un nodo ya insertado, document.write). */
+'B.observer=new MutationObserver(function(m){m.forEach(function(x){\n'+
+'Array.prototype.forEach.call(x.addedNodes,revisa)})});\n'+
 'B.observer.observe(document.documentElement,{childList:true,subtree:true});})();\n';
   }
-  s += '<\/script>\n<script async src="'+API+'/consent-banner.js"><\/script>';
+  // SIN async, a proposito. El bundle lleva los parches de new Image(), fetch,
+  // XHR, sendBeacon y la escritura de cookies; el pre-bloqueador de arriba solo
+  // cubre etiquetas <script src>. Con async el bundle llega cuando le toca, y
+  // cualquier rastreador que dispare desde un script inline (que es como se
+  // instalan gtag, fbq y casi todos) ya ha salido. Medido contra la pagina de
+  // pruebas: con async, Google Analytics recibe datos en la fase fria pese a
+  // estar en la lista de bloqueo; sin async, no. Cuesta unos milisegundos de
+  // render y es la diferencia entre bloquear y no bloquear.
+  s += '<\/script>\n<script src="'+API+'/consent-banner.js"><\/script>';
   return s;
 }
 
@@ -4688,11 +5629,13 @@ function viewRegistros(d){
       '</div>'+
       '<div class="stats" id="stats"></div>'+
       '<div class="table-wrap"><table id="logs"><thead><tr>'+
-        '<th>Fecha</th><th>Decision</th><th>Categorias aceptadas</th>'+
-        '<th>Idioma</th><th>Version</th><th>ID</th>'+
+        '<th>Fecha</th><th>Decision</th><th>GPC</th><th>Categorias aceptadas</th>'+
+        '<th>Region</th><th>Regimen</th><th>Pagina</th><th>Idioma</th><th>Version</th>'+
+        '<th>Texto</th><th>ID</th>'+
       '</tr></thead><tbody></tbody></table></div>'+
       '<p class="hint">Los 25 registros mas recientes. Cada fila es la prueba de una decision concreta: '+
-      'cuando, que acepto y con que version del texto.</p>'+
+      'cuando, desde donde, bajo que regimen, en que pagina, y con que texto exacto delante. '+
+      'Pulsa el hash del texto para verlo entero.</p>'+
     '</div>';
   loadLogs();
 }
@@ -4709,22 +5652,60 @@ function loadLogs(){
     renderTabs();
     var tb = document.querySelector("#logs tbody"); tb.innerHTML="";
     if(!r.d.rows.length){
-      tb.innerHTML = '<tr><td colspan="6"><div class="empty">Todavia no hay registros.</div></td></tr>';
+      tb.innerHTML = '<tr><td colspan="11"><div class="empty">Todavia no hay registros.</div></td></tr>';
       return;
     }
+    TEXTOS_LOG = r.d.textos || {};
     r.d.rows.forEach(function(x){
       var tr=document.createElement("tr");
+      var h = x.texto_hash || "";
       tr.innerHTML =
         "<td class='mono'>"+esc(fecha(x.ts))+"</td>"+
         "<td><span class='tag "+esc(x.choice||"")+"'>"+esc(x.choice||"")+"</span></td>"+
+        "<td>"+(x.gpc ? "<span class='tag all'>GPC</span>" : "") +"</td>"+
         "<td>"+cats(x.categories)+"</td>"+
+        "<td class='mono'>"+esc(x.region||"")+"</td>"+
+        "<td>"+(x.modo ? "<span class='tag "+(x.modo==="optin"?"cus":"all")+"'>"+
+                esc(x.modo)+"</span>" : "")+"</td>"+
+        "<td class='mono'>"+esc((x.pagina||"").slice(0,40))+"</td>"+
         "<td>"+esc(x.language||"")+"</td>"+
         "<td class='mono'>"+esc(x.version_texto||"")+"</td>"+
+        "<td class='mono'>"+(h && TEXTOS_LOG[h]
+            ? "<a href='#' onclick=\"verTextoLog('"+esc(h)+"');return false\">"+
+              esc(h.slice(0,8))+"</a>"
+            : esc(h.slice(0,8)))+"</td>"+
         "<td class='mono'>"+esc((x.consent_id||"").slice(0,8))+"</td>";
       tb.appendChild(tr);
     });
   });
 }
+/* Los textos que vieron los visitantes, por hash. Se piden junto con los
+   registros: una columna con un hash y nada mas no le sirve a nadie, y el
+   sentido de guardarlo era justamente poder ensenar lo que se mostro. */
+var TEXTOS_LOG = {};
+function verTextoLog(h){
+  var d = TEXTOS_LOG[h];
+  if(!d){ alert(frase("No se guardo el texto de este registro.")); return; }
+  var caja = el("txt-modal");
+  if(!caja){
+    caja = document.createElement("div");
+    caja.id = "txt-modal"; caja.className = "inf-modal";
+    document.body.appendChild(caja);
+  }
+  caja.innerHTML =
+    '<div class="inf-fondo" onclick="cerrarTextoLog()"></div>'+
+    '<div class="inf-caja"><div class="inf-top">'+
+      '<b>'+frase("Lo que vio el visitante")+'</b>'+
+      '<button class="btn ghost sm" onclick="cerrarTextoLog()">'+frase("Cerrar")+'</button>'+
+    '</div><div class="inf-cuerpo">'+
+      "<p class='hint'>Hash <code>"+esc(h)+"</code> \u00b7 visto por primera vez el "+
+      esc(fecha(d.desde))+" \u00b7 "+esc(String(d.veces))+" decision(es) con este texto.</p>"+
+      "<pre class='snippet' style='white-space:pre-wrap'>"+esc(d.texto||"")+"</pre>"+
+    '</div></div>';
+  caja.style.display = "flex";
+}
+function cerrarTextoLog(){ var c = el("txt-modal"); if(c) c.style.display = "none"; }
+
 /* categories viaja como texto JSON desde la base */
 function cats(raw){
   var vacio = '<span class="cat">sin datos</span>';
@@ -4746,6 +5727,7 @@ function cats(raw){
    valor). Aqui se decide que es cada una. Solo las no esenciales acaban en
    cookiePatterns: una cookie de sesion o de seguridad no se debe borrar. */
 var _ckCambios = {};     // nombre -> {category, status} pendiente de guardar
+var _ckTrasRecargar = "";  // mensaje que tiene que sobrevivir al repintado
 
 
 /* ---- Exportar cookie audit ---------------------------------------------
@@ -4962,11 +5944,14 @@ function ckPestanas(){
     ["categorias", frase("Categorias"),        (cfg.categories||[]).length],
     ["detectadas", frase("Cookies detectadas"), rows ? rows.length : null],
     ["bloqueo",    frase("Bloqueo de scripts"), (cfg.autoBlock||[]).length],
-    // Consent Mode va pegado al bloqueo: las dos piezas se leen juntas, porque
-    // emitir el default sin sacar a Google del bloqueo no sirve de nada.
-    ["consentmode", frase("Consent Mode"),      null],
     ["borrado",    frase("Cookies que se borran"), (cfg.cookiePatterns||[]).length],
-    ["deteccion",  frase("Deteccion"),          null]
+    ["venta",      frase("Enlace de exclusion"),  null],
+    ["regiones",   frase("Regiones"),
+       (cfg.regions && Array.isArray(cfg.regions.rules)) ? cfg.regions.rules.length : null],
+    ["deteccion",  frase("Deteccion"),          null],
+    ["gpc",        "GPC",                       null],
+    ["duro",       frase("Bloqueo endurecido"),  null],
+    ["gcm",        "Consent Mode",               null]
   ];
   return '<div class="ck-tabs">'+ lista.map(function(x){
     return '<button class="ck-t'+(CK_TAB===x[0]?' on':'')+'" onclick="ckIr(\''+x[0]+'\')">'+
@@ -5022,6 +6007,9 @@ function pintarCkSeccion(){
           '<div><h2 style="margin:0">Cookies detectadas en el sitio</h2>'+
           '<p class="sub" style="margin:4px 0 0">Clasifica cada una. Las esenciales nunca se borran.</p></div>'+
           '<div class="row">'+
+            '<input id="esc-url" class="esc-url" placeholder="http://localhost:8000/sitio-demo.html" '+
+              'title="'+frase("Pagina por la que empieza el escaneo")+'">'+
+            '<button class="btn sm" id="btn-escanear" onclick="pedirEscaneo()">Escanear el sitio</button>'+
             '<button class="btn ghost sm" onclick="vaciarInventario()">Vaciar inventario</button>'+
             '<button class="btn ghost sm" onclick="exportarAuditPDF()">Exportar audit (PDF)</button>'+
             '<button class="btn ghost sm" onclick="exportarAudit()">CSV</button>'+
@@ -5030,16 +6018,22 @@ function pintarCkSeccion(){
             '<button class="btn sm" id="ck-save" onclick="guardarCookies()">Guardar clasificacion</button>'+
           '</div>'+
         '</div>'+
+        '<div id="ck-escaneo"></div>'+
+        '<div id="ck-vigilancia"></div>'+
         '<div id="ck-aviso"></div>'+
-        '<div class="banner-nota">Aqui solo aparecen las cookies de <b>tu propio dominio</b>. '+
-        'Las de terceros (<code>.google.com</code>, <code>.vimeo.com</code>) y las marcadas '+
-        '<code>HttpOnly</code> no son visibles desde JavaScript, asi que ningun banner puede '+
-        'detectarlas ni borrarlas. Para el informe de auditoria hay que anotarlas a mano desde '+
-        'DevTools &rarr; Application &rarr; Cookies.</div>'+
+        '<div class="banner-nota">El banner, por si solo, ve las cookies de <b>tu propio '+
+        'dominio</b> que no sean <code>HttpOnly</code>. Las de terceros '+
+        '(<code>.google.com</code>, <code>.vimeo.com</code>) y las <code>HttpOnly</code> las '+
+        'trae el <b>escaner</b>, que usa un navegador real: pulsa <b>Escanear el sitio</b>. '+
+        'Detectarlas no es poder bloquearlas: una cookie <code>HttpOnly</code> la pone el '+
+        'servidor en una cabecera, y ni el banner ni ningun script pueden evitarla ni '+
+        'borrarla.</div>'+
         '<div id="ck-body"><div class="empty">Cargando...</div></div>'+
         '<div class="row mt"><span id="ck-msg" class="msg"></span></div>'+
       '</div>';
     if(window._ckRows) pintarCookies();
+    verEscaneo(false);
+    cargarAvisos();        // pinta el interruptor de vigilancia
     return;
   }
 
@@ -5050,8 +6044,10 @@ function pintarCkSeccion(){
     return;
   }
   var titulos = {categorias:"Categorias", bloqueo:"Bloqueo de scripts",
-                 consentmode:"Consent Mode (Google)",
-                 borrado:"Cookies que se borran", deteccion:"Deteccion de cookies"};
+                 borrado:"Cookies que se borran", deteccion:"Deteccion de cookies",
+                 gpc:"Global Privacy Control", duro:"Bloqueo endurecido",
+                 gcm:"Google Consent Mode",
+                 venta:"Enlace de exclusion (CPRA)", regiones:"Regiones"};
   var g = UI_GROUPS.filter(function(x){ return x.t === titulos[CK_TAB]; })[0];
   if(!g){ host.innerHTML = ""; return; }
   host.innerHTML = '<div class="card"><h2>'+esc(g.t)+'</h2>'+
@@ -5061,6 +6057,346 @@ function pintarCkSeccion(){
       '<button class="btn" onclick="saveCfg()">Publicar en el sitio</button></div>'+
   '</div>';
   el("ck-grupo").innerHTML = g.items.map(function(it){ return control(obj, it); }).join('');
+}
+
+
+/* Convierte un hallazgo de tipo host en una regla de bloqueo.
+
+   No escribe la regla aqui: marca el host con su categoria y deja que el
+   servidor la vuelque, igual que hacen las cookies con classify + apply. Hubo
+   un tiempo en que esto tenia su propia logica en el panel y el servidor otra:
+   dos caminos para la misma accion, que acaban comportandose distinto en
+   cuanto alguien toca uno y se olvida del otro. */
+function bloquearHost(host, id){
+  var sel = el("hb_"+id);
+  var cat = sel ? sel.value : "";
+  if(!host || !cat) return;
+  msg("ck-msg", frase("Guardando..."));
+  j("POST","/dash/site/cookies/classify",
+    {site_id: current, items:[{name: host, category: cat, status: "asignada"}]}).then(function(r){
+    if(!r.ok){ msg("ck-msg", r.d.error || "No se pudo guardar.", true); return; }
+    j("POST","/dash/site/hosts/apply", {site_id: current}).then(function(r2){
+      if(!r2.ok){ msg("ck-msg", r2.d.error || "No se pudo aplicar.", true); return; }
+      var n = (r2.d.anadidos || []).length, cub = (r2.d.cubiertos || []).length;
+      var sinCat = r2.d.sin_categoria || [];
+      var partes = [];
+      if(n)   partes.push(n + " " + frase("dominio(s) anadidos al bloqueo"));
+      if(cub) partes.push(cub + " " + frase("ya cubiertos por una regla mas corta"));
+      // El servidor los salta cuando la categoria sugerida no existe en este
+      // sitio. Callarselo deja al usuario pulsando un boton que no hace nada y
+      // sin forma de averiguar por que.
+      if(sinCat.length) partes.push(sinCat.length + " " +
+          frase("sin aplicar: su categoria no existe en este sitio") +
+          " (" + sinCat.slice(0,3).join(", ") + ")");
+      // El repintado borra el mensaje, asi que se guarda y se vuelve a poner
+      // despues: sin eso, la accion termina sin decir que hizo.
+      _ckTrasRecargar = (partes.join(", ") || frase("Sin cambios")) +
+          (r2.d.version ? " (" + frase("version") + " " + r2.d.version + ")" : "") + ". " +
+          frase("Copia de nuevo el codigo de Instalar.");
+      // La config del servidor cambio: hay que releerla o el panel seguiria
+      // mostrando la anterior.
+      openTab("cookies");
+    });
+  });
+}
+
+
+/* ---- Escaneo del sitio (P4) ---------------------------------------------
+   El panel no escanea: encola el trabajo y mira como va. Quien lo hace es el
+   worker, que corre aparte porque Chromium no cabe en el backend. */
+var _escTimer = null;
+
+function pedirEscaneo(){
+  var b = el("btn-escanear"); if(b) b.disabled = true;
+  // La URL viaja desde el panel. Antes solo iba el site_id y el servidor
+  // armaba "https://" + dominio, sin puerto: contra un sitio real acierta,
+  // pero en local da https://localhost y el escaneo falla con conexion
+  // rechazada en las cuatro pasadas. Ademas, poder apuntar a una pagina
+  // concreta es util: lo que pone cookies suele estar en una ficha de
+  // producto, no en la portada.
+  var campo = el("esc-url"), url = campo ? campo.value.trim() : "";
+  if(url){ try{ localStorage.setItem("esc-url-"+current, url) }catch(e){} }
+  j("POST", "/dash/site/scan", url ? {site_id: current, url: url}
+                                   : {site_id: current}).then(function(r){
+    if(!r.ok){
+      if(b) b.disabled = false;
+      msg("ck-msg", r.d.error || frase("No se pudo pedir el escaneo."), true);
+      return;
+    }
+    msg("ck-msg", r.d.ya_estaba ? frase("Ya habia un escaneo en marcha.")
+                                : frase("Escaneo encolado."));
+    verEscaneo(true);
+  });
+}
+
+// Convierte el informe (markdown) en HTML. Solo se cubre lo que el generador
+// usa: titulos, tablas, negrita, codigo, citas y parrafos. Un renderizador
+// completo seria una dependencia nueva para nada.
+function mdAHtml(md){
+  var lineas = String(md).split("\n"), out = [], tabla = null;
+  function cierra(){
+    if(!tabla) return;
+    out.push('<table class="inf-tabla"><thead><tr>' +
+      tabla.cab.map(function(c){ return "<th>" + inline(c) + "</th>"; }).join("") +
+      "</tr></thead><tbody>" +
+      tabla.filas.map(function(f){
+        return "<tr>" + f.map(function(c){ return "<td>" + inline(c) + "</td>"; }).join("") + "</tr>";
+      }).join("") + "</tbody></table>");
+    tabla = null;
+  }
+  function inline(t){
+    return esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+                 .replace(/`([^`]+)`/g, "<code>$1</code>");
+  }
+  function celdas(l){
+    return l.replace(/^\||\|$/g, "").split("|").map(function(c){ return c.trim(); });
+  }
+  lineas.forEach(function(l){
+    var t = l.trim();
+    if(/^\|/.test(t)){
+      var c = celdas(t);
+      if(!tabla){ tabla = {cab: c, filas: []}; return; }
+      if(/^[-: ]+$/.test(c.join(""))) return;      // la linea de guiones
+      tabla.filas.push(c); return;
+    }
+    cierra();
+    if(!t) return;
+    var m = t.match(/^(#{1,3})\s+(.*)$/);
+    if(m){ out.push("<h" + (m[1].length+2) + ' class="inf-h">' + inline(m[2]) +
+                    "</h" + (m[1].length+2) + ">"); return; }
+    if(t.indexOf("> ") === 0){ out.push('<blockquote class="inf-cita">' +
+                                        inline(t.slice(2)) + "</blockquote>"); return; }
+    out.push("<p>" + inline(t) + "</p>");
+  });
+  cierra();
+  return out.join("");
+}
+
+function verInforme(id){
+  j("GET", "/dash/site/scan/informe?site_id=" + encodeURIComponent(current) +
+           (id ? "&id=" + id : "")).then(function(r){
+    if(!r.ok){ msg("ck-msg", (r.d && r.d.error) || frase("No hay informe."), true); return; }
+    var caja = el("inf-modal");
+    if(!caja){
+      caja = document.createElement("div");
+      caja.id = "inf-modal"; caja.className = "inf-modal";
+      document.body.appendChild(caja);
+    }
+    window._infTexto = r.d.informe;
+    caja.innerHTML =
+      '<div class="inf-fondo" onclick="cerrarInforme()"></div>' +
+      '<div class="inf-caja"><div class="inf-top">' +
+        '<b>' + frase("Informe del escaneo") + '</b>' +
+        '<span><button class="btn ghost sm" onclick="bajarInforme()">' +
+          frase("Descargar .md") + '</button>' +
+        '<button class="btn ghost sm" onclick="cerrarInforme()">' +
+          frase("Cerrar") + '</button></span>' +
+      '</div><div class="inf-cuerpo">' + mdAHtml(r.d.informe) + '</div></div>';
+    caja.style.display = "flex";
+  });
+}
+function cerrarInforme(){ var c = el("inf-modal"); if(c) c.style.display = "none"; }
+function bajarInforme(){
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([window._infTexto || ""], {type:"text/markdown"}));
+  a.download = "informe-escaneo.md"; a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ---------------- P6. Vigilancia continua ----------------
+   Lo que separa esto de pulsar "Escanear el sitio" son dos cosas: un reloj,
+   para que lo pulse solo, y una memoria, para saber como estaba el sitio la
+   vez anterior. De ahi sale la regla de la que depende todo lo demas: aqui no
+   se ensenan estados, se ensenan CAMBIOS. "Este sitio contacta 11 terceros" no
+   es un aviso, es el informe. "Hay uno que la semana pasada no estaba y recibe
+   identificadores" si lo es. Si nada ha cambiado, la campana no trae nada, y
+   esa es justo la razon por la que se sigue mirando pasado un mes. */
+function cargarAvisos(){
+  if(!current) return;
+  j("GET", "/dash/site/avisos?site_id=" + encodeURIComponent(current)).then(function(r){
+    if(!r.ok) return;
+    window._avisos = r.d;
+    var n = r.d.sin_ver || 0, pt = el("campana-n");
+    if(pt){ pt.textContent = n > 9 ? "9+" : String(n); pt.style.display = n ? "" : "none"; }
+    pintarVigilancia(r.d.vigilancia);
+  });
+}
+
+function verAvisos(){
+  if(!current) return;
+  j("GET", "/dash/site/avisos?site_id=" + encodeURIComponent(current)).then(function(r){
+    if(!r.ok) return;
+    var filas = r.d.rows || [], cuerpo = "";
+    // Los avisos de instalacion van arriba del todo y en rojo: no son "algo
+    // cambio desde el ultimo escaneo", son "esto esta mal puesto ahora mismo y
+    // los datos se estan yendo". Y no los puede ver el escaner, porque la
+    // config del panel es correcta; esta mal el orden del HTML del cliente.
+    var inst = r.d.instalacion || [];
+    var TITULOS_INST = {
+      gtm_antes: ["Google Tag Manager se carga antes que el bloque de consentimiento",
+        "Para cuando corre nuestro bloque, GTM ya ha evaluado sus disparadores: el "+
+        "consent default llega tarde y lo que tuviera que salir ya salio. El banner "+
+        "se ve bien y los datos se fueron igual. Mueve el codigo de Instalar por "+
+        "encima de la etiqueta de GTM, lo primero del &lt;head&gt;."]
+    };
+    for(var k = 0; k < inst.length; k++){
+      var x = inst[k];
+      var tit = TITULOS_INST[x.tipo] || [x.tipo, ""];
+      cuerpo += '<div class="av-fila alta' + (x.visto ? ' visto' : '') + '">' +
+        '<div class="av-t">' + esc(tit[0]) + '</div>' +
+        '<div class="av-d">' + tit[1] +
+          (x.detalle ? ' <br><code>' + esc(x.detalle) + '</code>' : '') +
+          (x.pagina ? ' <br>Visto en <code>' + esc(x.pagina) + '</code>' : '') +
+        '</div>' +
+        '<div class="av-c">' + esc(String(x.veces||0)) + ' visita(s) &middot; desde ' +
+          esc((x.primera_vez || "").replace("T", " ").slice(0, 16)) + '</div></div>';
+    }
+    var caja = el("av-modal");
+    if(!caja){
+      caja = document.createElement("div");
+      caja.id = "av-modal"; caja.className = "inf-modal";
+      document.body.appendChild(caja);
+    }
+    if(!filas.length && !inst.length){
+      cuerpo = '<p class="sub">' + frase("No hay ningun cambio que avisar.") + ' ' +
+        frase("Aqui solo aparece lo que ha cambiado respecto al escaneo anterior: "+
+              "un tercero nuevo que recibe datos, un bloqueo que ha dejado de "+
+              "funcionar, o una cookie que empieza a aparecer antes de que nadie "+
+              "consienta. El primer escaneo de un sitio nunca genera avisos: no hay "+
+              "con que compararlo.") + '</p>';
+    } else {
+      for(var i = 0; i < filas.length; i++){
+        var a = filas[i];
+        cuerpo += '<div class="av-fila ' + esc(a.gravedad) + (a.visto ? ' visto' : '') + '">' +
+          '<div class="av-t">' + esc(a.titulo) + '</div>' +
+          '<div class="av-d">' + esc(a.detalle) + '</div>' +
+          '<div class="av-c">' + esc((a.cuando || "").replace("T", " ").slice(0, 16)) +
+          (a.job_id ? ' &middot; <a href="#" onclick="cerrarAvisos();verInforme(' +
+                      a.job_id + ');return false">' +
+                      frase("ver el informe de ese escaneo") + '</a>' : '') +
+          '</div></div>';
+      }
+    }
+    caja.innerHTML =
+      '<div class="inf-fondo" onclick="cerrarAvisos()"></div>' +
+      '<div class="inf-caja"><div class="inf-top"><b>' + frase("Avisos") + '</b><span>' +
+      ((filas.length || inst.length) ? '<button class="btn ghost sm" onclick="avisosVistos()">' +
+                      frase("Marcar todo como leido") + '</button>' : '') +
+      '<button class="btn ghost sm" onclick="cerrarAvisos()">' +
+        frase("Cerrar") + '</button></span></div>' +
+      '<div class="inf-cuerpo">' + cuerpo + '</div></div>';
+    caja.style.display = "flex";
+  });
+}
+function cerrarAvisos(){ var c = el("av-modal"); if(c) c.style.display = "none"; }
+function avisosVistos(){
+  j("POST", "/dash/site/avisos/visto", {site_id: current}).then(function(){
+    cerrarAvisos(); cargarAvisos();
+  });
+}
+
+function pintarVigilancia(v){
+  var caja = el("ck-vigilancia");
+  if(!caja) return;                  // no estamos en Cookies detectadas
+  v = v || {activa: 0, dias: 7};
+  caja.innerHTML = '<div class="vig">' +
+    '<label><input type="checkbox" id="vig-on" ' + (v.activa ? 'checked' : '') +
+      ' onchange="guardarVigilancia()"> <b>' +
+      frase("Vigilar este sitio solo") + '</b></label>' +
+    '<span>' + frase("cada") + ' <input type="number" id="vig-dias" min="1" max="30" ' +
+      'value="' + (v.dias || 7) + '" onchange="guardarVigilancia()"> ' +
+      frase("dias") + '</span>' +
+    '<span class="sub vig-nota">' +
+      frase("Escanea sin que pulses nada y solo avisa si algo ha cambiado. "+
+            "Necesita el worker del escaner en marcha.") +
+    '</span>' +
+    // La fecha va en su propia linea: pegada al final del parrafo estiraba la
+    // caja hasta el borde de la pantalla y el texto se iba a dos lineas feas.
+    (v.ultimo ? '<span class="vig-ult">' + frase("Ultimo escaneo programado:") +
+                ' ' + esc((v.ultimo || "").replace("T", " ").slice(0, 16)) +
+                '</span>' : '') +
+    '</div>';
+}
+function guardarVigilancia(){
+  var on = el("vig-on"), d = el("vig-dias"), u = el("esc-url");
+  j("POST", "/dash/site/vigilancia", {
+      site_id: current,
+      activa: on && on.checked ? 1 : 0,
+      dias: d ? parseInt(d.value || "7", 10) : 7,
+      // La misma URL que usa el boton de escanear. Si esta vacia, el backend
+      // la arma con el dominio del sitio.
+      url: u ? u.value.trim() : "", paginas: 8}).then(function(r){
+    if(!r.ok) return;
+    msg("ck-msg", !(on && on.checked)
+        ? frase("Vigilancia desactivada.")
+        : (r.d && r.d.arranca_ya)
+          // Al encenderla hace falta una foto de partida, asi que el primer
+          // escaneo entra en la cola ya. Decirlo evita que alguien la encienda
+          // y se quede esperando una semana sin saber si funciona.
+          ? frase("Vigilancia activada. El primer escaneo entra en la cola ahora, "+
+                  "para tener con que comparar.")
+          : frase("Vigilancia actualizada."), false);
+  });
+}
+
+function verEscaneo(seguir){
+  j("GET", "/dash/site/scan/estado?site_id=" + encodeURIComponent(current)).then(function(r){
+    var caja = el("ck-escaneo"); if(!caja || !r.ok) return;
+    var filas = r.d.rows || [], ult = filas[0];
+    var campo = el("esc-url");
+    if(campo && !campo.value){
+      var guardada = "";
+      try{ guardada = localStorage.getItem("esc-url-"+current) || "" }catch(e){}
+      campo.value = guardada || (ult && ult.url) || "";
+    }
+    var b = el("btn-escanear");
+    var vivo = ult && (ult.estado === "pendiente" || ult.estado === "corriendo");
+    if(b) b.disabled = !!vivo;
+
+    if(!ult){ caja.innerHTML = ""; }
+    else {
+      var texto, clase = "esc-caja";
+      if(ult.estado === "pendiente"){
+        texto = frase("Escaneo en cola.") + " " +
+          (r.d.worker ? frase("Esperando al worker.")
+                      : "<b>" + frase("No hay worker escuchando: define SCANNER_KEY y arranca el escaner con --worker.") + "</b>");
+      } else if(ult.estado === "corriendo"){
+        texto = frase("Escaneando") + " " + esc(ult.url) + "... " +
+                frase("tarda un par de minutos por sitio.");
+      } else if(ult.estado === "muro"){
+        clase += " esc-muro";
+        texto = "<b>" + frase("No se pudo escanear:") + "</b> " + esc(ult.resumen || "") + " " +
+                frase("Lo que se vio es un muro anti-bot, no el sitio. No se guardo nada.");
+      } else if(ult.estado === "error"){
+        clase += " esc-muro";
+        texto = "<b>" + frase("El escaneo fallo:") + "</b> " + esc(ult.resumen || "");
+      } else {
+        clase += " esc-ok";
+        texto = "<b>" + frase("Ultimo escaneo:") + "</b> " + esc(ult.resumen || "") +
+                " <span class=\'sub\'>" + esc((ult.terminado || "").replace("T", " ").slice(0, 16)) + "</span>";
+      }
+      // El informe es lo que de verdad contesta "donde estan los huecos".
+      // Antes vivia solo en un fichero del disco de quien lanzaba el escaner,
+      // asi que desde el panel no habia forma de llegar a el.
+      if(ult.tiene_informe){
+        texto += ' <button class="btn ghost sm" style="margin-left:8px" ' +
+                 'onclick="verInforme(' + ult.id + ')">' +
+                 frase("Ver el informe") + '</button>';
+      }
+      caja.innerHTML = '<div class="' + clase + '">' + texto + '</div>';
+    }
+
+    // Mientras hay uno en marcha se repregunta; cuando acaba, se refresca la
+    // tabla una vez y se para. Sin esto habria que recargar a mano para ver
+    // lo que acaba de encontrar.
+    if(_escTimer){ clearTimeout(_escTimer); _escTimer = null; }
+    if(vivo){
+      _escTimer = setTimeout(function(){ verEscaneo(true); }, 4000);
+    } else if(seguir){
+      loadCookies();
+      // Un escaneo recien acabado es justo cuando puede haber avisos nuevos.
+      cargarAvisos();
+    }
+  });
 }
 
 function loadCookies(){
@@ -5076,6 +6412,7 @@ function loadCookies(){
     // los datos: hay que refrescarlas o se quedan sin numero.
     if(el("ck-pest")) el("ck-pest").innerHTML = ckPestanas();
     if(el("ck-body")) pintarCookies();
+    if(_ckTrasRecargar){ msg("ck-msg", _ckTrasRecargar); _ckTrasRecargar = ""; }
   });
 }
 
@@ -5146,11 +6483,28 @@ function filaCookie(x, tipos){
   var sinDecidir    = !esNecesaria && !esNoNecesaria;
 
   var sug = "";
-  if (x.sugerida === "esencial")      sug = '<span class="sug">se sugiere: necesaria</span>';
-  else if (x.sugerida)                sug = '<span class="sug">se sugiere: no necesaria ('+esc(catLabel(x.sugerida))+')</span>';
+  // Una sugerencia deducida (por quien escribio la cookie o por la forma del
+  // nombre) no vale lo mismo que una identificada en el catalogo, y quien
+  // revisa tiene que poder distinguirlas de un vistazo. Si no, se aprueba todo
+  // igual y la deduccion se convierte en un dato duro que nadie comprobo.
+  var deducida = /Deducido|procedencia|escribe un script/.test(x.explicacion || "");
+  var marca = deducida ? " sug-deducida" : "";
+  var cola = deducida ? ' <em>deducido, confirmalo</em>' : '';
+  if (x.sugerida === "esencial")      sug = '<span class="sug'+marca+'">se sugiere: necesaria'+cola+'</span>';
+  else if (x.sugerida)                sug = '<span class="sug'+marca+'">se sugiere: no necesaria ('+esc(catLabel(x.sugerida))+')'+cola+'</span>';
   else                                sug = '<span class="sug none">desconocida</span>';
 
   var desc = x.explicacion || "No esta en el catalogo. Averigua quien la escribe antes de decidir.";
+
+  // Lo que aparece sin que nadie haya consentido es el primer hallazgo de
+  // cualquier auditoria externa, y el que sostiene una reclamacion. Va marcado
+  // aparte de la sugerencia de categoria, porque son dos cosas distintas: una
+  // es "que es", la otra es "cuando aparece".
+  if (x.sin_permiso) {
+    sug += ' <span class="sin-permiso" title="El escaner la vio antes de que ' +
+           'nadie consintiera. Es lo primero que mira una auditoria.">' +
+           'aparece sin permiso</span>';
+  }
 
   // Un solo desplegable con todo: sin decidir, esencial, y las categorias
   // que el sitio tenga configuradas.
@@ -5168,10 +6522,52 @@ function filaCookie(x, tipos){
   // Sin desplegable para lo que el banner no puede borrar: clasificarlo no
   // tendria efecto y solo generaria falsas expectativas.
   if(!ckAccionable(x)){
+    // Un hallazgo de tipo "host" es un dominio de tercero que el sitio contacta.
+    // Borrarlo no se puede, pero BLOQUEARLO si: es exactamente lo que va en
+    // autoBlock. Hasta ahora el backend los reportaba y el panel se limitaba a
+    // etiquetarlos, asi que no habia forma de aprobar lo que proponia.
+    var accion = '<span class="ck-info">Solo para el informe</span>';
+    if((x.kind || "") === "host"){
+      var yaEsta = ((objActual() || {}).autoBlock || []).some(function(r){
+        return r && r.match && String(x.name).toLowerCase().indexOf(String(r.match).toLowerCase()) !== -1;
+      });
+      if(yaEsta){
+        accion = '<span class="pat-ok">'+frase("ya se bloquea")+'</span>';
+      } else {
+        var cats = (window._ckCats || []).filter(function(c){ return c !== "esencial"; });
+        // La sugerencia viene del catalogo de dominios de rastreo: trae
+        // categoria y empresa. Cuando NO sugiere nada es a proposito (un CDN,
+        // un reproductor, un chat): bloquearlo tumbaria o estropearia el
+        // sitio, asi que el boton no aparece de primeras. Se puede bloquear
+        // igualmente desde Bloqueo de scripts, pero a conciencia.
+        var sug = x.sugerida && cats.indexOf(x.sugerida) !== -1 ? x.sugerida : "";
+        if(!x.sugerida){
+          accion = '<span class="ck-info">'+frase("No se propone bloquearlo")+'</span>';
+          return '<tr id="row_'+id+'">'+
+            '<td><div class="ck-name">'+esc(x.name)+' '+ckEtiqueta(x)+'</div></td>'+
+            '<td><div class="ck-desc">'+esc(desc)+'</div></td>'+
+            '<td>'+accion+'</td><td></td>'+
+            '<td class="ck-seen">'+esc((x.last_seen||"").replace("T"," ").slice(0,16))+
+              '<div class="sub">'+esc(String(x.hits||0))+' '+frase("veces")+'</div></td>'+
+          '</tr>';
+        }
+        accion = cats.length
+          ? '<div class="row" style="gap:6px;flex-wrap:nowrap">'+
+              '<select class="ck-sel" id="hb_'+id+'" style="min-width:110px">'+
+                cats.map(function(c){
+                  return '<option value="'+esc(c)+'"'+(c===sug?' selected':'')+'>'+esc(c)+'</option>'; }).join('')+
+              '</select>'+
+              '<button class="btn ghost sm" onclick="bloquearHost(\''+esc(x.name).replace(/'/g,"")+'\',\''+id+'\')">'+
+                frase("Bloquear")+'</button>'+
+            '</div>'
+          : '<span class="ck-info">'+frase("Sin categorias que asignar")+'</span>';
+      }
+    }
     return '<tr id="row_'+id+'">'+
       '<td><div class="ck-name">'+esc(x.name)+' '+ckEtiqueta(x)+'</div></td>'+
       '<td><div class="ck-desc">'+esc(desc)+'</div></td>'+
-      '<td><span class="ck-info">Solo para el informe</span></td>'+
+      '<td>'+accion+'</td>'+
+      '<td></td>'+
       '<td class="ck-seen">'+esc((x.last_seen||"").replace("T"," ").slice(0,16))+
         '<div class="sub">'+esc(String(x.hits||0))+' '+frase("veces")+'</div></td>'+
     '</tr>';
@@ -5259,21 +6655,39 @@ function contarCambios(){
 function aceptarSugerencias(){
   var rows = window._ckRows || [];
   var tipos = (window._ckCats||[]).filter(function(c){ return c!=="esencial"; });
-  var n = 0;
+  var n = 0, deducidas = 0, faltan = {};
   rows.forEach(function(x){
     if(x.status === "asignada" || !x.sugerida) return;
     if(x.sugerida === "esencial"){
       x.category = "esencial"; x.status = "asignada";
     } else {
-      if(tipos.indexOf(x.sugerida) < 0) return;   // ese tipo no existe en la config
+      if(tipos.indexOf(x.sugerida) < 0){
+        // La categoria sugerida no existe en este sitio. Antes se saltaba en
+        // silencio: el boton parecia no hacer nada y no habia forma de saber
+        // por que. Ahora se cuenta y se dice cual falta.
+        faltan[x.sugerida] = (faltan[x.sugerida]||0) + 1; return;
+      }
       x.category = x.sugerida; x.status = "asignada";
     }
+    // Las deducidas (por procedencia o por la forma del nombre) no valen lo
+    // mismo que las identificadas en catalogo. Se aplican igual, porque el
+    // boton es para ir rapido, pero se dice cuantas hay que repasar.
+    if(/Deducido|procedencia|escribe un script/.test(x.explicacion || "")) deducidas++;
     _ckCambios[x.name] = { category: x.category, status: "asignada" };
     n++;
   });
   pintarCookies();
-  msg("ck-msg", n ? (n+" cookie(s) respondidas. Revisa y pulsa Guardar.")
-                  : "No hay sugerencias aplicables.", false);
+  var txt;
+  if(!n) txt = frase("No hay sugerencias aplicables.");
+  else {
+    txt = n + " " + frase("cookie(s) respondidas. Revisa y pulsa Guardar.");
+    if(deducidas) txt += " " + deducidas + " " +
+        frase("son deducciones marcadas en ambar: repasalas antes de guardar.");
+  }
+  var sinCat = Object.keys(faltan);
+  if(sinCat.length) txt += " " + frase("Sin aplicar por falta de categoria en este sitio") +
+      ": " + sinCat.join(", ") + ".";
+  msg("ck-msg", txt, false);
 }
 
 function guardarCookies(){
