@@ -28,7 +28,7 @@ NOTA DE PRODUCCION: esto es un esqueleto. Para produccion hay que endurecer
 (HTTPS, secretos fuera del codigo, rate limiting, y mover consent_logs a una
 base con retencion y copias). El registro es append-only: solo se inserta.
 """
-import json, os, re, sqlite3, uuid, hashlib, secrets, datetime, http.cookies, time, threading
+import json, os, re, sqlite3, uuid, hashlib, hmac, secrets, datetime, http.cookies, time, threading
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -48,6 +48,30 @@ DEFAULT_CONFIG = {
     "defaultLanguage": "en",
     "activeDeletion": True,
     "manageScripts": False,
+    # Rechazar cuesta lo mismo que aceptar: misma caja, mismo tamano, misma
+    # distancia del dedo. Un boton fantasma al lado de uno solido inclina la
+    # eleccion aunque los dos textos sean correctos, y eso es justo lo que la
+    # CPRA no admite. Va aqui, en la config del sitio NUEVO, y no en los
+    # valores por defecto del bundle: cambiar aquello le movia el banner a
+    # todos los clientes que ya estan en produccion sin que nadie lo pidiera.
+    "buttons": {"equalWeight": True},
+    # Enlace de exclusion de venta o cesion (CPRA). Apagado de serie: no todos
+    # los clientes venden ni ceden datos, y poner el enlace en un sitio que no
+    # lo hace confunde al visitante y no aporta nada. Se enciende marcando
+    # primero que categorias venden, en Categorias.
+    #
+    # style "single" es el enlace unico del articulo 7015, titulado "Your
+    # Privacy Choices", que EXIGE el icono oficial al lado. style "dual" son
+    # los dos enlaces de los articulos 7013 y 7014, donde el icono no es
+    # obligatorio. El icono se apunta con una URL: es una marca oficial con una
+    # forma concreta y hay que servir ESE fichero, no uno parecido.
+    "optOut": {"enabled": False, "style": "single", "icon": "", "href": "",
+               "render": False},
+    # Regimen por region. Por defecto opt-in para todo el mundo, que es el
+    # estricto: el sitio que no lo configure pide permiso siempre, y eso nunca
+    # es un incumplimiento. Las reglas se miran de la mas concreta a la menos
+    # ("US-CA" antes que "US" antes que "EU").
+    "regions": {"default": "optin", "rules": []},
     # Paleta "Expediente" (misma que styles/tokens.css del frontend).
     "colors": {"ink": "#16233B", "inkSoft": "#21344F", "accent": "#2F7E6C",
                "accentHover": "#2A7062", "accentSoft": "#DCEEE9", "accentPale": "#8FD3C2",
@@ -75,9 +99,17 @@ DEFAULT_CONFIG = {
                   "en": "Keep your session active and remember your choice."},
          "signals": ["functionality_storage", "security_storage"]},
         {"id": "analitica", "locked": False,
-         "label": {"es": "Analitica anonima", "en": "Anonymous analytics"},
-         "desc": {"es": "Metricas agregadas de uso. Sin perfiles publicitarios.",
-                  "en": "Aggregated usage metrics. No advertising profiles."},
+         # NO "Analitica anonima". Lo decia asi hasta hoy, y el validador de
+         # etiquetas que se acaba de anadir marca en rojo cualquier sitio nuevo
+         # por culpa de este literal: cada cliente nacia con un error suyo.
+         # Peor: el informe del bufete senalaba a EDG por llamar a su categoria
+         # "Analitica anonima", y EDG lo saco de aqui. Google Analytics guarda
+         # un identificador en una cookie de dos anos; no es anonima.
+         "label": {"es": "Analitica", "en": "Analytics"},
+         # "Sin perfiles publicitarios" si es cierto: esta categoria no
+         # concede ninguna senal de publicidad. "Agregadas" no lo era.
+         "desc": {"es": "Cuentan visitas y como se usa el sitio. Sin perfiles publicitarios.",
+                  "en": "Count visits and how the site is used. No advertising profiles."},
          "signals": ["analytics_storage"]},
         {"id": "preferencias", "locked": False,
          "label": {"es": "Preferencias", "en": "Preferences"},
@@ -179,6 +211,36 @@ def init_db():
     # banner no puede hacer nada: hay que decirlo en vez de callarlo.
     if ck and "httponly" not in ck:
         c.execute("ALTER TABLE cookies_found ADD COLUMN httponly INTEGER")
+    # Cuantas VISITAS distintas han visto esto, no cuantos avisos han llegado.
+    # hits sube varias veces por visita (el inventario va por pasadas), asi que
+    # no distingue "lo tienen todos" de "lo trajo un senor con una extension
+    # rara". Para proponer el bloqueo de un dominio de un tercero esa
+    # diferencia es la unica que importa. Lo marca el bundle con un booleano en
+    # su sessionStorage: no se guarda identificador de nadie, ni aqui ni alli.
+    if ck and "sesiones" not in ck:
+        c.execute("ALTER TABLE cookies_found ADD COLUMN sesiones INTEGER DEFAULT 1")
+
+    # De que region venia quien decidio, y bajo que regimen se le pregunto.
+    # Sin esto, un registro de hace seis meses no puede defenderse: no dice si
+    # a esa persona habia que pedirle permiso previo o bastaba con informarle.
+    cl = [r[1] for r in c.execute("PRAGMA table_info(consent_logs)").fetchall()]
+    if cl and "region" not in cl:
+        c.execute("ALTER TABLE consent_logs ADD COLUMN region TEXT DEFAULT ''")
+    if cl and "modo" not in cl:
+        c.execute("ALTER TABLE consent_logs ADD COLUMN modo TEXT DEFAULT ''")
+    # La ruta donde se le pregunto, sin query, y el hash del texto que vio.
+    if cl and "pagina" not in cl:
+        c.execute("ALTER TABLE consent_logs ADD COLUMN pagina TEXT DEFAULT ''")
+    if cl and "texto_hash" not in cl:
+        c.execute("ALTER TABLE consent_logs ADD COLUMN texto_hash TEXT DEFAULT ''")
+
+    # El texto en si, UNA vez por hash y por sitio. Mil consentimientos con el
+    # mismo banner son mil hashes y un texto. Sin esta tabla el hash del
+    # registro no se puede resolver, y un registro que apunta a algo que ya no
+    # existe no prueba nada.
+    c.execute("""CREATE TABLE IF NOT EXISTS textos_consentimiento(
+        site_id TEXT, hash TEXT, texto TEXT, primera_vez TEXT, veces INTEGER DEFAULT 0,
+        PRIMARY KEY(site_id, hash))""")
 
     # Identifica a QUIEN se le entrego cada trabajo. Sin esto, un worker al que
     # se dio por muerto puede volver mas tarde y pisar el estado de un trabajo
@@ -259,6 +321,16 @@ COOKIE_CATALOGO = [
     ("borlabs-cookie",      "esencial", "Borlabs (WordPress): otro banner instalado."),
     ("moove_gdpr_popup",    "esencial", "GDPR Cookie Compliance (WordPress): otro banner instalado."),
     ("complianz",           "esencial", "Complianz (WordPress): otro banner instalado."),
+    # --- WhatConverts ---
+    # Seguimiento de llamadas y formularios: cambia el telefono que se ve en la
+    # pagina segun de donde venga la visita, y ata esa llamada a la campana.
+    # Es marketing con todas las letras, aunque el cliente lo tenga en la
+    # cabeza como "analitica de leads".
+    ("wc_sid",       "marketing", "WhatConverts: ata la visita a la llamada o el formulario."),
+    ("wcsid",        "marketing", "WhatConverts: identificador de sesion del seguimiento."),
+    ("_wc_visitor",  "marketing", "WhatConverts: identifica al visitante entre sesiones."),
+    ("wc_visitor",   "marketing", "WhatConverts: identifica al visitante entre sesiones."),
+    ("wc_lead",      "marketing", "WhatConverts: marca la visita que acabo en contacto."),
     # --- LeadLander / Trackalyzer ---
     ("trackalyzer",  "analitica", "LeadLander: identifica visitantes y sigue su recorrido."),
     ("llvisit",      "analitica", "LeadLander: control de la visita actual."),
@@ -390,6 +462,8 @@ PROVEEDORES = [
     ("amplitude",   "Amplitude",           "amplitude.com"),
     ("mp_",         "Mixpanel",            "mixpanel.com"),
     ("trackalyzer", "LeadLander",          "leadlander.com"),
+    ("wc_",         "WhatConverts",        "whatconverts.com"),
+    ("wcsid",       "WhatConverts",        "whatconverts.com"),
     ("_mcid",       "Mailchimp",           "mailchimp.com"),
     ("mailchimp",   "Mailchimp",           "mailchimp.com"),
 ]
@@ -406,9 +480,179 @@ EXTENSIONES_NAVEGADOR = (
     "__react_devtools", "__vue_devtools", "loom-", "__pocket", "adblock",
 )
 
+# ---- Region del visitante ---------------------------------------------------
+# El pais y la region los pone el borde (Railway, Cloudflare, Vercel,
+# CloudFront), no el navegador: el navegador no sabe donde esta y lo que diga
+# seria falsificable. Cada proveedor usa su propia cabecera, asi que se miran
+# todas las conocidas en orden.
+#
+# Estas cabeceras SOLO valen si hay un borde delante que las ponga. Si alguien
+# llega directo al origen puede escribirlas a mano, asi que lo que decidan no
+# puede ser una puerta de seguridad: aqui deciden que banner se ensena, no a
+# que datos se accede. Un visitante que se invente la cabecera se auto-aplica
+# un regimen mas estricto o mas laxo A SI MISMO, y nada mas.
+CAB_PAIS = ("CF-IPCountry", "X-Vercel-IP-Country", "CloudFront-Viewer-Country",
+            "X-Country-Code", "X-Geo-Country", "Fastly-Geo-Country")
+CAB_REGION = ("CF-Region-Code", "X-Vercel-IP-Country-Region",
+              "CloudFront-Viewer-Country-Region", "X-Geo-Region")
+
+# Paises del Espacio Economico Europeo mas Reino Unido y Suiza: donde el
+# consentimiento tiene que ser previo y explicito.
+EEE = {"AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
+       "HU", "IE", "IT", "LV", "LI", "LT", "LU", "MT", "NL", "NO", "PL", "PT",
+       "RO", "SK", "SI", "ES", "SE", "IS", "GB", "CH"}
+
+
+def region_de(headers):
+    """(pais, region) en mayusculas, o ("", "") si no hay borde que lo diga."""
+    pais = region = ""
+    for k in CAB_PAIS:
+        v = (headers.get(k) or "").strip().upper()
+        # Cloudflare manda XX cuando no lo sabe, y T1 para trafico de Tor.
+        if v and v not in ("XX", "T1"):
+            pais = v[:2]
+            break
+    for k in CAB_REGION:
+        v = (headers.get(k) or "").strip().upper()
+        if v:
+            region = v[:8]
+            break
+    return pais, region
+
+
+# Claves que nunca viajan en una config, ni al guardarla ni al servirla.
+# JSON.parse las crea como propiedad propia, y cualquier mezcla profunda que
+# haga el navegador acaba escribiendo dentro de Object.prototype: con
+# {"__proto__": {"locked": true}} guardado desde el panel, toda categoria
+# heredaba locked y se concedia todo. El bundle tiene su propia guarda; esta
+# es la segunda puerta, y ademas protege al JS del propio panel, que tambien
+# parsea esta config.
+VETADAS_JSON = ("__proto__", "constructor", "prototype")
+
+
+def hash_texto(txt):
+    """El mismo FNV-1a de 32 bits, dos veces, que calcula el bundle.
+
+    Se recalcula AQUI y no se cree el que llega. El texto se deduce entero de
+    /api/config, que es publico, y la clave publica esta en el HTML del
+    cliente: cualquiera podia calcular el hash del banner vigente y mandar ese
+    hash con un texto inventado antes que el primer visitante. Como el guardado
+    es "el primero gana", a partir de ahi todos los consentimientos de verdad
+    de esa version apuntaban a un texto que el cliente nunca mostro, y el panel
+    lo ensenaba como "lo que vio el visitante". La prueba se la quedaba quien
+    llegase antes."""
+    def fnv(semilla):
+        h = semilla
+        for ch in txt:
+            cp = ord(ch)
+            h ^= cp & 0xFF
+            h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) & 0xFFFFFFFF
+            alto = cp >> 8
+            if alto:
+                h ^= alto
+                h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) & 0xFFFFFFFF
+        return h & 0xFFFFFFFF
+    return "%08x%08x" % (fnv(0x811C9DC5), fnv(0x01000193))
+
+
+def limpia_config(v, hondo=0):
+    """Quita las claves venenosas de un arbol de config, sin tocar el resto."""
+    if hondo > 20:
+        return v
+    if isinstance(v, dict):
+        return {k: limpia_config(x, hondo + 1) for k, x in v.items()
+                if k not in VETADAS_JSON}
+    if isinstance(v, list):
+        return [limpia_config(x, hondo + 1) for x in v]
+    return v
+
+
+def modo_para(cfg, pais, region):
+    """Que regimen le toca a este visitante: "optin" u "optout".
+
+    Las reglas se miran de la mas concreta a la menos: primero "US-CA", luego
+    "US", luego "EU", y si nada casa, el valor por defecto. Al reves, una regla
+    de pais taparia siempre a la de su estado."""
+    r = cfg.get("regions")
+    if not isinstance(r, dict):
+        r = {}
+    defecto = r.get("default")
+    if defecto not in ("optin", "optout"):
+        # Sin configurar, manda el opt-in. Es el mas estricto de los dos: si la
+        # config esta a medias o el borde no dice nada, equivocarse hacia pedir
+        # permiso es recuperable, y equivocarse hacia no pedirlo no lo es.
+        defecto = "optin"
+    reglas = r.get("rules")
+    if not isinstance(reglas, list):
+        reglas = []
+
+    # Sin pais no se aplica el defecto: se aplica el opt-in. El borde no
+    # siempre sabe de donde viene alguien -- Cloudflare manda XX, Tor manda T1,
+    # un proxy puede comerse la cabecera, y un despliegue sin CDN delante no
+    # pone ninguna. Con la config que el propio panel recomienda
+    # ({"default": "optout", "rules": [{"match": "EU", "mode": "optin"}]}), un
+    # visitante de Madrid con VPN recibia opt-out y se le concedia todo antes
+    # de tocar nada. "No se de donde es" tiene que caer del lado estricto, que
+    # es el unico de los dos que se puede deshacer.
+    if not pais:
+        return "optin", "sin-region"
+
+    claves = []
+    if pais and region:
+        claves.append("%s-%s" % (pais, region))
+    if pais:
+        claves.append(pais)
+        if pais in EEE:
+            claves.append("EU")
+    for clave in claves:
+        for regla in reglas:
+            if not isinstance(regla, dict):
+                continue
+            if str(regla.get("match") or "").strip().upper() != clave:
+                continue
+            m = regla.get("mode")
+            if m in ("optin", "optout"):
+                return m, clave
+    return defecto, ""
+
+
 def es_de_extension(nombre):
     n = (nombre or "").strip().lower()
     return any(n.startswith(p) for p in EXTENSIONES_NAVEGADOR)
+
+
+# Claves que no son del sitio ni dicen nada de el. A diferencia de las
+# familias de abajo, estas no se agrupan: se tiran.
+#   cb_theme_preview  nuestras, de la vista previa de temas del panel
+#   convert-qa-       utillaje de pruebas de Convert, no toca a los visitantes
+RUIDO_INVENTARIO = ("cb_theme_preview", "cb_inv_sesion", "convert-qa-")
+
+def es_ruido(nombre):
+    n = (nombre or "").strip().lower()
+    return any(n.startswith(p) for p in RUIDO_INVENTARIO)
+
+
+# Cookies cuyo nombre lleva dentro un numero que cambia en cada visita o en
+# cada campana. Google Ads escribe _gd1770000000, y con un numero distinto por
+# visitante el inventario de un sitio acaba con treinta y ocho filas que son
+# todas la misma cookie. El patron que al final hay que escribir en la config
+# es el prefijo, asi que se guarda el prefijo y punto.
+#
+# El corte es cuatro digitos. Arriba no vale subirlo: los identificadores de
+# sitio de Hotjar de las cuentas viejas tienen cuatro (_hjSessionUser_3312) y
+# con seis se escapaban. Abajo no vale bajarlo: nombres legitimos acaban en uno
+# o dos digitos (_ga4, utm_2, s_sq1) y agruparlos borraria cookies distintas en
+# una sola fila. Entre medias no hay nada conocido que se pierda.
+_FAMILIA = re.compile(r"^([A-Za-z_][A-Za-z_\-]*?)[0-9]{4,}$")
+
+def familia_de(nombre):
+    """El nombre con el que se inventaria. Devuelve el prefijo si el nombre es
+    de una familia numerada, y el nombre tal cual si no."""
+    n = (nombre or "").strip()
+    m = _FAMILIA.match(n)
+    if m and len(m.group(1)) >= 2:
+        return m.group(1)
+    return n
 
 
 # Otros gestores de consentimiento. No se filtran: que aparezcan significa que
@@ -769,6 +1013,15 @@ def _cargar_rastreo():
 _cargar_rastreo()
 
 
+# Dominios que anadimos a mano al catalogo abierto. La base de WhoTracksMe no
+# los trae todos, y cuando a un cliente le sale un dominio sin reconocer el
+# panel no puede decirle nada util.
+DOMINIOS_PROPIOS = {
+    "whatconverts.com":         ["marketing", "WhatConverts", "seguimiento de llamadas"],
+    "scripts.whatconverts.com": ["marketing", "WhatConverts", "seguimiento de llamadas"],
+}
+
+
 def clasificar_host(host):
     """(categoria_sugerida, empresa, explicacion) para un host de terceros.
 
@@ -786,7 +1039,10 @@ def clasificar_host(host):
         return None, None, None
     partes = h.split(".")
     for i in range(len(partes) - 1):
-        hit = DOMINIOS_RASTREO.get(".".join(partes[i:]))
+        clave = ".".join(partes[i:])
+        # Los nuestros primero: estan revisados a mano y en castellano, y el
+        # catalogo abierto puede traer el mismo dominio con menos detalle.
+        hit = DOMINIOS_PROPIOS.get(clave) or DOMINIOS_RASTREO.get(clave)
         if not hit:
             continue
         categoria, empresa, grupo = (hit + ["", "", ""])[:3]
@@ -799,6 +1055,70 @@ def clasificar_host(host):
         return None, empresa, ("%s (%s). Se reconoce, pero bloquearlo se nota en "
                                "pantalla, asi que se deja a tu criterio." % (quien, grupo))
     return None, None, None
+
+
+# Secreto del servidor, para firmar los enlaces de vista previa. Se guarda una
+# vez en la base y no sale de aqui: el bundle nunca lo ve, solo manda el token y
+# el servidor dice si vale.
+_SECRETO = None
+def secreto_servidor():
+    global _SECRETO
+    if _SECRETO:
+        return _SECRETO
+    c = db()
+    c.execute("CREATE TABLE IF NOT EXISTS ajustes(clave TEXT PRIMARY KEY, valor TEXT)")
+    r = c.execute("SELECT valor FROM ajustes WHERE clave='secreto'").fetchone()
+    if r:
+        _SECRETO = r["valor"]
+    else:
+        _SECRETO = secrets.token_hex(32)
+        c.execute("INSERT INTO ajustes(clave,valor) VALUES('secreto',?)", (_SECRETO,))
+        c.commit()
+    c.close()
+    return _SECRETO
+
+
+def firma_preview(site_id, caduca):
+    msg = "%s|%s" % (site_id, caduca)
+    return hmac.new(secreto_servidor().encode(), msg.encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def token_preview(site_id, horas=4):
+    caduca = int(time.time()) + horas * 3600
+    return "%d.%s" % (caduca, firma_preview(site_id, caduca))
+
+
+def preview_valido(site_id, token):
+    """La vista previa de temas no puede abrirla cualquiera.
+
+    Antes bastaba con poner ?consentTheme= en la URL de un cliente: la barra
+    flotante aparecia, se guardaba en localStorage sin caducidad y el parametro
+    se borraba de la barra de direcciones, asi que el visitante ni sabia por que
+    le habia cambiado el banner."""
+    try:
+        caduca, firma = str(token or "").split(".", 1)
+        if int(caduca) < time.time():
+            return False
+        return hmac.compare_digest(firma, firma_preview(site_id, caduca))
+    except Exception:
+        return False
+
+
+def huella_consentimiento(cfg):
+    """Huella de lo que el visitante acepto: categorias y textos.
+
+    Es lo que distingue un cambio de color de un cambio de lo consentido. Se
+    miran el id, si esta bloqueada, la etiqueta y la descripcion de cada
+    categoria, y el bloque de textos entero. Lo demas (colores, tipografias,
+    posicion del banner) no cambia lo que se acepto."""
+    cats = []
+    for c in (cfg.get("categories") or []):
+        if not isinstance(c, dict):
+            continue
+        cats.append([c.get("id"), bool(c.get("locked")), c.get("label"), c.get("desc")])
+    datos = json.dumps({"c": cats, "t": cfg.get("texts") or {}},
+                       sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(datos.encode("utf8")).hexdigest()[:16]
 
 
 def now():
@@ -1038,6 +1358,7 @@ LIMITES = {
     "cookies": (90, 60),    # 90 envios de inventario por minuto y por IP
     "detect":  (10, 300),   # 10 detecciones por 5 minutos y por IP: descarga webs ajenas
     "registro": (5, 900),   # 5 altas por 15 minutos y por IP: endpoint publico
+    "aviso":   (30, 60),    # 30 avisos de instalacion por minuto y por IP
 }
 _hits = {}
 _hits_lock = threading.Lock()
@@ -1432,6 +1753,8 @@ class H(BaseHTTPRequestHandler):
             return self.dash_scan_estado(q)
         if p == "/dash/site/scan/informe":
             return self.dash_scan_informe(q)
+        if p == "/dash/site/preview-token":
+            return self.dash_preview_token(q)
         if p == "/dash/site/avisos":
             return self.dash_avisos(q)
         return self._file(p.lstrip("/"))  # servir estaticos (sitio-demo.html, consent-banner.js)
@@ -1441,6 +1764,8 @@ class H(BaseHTTPRequestHandler):
         p = urlparse(self.path).path
         if p == "/api/consent":
             return self.api_consent()
+        if p == "/api/aviso-instalacion":
+            return self.api_aviso_instalacion()
         if p == "/api/cookies":
             return self.api_cookies()
         if p == "/dash/login":
@@ -1564,11 +1889,40 @@ class H(BaseHTTPRequestHandler):
         r = c.execute("SELECT json FROM site_config WHERE site_id=?", (site_id,)).fetchone()
         if not r:
             c.close(); return self._send(404, {"error": "site not found"})
-        cfg = json.loads(r["json"])
+        # Tambien al servir, no solo al guardar: una config escrita antes de
+        # este arreglo sigue en la base.
+        cfg = limpia_config(json.loads(r["json"]))
         cfg["siteId"] = site_id
         cfg["publicKey"] = public_key_for(c, site_id)
+        # La vista previa solo se concede con un token firmado por nosotros. El
+        # bundle no puede comprobar la firma (no tiene el secreto, ni debe), asi
+        # que la comprobacion viaja de vuelta en la config que ya pedia igual.
+        # Se BORRA antes de mirar el token. Si no, bastaba con escribir
+        # "_preview": true en el JSON del sitio desde el panel para que la
+        # vista previa quedara abierta a todos los visitantes para siempre, y
+        # la firma HMAC no pintaba nada.
+        cfg.pop("_preview", None)
+        tk = (q.get("preview") or [""])[0]
+        if tk:
+            cfg["_preview"] = preview_valido(site_id, tk)
+        # La region la resuelve el servidor, no el navegador: la cabecera la
+        # pone el borde y aqui es donde se puede leer. El bundle recibe ya
+        # decidido que regimen le toca, para no tener que saber geografia.
+        pais, reg = region_de(self.headers)
+        modo, regla = modo_para(cfg, pais, reg)
+        cfg["_region"] = {"country": pais, "region": reg, "mode": modo, "rule": regla}
         c.close()
-        self._send(200, cfg)
+        # La respuesta ya NO es la misma para todo el mundo, asi que no se
+        # puede cachear por URL a secas: sin Vary, el primer visitante que pase
+        # por un CDN le deja su regimen cacheado a todos los que vengan detras.
+        # Un visitante de Madrid podria recibir el opt-out de Texas.
+        self._send(200, cfg, headers={
+            # TODAS las cabeceras que puede mirar region_de, de pais y de
+            # region. Antes solo iban tres de las seis de pais y ninguna de
+            # region: un despliegue con Fastly, o uno que distinga por estado,
+            # le servia a todo el mundo el regimen del primer visitante.
+            "Vary": ", ".join(CAB_PAIS + CAB_REGION),
+            "Cache-Control": "private, max-age=0, no-store"})
 
     def api_consent(self):
         if not rate_ok("consent", ip_cliente(self)):
@@ -1594,11 +1948,56 @@ class H(BaseHTTPRequestHandler):
         # solo, asi que no depende de que el bundle la reporte bien.
         cab = (self.headers.get("Sec-GPC") or "").strip() == "1"
         gpc = 1 if (cab or data.get("gpc") is True) else 0
-        c.execute("INSERT INTO consent_logs(consent_id,site_id,choice,categories,version_texto,language,ts,ip,user_agent,gpc)"
-                  " VALUES(?,?,?,?,?,?,?,?,?,?)",
+        # La region y el regimen se recalculan AQUI con las cabeceras de esta
+        # misma peticion, y no se cogen de lo que mande el navegador: el
+        # registro es la prueba de que se le pregunto bien a esta persona, y
+        # una prueba que el propio interesado puede escribir no prueba nada.
+        pais_l, reg_l = region_de(self.headers)
+        cfg_l = c.execute("SELECT json FROM site_config WHERE site_id=?",
+                          (site_id,)).fetchone()
+        modo_l = ""
+        if cfg_l:
+            try:
+                modo_l, _ = modo_para(json.loads(cfg_l["json"]), pais_l, reg_l)
+            except Exception:
+                modo_l = ""
+        region_l = ("%s-%s" % (pais_l, reg_l)) if (pais_l and reg_l) else pais_l
+        # La ruta se vuelve a limpiar AQUI aunque el bundle ya la mande sin
+        # query: lo que llega por la red es del navegador, y basta con una
+        # peticion a mano para meter un correo en el registro. Un registro de
+        # consentimiento con datos personales de mas es lo contrario de lo que
+        # este producto vende.
+        pagina = str(data.get("page") or "")[:300].split("?")[0].split("#")[0]
+        texto = data.get("text")
+        # El hash que llega se descarta y se calcula de nuevo sobre el texto
+        # recibido. Si el par no cuadra, el texto no se guarda y la fila del
+        # registro se queda sin hash: mejor una prueba que falta que una
+        # prueba falsa.
+        thash = ""
+        if isinstance(texto, str) and texto:
+            # Se trunca ANTES de hashear, porque es lo truncado lo que se
+            # guarda: si no, el texto almacenado no reproduciria su hash.
+            texto = texto[:20000]
+            thash = hash_texto(texto)
+            recibido = str(data.get("text_hash") or "")[:40]
+            if recibido and recibido != thash:
+                print("[consent] el hash que mando el navegador no cuadra con su "
+                      "texto (site=%s, recibido=%s, calculado=%s): se usa el "
+                      "calculado" % (site_id, recibido, thash))
+        if thash and texto:
+            # INSERT OR IGNORE: el primero gana. Ya no importa quien llegue
+            # antes, porque el hash sale del texto y no del que lo manda.
+            c.execute("INSERT OR IGNORE INTO textos_consentimiento"
+                      "(site_id,hash,texto,primera_vez,veces) VALUES(?,?,?,?,0)",
+                      (site_id, thash, texto, now()))
+            c.execute("UPDATE textos_consentimiento SET veces=veces+1 "
+                      "WHERE site_id=? AND hash=?", (site_id, thash))
+        c.execute("INSERT INTO consent_logs(consent_id,site_id,choice,categories,version_texto,language,ts,ip,user_agent,gpc,region,modo,pagina,texto_hash)"
+                  " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                   (cid, site_id, data.get("choice"), json.dumps(data.get("categories")),
                    data.get("version"), data.get("language"), now(),
-                   ip_cliente(self), self.headers.get("User-Agent", ""), gpc))
+                   ip_cliente(self), self.headers.get("User-Agent", ""), gpc,
+                   region_l, modo_l, pagina, thash))
         c.commit(); c.close()
         self._send(200, {"consent_id": cid, "ts": now()})
 
@@ -1899,6 +2298,7 @@ class H(BaseHTTPRequestHandler):
         try:
             cfg = d["config"]
             assert isinstance(cfg, dict)
+            cfg = limpia_config(cfg)
         except Exception:
             return self._send(400, {"error": "config invalida"})
         c = db()
@@ -1917,11 +2317,34 @@ class H(BaseHTTPRequestHandler):
                     cfg["customCss"] = previa["customCss"]
                 else:
                     cfg.pop("customCss", None)
+        # Huella de lo que el visitante ACEPTO: categorias y textos. Si cambia y
+        # consentVersion no, quien ya decidio no vuelve a ver el banner nunca y
+        # su consentimiento queda dado sobre una redaccion que ya no existe.
+        # Aqui no se sube la version sola: eso volveria a preguntar a todo el
+        # mundo sin que nadie lo haya pedido, y un retoque de una coma no lo
+        # merece. Se avisa, y la decision es de quien publica.
+        huella = huella_consentimiento(cfg)
+        cambio_texto = False
+        if row:
+            try:
+                previa = json.loads(row["json"])
+                cambio_texto = (huella_consentimiento(previa) != huella and
+                                previa.get("consentVersion") == cfg.get("consentVersion"))
+            except Exception:
+                cambio_texto = False
         newv = (row["version"] if row else 0) + 1
         c.execute("UPDATE site_config SET version=?, json=?, updated_at=? WHERE site_id=?",
                   (newv, json.dumps(cfg), now(), site_id))
         c.commit(); c.close()
-        self._send(200, {"ok": True, "version": newv})
+        self._send(200, {"ok": True, "version": newv,
+                         "texto_cambiado": cambio_texto})
+
+    def dash_preview_token(self, q):
+        """El panel pide un enlace de vista previa firmado. Caduca en 4 horas."""
+        u = self._user(); site_id = (q.get("site_id") or [""])[0]
+        if not u or not self._owns(u, site_id):
+            return self._send(401, {"error": "no auth"})
+        self._send(200, {"token": token_preview(site_id), "horas": 4})
 
     def dash_site_delete(self):
         """Borra un sitio y todo lo que cuelga de el: config, claves, registros.
@@ -1981,16 +2404,69 @@ class H(BaseHTTPRequestHandler):
         for r in c.execute("SELECT choice,COUNT(*) n FROM consent_logs WHERE site_id=? GROUP BY choice", (site_id,)):
             counts[r["choice"] or "?"] = r["n"]
         rows = [dict(r) for r in c.execute(
-            "SELECT consent_id,choice,categories,language,version_texto,ts,ip,gpc FROM consent_logs "
+            "SELECT consent_id,choice,categories,language,version_texto,ts,ip,gpc,"
+            "region,modo,pagina,texto_hash FROM consent_logs "
             "WHERE site_id=? ORDER BY id DESC LIMIT 25", (site_id,))]
         total = c.execute("SELECT COUNT(*) n FROM consent_logs WHERE site_id=?", (site_id,)).fetchone()["n"]
+        # Los textos que hay detras de los hashes que salen en esta pagina. Sin
+        # esto la columna del hash seria una cadena sin sentido para quien mira.
+        hashes = sorted(set(r["texto_hash"] for r in rows if r.get("texto_hash")))
+        textos = {}
+        if hashes:
+            marcas = ",".join("?" * len(hashes))
+            for r in c.execute(
+                    "SELECT hash,texto,primera_vez,veces FROM textos_consentimiento "
+                    "WHERE site_id=? AND hash IN (%s)" % marcas, [site_id] + hashes):
+                textos[r["hash"]] = {"texto": r["texto"], "desde": r["primera_vez"],
+                                     "veces": r["veces"]}
         c.close()
-        self._send(200, {"counts": counts, "total": total, "rows": rows})
+        self._send(200, {"counts": counts, "total": total, "rows": rows,
+                         "textos": textos})
 
     # ---- Deteccion de cookies -------------------------------------------
     # El bundle manda lo que ve en document.cookie en el sitio real. No es una
     # lista de consentimiento: es inventario, por eso se guarda aparte y solo
     # se acumula (primera vez, ultima vez, cuantas veces).
+    def api_aviso_instalacion(self):
+        """El bundle avisa de algo que solo se ve en el HTML del cliente.
+
+        Hoy solo de una cosa: que Google Tag Manager se carga antes que el
+        bloque de consentimiento. Es la forma de la fuga de Costa Farms vista
+        desde dentro, y no se puede detectar desde el panel porque alli la
+        config es correcta; esta mal el ORDEN del HTML, que solo se ve en la
+        pagina."""
+        if not rate_ok("aviso", ip_cliente(self)):
+            return self._send(429, {"error": "demasiadas peticiones"})
+        d = self._body()
+        site_id = d.get("site_id")
+        key = self.headers.get("X-Api-Key")
+        c = db()
+        ok = c.execute("SELECT 1 FROM api_keys WHERE key=? AND site_id=? AND kind='public' "
+                       "AND active=1", (key, site_id)).fetchone()
+        if not ok:
+            c.close(); return self._send(401, {"error": "invalid site_id or api key"})
+        tipo = str(d.get("tipo") or "")[:40]
+        if tipo not in ("gtm_antes",):
+            c.close(); return self._send(400, {"error": "tipo desconocido"})
+        detalle = str(d.get("detalle") or "")[:300]
+        pagina = str(d.get("page") or "")[:300].split("?")[0].split("#")[0]
+        # Una fila por sitio y tipo: esto lo manda CADA visita de CADA
+        # visitante, y lo que el cliente necesita saber es "pasa o no pasa",
+        # no treinta mil filas identicas.
+        c.execute("""CREATE TABLE IF NOT EXISTS avisos_instalacion(
+            site_id TEXT, tipo TEXT, detalle TEXT, pagina TEXT,
+            primera_vez TEXT, ultima_vez TEXT, veces INTEGER DEFAULT 0,
+            visto INTEGER DEFAULT 0, PRIMARY KEY(site_id, tipo))""")
+        t = now()
+        c.execute("INSERT OR IGNORE INTO avisos_instalacion"
+                  "(site_id,tipo,detalle,pagina,primera_vez,ultima_vez,veces,visto)"
+                  " VALUES(?,?,?,?,?,?,0,0)", (site_id, tipo, detalle, pagina, t, t))
+        c.execute("UPDATE avisos_instalacion SET ultima_vez=?, veces=veces+1, "
+                  "detalle=?, pagina=? WHERE site_id=? AND tipo=?",
+                  (t, detalle, pagina, site_id, tipo))
+        c.commit(); c.close()
+        self._send(200, {"ok": True})
+
     def api_cookies(self):
         if not rate_ok("cookies", ip_cliente(self)):
             return self._send(429, {"error": "demasiadas peticiones"})
@@ -2015,6 +2491,12 @@ class H(BaseHTTPRequestHandler):
         # esencial por definicion y no hay nada que decidir sobre ella.
         propia = cookie_propia(c, site_id)
         fase = str(data.get("phase") or "")[:20]
+        primera = bool(data.get("primera"))   # primera pasada de ESTA visita
+        # Dos nombres de la misma familia en una sola peticion
+        # (_hjSessionUser_3312 y _hjSessionUser_9981) colapsan al mismo nombre y
+        # subian el contador de visitas dos veces. Se cuenta una por nombre ya
+        # agrupado y por peticion.
+        contadas = set()
         ts = now()
         nuevas = 0
         for item in vistas[:200]:                      # tope defensivo por peticion
@@ -2038,6 +2520,13 @@ class H(BaseHTTPRequestHandler):
                 kind = "cookie"
             if es_de_extension(nombre):
                 continue                      # extension del navegador, no del sitio
+            if es_ruido(nombre):
+                continue                      # ni del sitio ni del visitante
+            # Las cookies numeradas se cuentan juntas: una fila _gd en vez de
+            # treinta y ocho _gd1770000000 que son la misma cookie. Los hosts
+            # no, que son dominios y no nombres de cookie.
+            if kind != "host":
+                nombre = familia_de(nombre)
             ya = c.execute("SELECT hits FROM cookies_found WHERE site_id=? AND name=?",
                            (site_id, nombre)).fetchone()
             if ya:
@@ -2056,12 +2545,24 @@ class H(BaseHTTPRequestHandler):
                 if ho:
                     c.execute("UPDATE cookies_found SET httponly=1 WHERE site_id=? AND name=?",
                               (site_id, nombre))
+                if primera and nombre not in contadas:
+                    contadas.add(nombre)
+                    c.execute("UPDATE cookies_found SET sesiones=COALESCE(sesiones,1)+1 "
+                              "WHERE site_id=? AND name=?", (site_id, nombre))
+                # Que lo haya visto el escaner se graba aunque la fila ya
+                # existiera: es lo que distingue un hallazgo de una barrida
+                # deliberada por varias paginas de uno traido por un visitante
+                # suelto, y abajo decide si se propone o se retiene.
+                if fase == "escaner":
+                    c.execute("UPDATE cookies_found SET phase='escaner' "
+                              "WHERE site_id=? AND name=?", (site_id, nombre))
             else:
                 c.execute("INSERT INTO cookies_found(site_id,name,first_seen,last_seen,hits,"
                           "sample_domain,phase,status,category,note,kind,party,page,autor,"
-                          "fases,httponly) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                          "fases,httponly,sesiones) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                           (site_id, nombre, ts, ts, 1, dominio, fase, "nueva", "", "",
-                           kind, party, page, autor, fases, ho))
+                           kind, party, page, autor, fases, ho, 1))
+                contadas.add(nombre)
                 nuevas += 1
         c.commit(); c.close()
         self._send(200, {"ok": True, "nuevas": nuevas})
@@ -2078,7 +2579,7 @@ class H(BaseHTTPRequestHandler):
         dom_propio = ((fila_sitio["domain"] if fila_sitio else "") or "").split(",")[0].strip()
         filas = []
         for r in c.execute("SELECT name,first_seen,last_seen,hits,sample_domain,phase,status,"
-                           "category,note,kind,party,page,autor,fases,httponly FROM cookies_found "
+                           "category,note,kind,party,page,autor,fases,httponly,sesiones FROM cookies_found "
                            "WHERE site_id=? ORDER BY "
                            "CASE status WHEN 'nueva' THEN 0 ELSE 1 END, name", (site_id,)):
             d = dict(r)
@@ -2092,6 +2593,21 @@ class H(BaseHTTPRequestHandler):
             # el catalogo de cookies no sabe nada de el. Va por su propia via.
             if d.get("kind") == "host":
                 sug, empresa, expl = clasificar_host(d["name"])
+                # Un dominio que ha visto UNA sola visita no se propone todavia.
+                # Casi siempre es la extension de ese visitante, un video que
+                # alguien incrusto una vez o un experimento de marketing que ya
+                # no esta. Se sigue listando (hace falta verlo), pero sin
+                # sugerencia: proponer el bloqueo de algo visto una vez es
+                # exactamente la lista inflada de la que se quejaba el informe.
+                # El escaner no cuenta como "una visita suelta": recorre varias
+                # paginas a proposito. Lo que vio el se propone sin esperar.
+                visto_poco = ((d.get("sesiones") or 1) < 2
+                              and (d.get("phase") or "") != "escaner")
+                d["visto_una_vez"] = visto_poco
+                if visto_poco:
+                    sug = ""
+                    expl = ((expl + " ") if expl else "") + \
+                           "Visto en una sola visita: confirma que es del sitio antes de bloquearlo."
                 d["sugerida"] = sug or ""
                 d["explicacion"] = expl or ""
                 d["cmp"] = ""
@@ -2203,9 +2719,20 @@ class H(BaseHTTPRequestHandler):
             "LIMIT 60", (site_id,))]
         sin_ver = c.execute("SELECT COUNT(*) n FROM avisos WHERE site_id=? AND visto=0",
                             (site_id,)).fetchone()["n"]
+        # Los de instalacion van en la MISMA campana: para el cliente es un
+        # problema del sitio, igual que los del escaner, y repartirlos en dos
+        # sitios distintos es garantizar que uno de los dos no se mire.
+        c.execute("""CREATE TABLE IF NOT EXISTS avisos_instalacion(
+            site_id TEXT, tipo TEXT, detalle TEXT, pagina TEXT,
+            primera_vez TEXT, ultima_vez TEXT, veces INTEGER DEFAULT 0,
+            visto INTEGER DEFAULT 0, PRIMARY KEY(site_id, tipo))""")
+        inst = [dict(r) for r in c.execute(
+            "SELECT tipo,detalle,pagina,primera_vez,ultima_vez,veces,visto "
+            "FROM avisos_instalacion WHERE site_id=?", (site_id,))]
+        sin_ver += len([x for x in inst if not x["visto"]])
         v = c.execute("SELECT * FROM vigilancia WHERE site_id=?", (site_id,)).fetchone()
         c.close()
-        self._send(200, {"rows": filas, "sin_ver": sin_ver,
+        self._send(200, {"rows": filas, "instalacion": inst, "sin_ver": sin_ver,
                          "vigilancia": dict(v) if v else
                          {"activa": 0, "dias": 7, "url": "", "paginas": 8,
                           "ultimo": None}})
@@ -2221,6 +2748,14 @@ class H(BaseHTTPRequestHandler):
                       (d.get("id"), site_id))
         else:
             c.execute("UPDATE avisos SET visto=1 WHERE site_id=?", (site_id,))
+            # "Marcar todo" incluye los de instalacion, que salen en la misma
+            # campana: si no, el numerito nunca bajaria a cero y la campana
+            # dejaria de significar nada.
+            try:
+                c.execute("UPDATE avisos_instalacion SET visto=1 WHERE site_id=?",
+                          (site_id,))
+            except sqlite3.OperationalError:
+                pass          # la tabla se crea al primer aviso; antes no existe
         c.commit(); c.close()
         self._send(200, {"ok": True})
 

@@ -272,6 +272,7 @@ let _userConfig = null;
   var COPY = {
     es: {
       gpcConflict: "Tu navegador pide que no vendamos ni compartamos tus datos, pero aqui ya habias aceptado. Dinos que prefieres.",
+      gpcFila: "Apagada porque tu navegador envia una senal de exclusion.",
       eyebrow: "Cookies",
       body: "Usamos cookies para que el sitio funcione y, con tu permiso, para medir su uso y mostrarte contenido relevante.",
       policy: "Politica de cookies",
@@ -283,10 +284,29 @@ let _userConfig = null;
       panelTitle: "Gestiona tus cookies",
       panelIntro: "Las esenciales no se pueden desactivar. Lo demas lo decides tu.",
       always: "Siempre activas", save: "Guardar preferencias",
-      chip: "Cookies", close: "Cerrar"
+      chip: "Cookies", close: "Cerrar",
+      // El rotulo del enlace de exclusion. En ingles NO se traduce ni se
+      // adorna: el articulo 7015 obliga a titularlo exactamente "Your Privacy
+      // Choices" o "Your California Privacy Choices". El castellano es para
+      // sitios en castellano, donde ese texto literal no aplica.
+      // El cuerpo del banner cuando toca opt-out. Es otro texto porque es otro
+      // acto: alli se pide permiso, aqui se informa de algo que ya esta
+      // pasando y se dice como pararlo. Reutilizar el de opt-in ("con tu
+      // permiso") seria decir algo que no es verdad.
+      bodyOptOut: "Usamos cookies para que el sitio funcione, medir su uso y mostrarte contenido relevante. Puedes apagar lo que no quieras cuando quieras.",
+      optOutTitle: "Tus opciones de privacidad",
+      optOutAria: "Tus opciones de privacidad: elegir si se venden o ceden tus datos",
+      ventaFila: "Encenderla permite vender o ceder tus datos.",
+      ventaIntro: "Las marcadas abajo permiten vender o ceder tus datos. Puedes apagarlas.",
+      // Los dos enlaces del estilo "dual" (arts. 7013 y 7014). Van en ingles
+      // tambien en la version espanola: son titulos que la norma de California
+      // fija literalmente, y traducirlos dejaria de cumplirla.
+      optOutSell: "Do Not Sell or Share My Personal Information",
+      optOutLimit: "Limit the Use of My Sensitive Personal Information"
     },
     en: {
       gpcConflict: "Your browser asks us not to sell or share your data, but you had accepted here before. Tell us what you prefer.",
+      gpcFila: "Turned off because your browser sent an opt-out preference signal.",
       eyebrow: "Cookies",
       body: "We use cookies so the site works and, with your permission, to measure usage and show you relevant content.",
       policy: "Cookie policy",
@@ -298,7 +318,14 @@ let _userConfig = null;
       panelTitle: "Manage your cookies",
       panelIntro: "Essential cookies can't be turned off. Everything else is up to you.",
       always: "Always on", save: "Save preferences",
-      chip: "Cookies", close: "Close"
+      chip: "Cookies", close: "Close",
+      bodyOptOut: "We use cookies to run the site, measure usage and show you relevant content. You can turn off what you don't want at any time.",
+      optOutTitle: "Your Privacy Choices",
+      optOutAria: "Your Privacy Choices: choose whether your data is sold or shared",
+      ventaFila: "Turning this on allows your data to be sold or shared.",
+      ventaIntro: "The ones marked below allow your data to be sold or shared. You can turn them off.",
+      optOutSell: "Do Not Sell or Share My Personal Information",
+      optOutLimit: "Limit the Use of My Sensitive Personal Information"
     }
   };
 
@@ -311,9 +338,26 @@ let _userConfig = null;
   function isPlain(v) {
     return v && typeof v === "object" && !(v instanceof Array) && typeof v !== "function";
   }
+  // Las tres claves que no se copian NUNCA. JSON.parse crea "__proto__" como
+  // propiedad PROPIA, asi que pasa el hasOwnProperty y, como Object.prototype
+  // es un objeto plano, la rama de mezcla profunda escribia dentro de el:
+  // {"__proto__": {"locked": true}} en el JSON del sitio hacia que TODA
+  // categoria heredara locked, isGranted devolviera true para todas, y el
+  // banner siguiera pintandose igual mientras se concedia todo.
+  // Comparaciones sueltas y NO un objeto { "__proto__": 1, ... }. En un
+  // literal, __proto__ es sintaxis especial: fija el prototipo en vez de crear
+  // una clave, asi que VETADAS["__proto__"] devolvia Object.prototype y la
+  // guarda no casaba nunca con la unica clave que de verdad importaba.
+  function esVetada(k) {
+    return k === "__proto__" || k === "constructor" || k === "prototype";
+  }
   function assign(target, src) {
     for (var k in src) {
-      if (!src.hasOwnProperty(k)) continue;
+      // .call y no src.hasOwnProperty(k): un texto con un idioma llamado
+      // "hasOwnProperty" tapaba la funcion y tiraba merged() entero, y con el
+      // el bundle: sin banner y sin bloqueo.
+      if (!Object.prototype.hasOwnProperty.call(src, k)) continue;
+      if (esVetada(k)) continue;
       if (isPlain(src[k]) && isPlain(target[k])) assign(target[k], src[k]);
       else target[k] = src[k];
     }
@@ -358,38 +402,99 @@ let _userConfig = null;
      ir comparando sin tocar la URL. Un visitante normal nunca lo activa porque
      nunca llega con el parametro. */
   var PRUEBA_KEY = "cb_theme_preview";
+  // El token firmado que acompana al tema. Sin uno valido no hay vista previa:
+  // antes bastaba con poner ?consentTheme= en la URL de cualquier sitio
+  // instalado, la barra se quedaba en localStorage sin caducidad y el
+  // parametro desaparecia de la barra de direcciones, asi que el visitante ni
+  // sabia por que le habia cambiado el banner.
+  var PRUEBA_TK = "cb_theme_preview_tk";
   function leeParam(n) {
     try { return new URLSearchParams(location.search).get(n); } catch (e) { return null; }
   }
   var BASE_MARCA = "__base";   // "ver la base", distinto de "no estar en prueba"
 
+  // El servidor es quien dice si el token vale: la firma se comprueba alli, en
+  // la misma peticion de config que el bundle hacia igualmente. Aqui no hay
+  // secreto que guardar ni nada que falsificar desde el navegador.
+  //
+  // Un sitio sin siteId no habla con ningun servidor: toda su config esta en la
+  // propia pagina, asi que quien pueda poner ?consentTheme ya podia editar el
+  // config entero. Ahi no hay nada que proteger y la vista previa sigue suelta,
+  // que es lo que hace que la demo local funcione sin backend.
+  function pruebaAutorizada() {
+    var c = _userConfig || cfg() || {};
+    if (!c.siteId) return true;
+    return !!(_remote && _remote._preview === true);
+  }
+
+  /* Los dos parametros fuera de la barra de direcciones. Se hace SIEMPRE, valga
+     el token o no: si se quedaran, al recargar el tema volveria a imponerse y
+     lo elegido en el selector no duraria ni un clic, y el token viajaria en el
+     Referer hacia cada tercero y cada enlace saliente de la pagina del cliente
+     durante toda la visita, incluso siendo un token que ya no vale. */
+  /* Los dos parametros se leen UNA vez y se guardan. No es un adorno: init()
+     llama a merged() -- y por ahi a modoPrueba -- ANTES de pedir la config
+     remota, asi que si la limpieza de la URL corriera en esa primera llamada,
+     el token desapareceria antes de que nadie lo mandara al servidor y la
+     vista previa no funcionaria ni con un enlace valido. */
+  var _paramsPrueba = null;
+  function paramsPrueba() {
+    if (!_paramsPrueba) {
+      _paramsPrueba = { tema: leeParam("consentTheme"),
+                        token: leeParam("consentPreview") || "" };
+    }
+    return _paramsPrueba;
+  }
+
+  function limpiaUrlPrueba() {
+    try {
+      var u = new URL(location.href);
+      if (!u.searchParams.has("consentTheme") && !u.searchParams.has("consentPreview")) return;
+      u.searchParams.delete("consentTheme");
+      u.searchParams.delete("consentPreview");
+      history.replaceState(null, "", u.pathname + (u.search || "") + u.hash);
+    } catch (e) {}
+  }
+
   function modoPrueba() {
-    var p = leeParam("consentTheme");
+    var pr = paramsPrueba(), p = pr.tema;
     if (p !== null) {
       var v = (p === "" || p === "base") ? BASE_MARCA : p;
-      try { localStorage.setItem(PRUEBA_KEY, v); } catch (e) {}
-      // Se quita de la URL: si se quedara, al recargar volveria a imponerse y
-      // lo elegido en el selector no duraria ni un clic.
-      try {
-        var u = new URL(location.href);
-        u.searchParams.delete("consentTheme");
-        history.replaceState(null, "", u.pathname + (u.search || "") + u.hash);
-      } catch (e) {}
+      var tk = pr.token;
+      limpiaUrlPrueba();
+      // El permiso se mira aqui y no solo en temaActivo porque modoPrueba
+      // GUARDA: sin esto, un ?consentTheme sin token se quedaba en
+      // localStorage igualmente y la barrita de temas salia aunque el tema no
+      // llegara a aplicarse.
+      if (!pruebaAutorizada()) return null;
+      try { localStorage.setItem(PRUEBA_KEY, v); localStorage.setItem(PRUEBA_TK, tk); } catch (e) {}
       return v;
     }
+    if (!pruebaAutorizada()) return null;
     try { return localStorage.getItem(PRUEBA_KEY); } catch (e) { return null; }
   }
+  function tokenPrueba() {
+    try { return localStorage.getItem(PRUEBA_TK) || ""; } catch (e) { return ""; }
+  }
   function salirDePrueba() {
-    try { localStorage.removeItem(PRUEBA_KEY); } catch (e) {}
+    try { localStorage.removeItem(PRUEBA_KEY); localStorage.removeItem(PRUEBA_TK); } catch (e) {}
     location.reload();
   }
 
+  // hasOwnProperty y no t[x]: con ?consentTheme=constructor (o toString, o
+  // valueOf) t[x] es truthy aunque no exista ningun tema con ese nombre, y mas
+  // abajo merged() hacia JSON.parse(JSON.stringify(undefined)), que lanza. El
+  // sitio se quedaba sin banner, sin pill y sin bloqueo; y como modoPrueba lo
+  // guarda en localStorage, se quedaba asi en las visitas siguientes.
+  function hayTema(t, n) {
+    return !!n && Object.prototype.hasOwnProperty.call(t, n) && !!t[n];
+  }
   function temaActivo(m) {
     var t = m.themes || {};
     var prueba = modoPrueba();
     if (prueba === BASE_MARCA) return "";
-    if (prueba && t[prueba]) return prueba;
-    if (m.theme && t[m.theme]) return m.theme;
+    if (hayTema(t, prueba)) return prueba;
+    if (hayTema(t, m.theme)) return m.theme;
     return "";
   }
 
@@ -409,7 +514,12 @@ let _userConfig = null;
     var botones = [[BASE_MARCA, "Base"]].concat(nombres.map(function (n) { return [n, n]; }))
       .map(function (x) {
         var on = (x[0] === BASE_MARCA) ? !activo : (x[0] === activo);
-        return "<button data-t='" + x[0] + "'" + (on ? " class='on'" : "") + ">" + x[1] + "</button>";
+        // Los nombres de tema vienen de la config REMOTA, igual que las
+        // etiquetas de categoria, asi que se escapan igual. Y esta barra la
+        // abre cualquiera con ?consentTheme= en la URL, sin ser administrador,
+        // asi que es alcanzable desde fuera.
+        return "<button data-t='" + escAttr(x[0]) + "'" + (on ? " class='on'" : "") +
+               ">" + escHtml(x[1]) + "</button>";
       }).join("");
     var st = document.createElement("style");
     st.textContent =
@@ -497,10 +607,38 @@ let _userConfig = null;
   // despues. El snippet de instalacion lo incluye tambien.
   function gcmDefault(C) {
     if (modoConsent(C) !== "advanced" || state.gcmDefault) return;
+    // Si el bloque en linea del snippet ya lo emitio, aqui no se repite. Antes
+    // no se miraba y salian DOS `consent default`: no se notaba porque los dos
+    // denegaban todo, pero desde que el bloque en linea lee la cookie y arranca
+    // concedido para quien ya acepto, un segundo default denegado del bundle
+    // deshacia justo lo que acababa de conceder.
+    try {
+      if (typeof window !== "undefined" && window.__consentDefaultSet) {
+        state.gcmDefault = true;
+        // Los ajustes SI se reaplican: el bloque en linea los emitio con la
+        // config congelada el dia que se copio el snippet, y desde entonces el
+        // cliente puede haber cambiado ads_data_redaction o url_passthrough en
+        // el panel. Sin esto, un visitante nuevo se quedaba con los viejos
+        // para siempre, porque en su camino nadie mas llama a gcmAjustes.
+        gcmAjustes(C);
+        log("gcm", "El bloque en linea ya emitio el default; solo se reaplican los ajustes.");
+        return;
+      }
+    } catch (e) { /* sin window: no hay bloque en linea que valga */ }
     state.gcmDefault = true;
     var d = {};
     ALL_SIGNALS.forEach(function (s) { d[s] = "denied"; });
     for (var k in SIEMPRE) d[k] = SIEMPRE[k];
+    // Las senales de las categorias BLOQUEADAS se conceden tambien aqui. Antes
+    // no, y el default decia "denied" de algo que el update concedia un
+    // instante despues: una categoria locked esta siempre concedida, esa es su
+    // definicion. Ademas el bloque en linea del snippet ya lo hacia asi, y dos
+    // caminos que emiten defaults distintos es un fallo esperando a pasar.
+    (C.categories || []).forEach(function (cat) {
+      if (cat && cat.locked) {
+        (cat.signals || []).forEach(function (s) { d[s] = "granted"; });
+      }
+    });
     var espera = (C.gcm && C.gcm.waitForUpdate);
     d.wait_for_update = (espera === undefined || espera === null) ? 1500 : espera;
     gtag("consent", "default", d);
@@ -548,10 +686,82 @@ let _userConfig = null;
   }
 
   // Mapea las categorias elegidas a las 6 senales de Consent Mode v2.
+  // Las tres senales de publicidad. GPC cubre "venta y comparticion", que es
+  // exactamente esto, y hay que denegarlas aunque el sitio haya renombrado o
+  // borrado su categoria de marketing: antes solo caian de rebote, porque
+  // colgaban de una categoria llamada "marketing". Si el cliente la llamaba de
+  // otra forma, o repartia esas senales en dos categorias, la senal del
+  // navegador dejaba de tocarlas sin que nadie lo notara.
+  var SENALES_VENTA = ["ad_storage", "ad_user_data", "ad_personalization"];
+
+  /* ---- Venta o cesion (CPRA) -------------------------------------------
+     Una categoria se marca a mano con sellOrShare: true. NO se deduce de que
+     tenga senales de publicidad, porque son dos cosas distintas. Un sitio
+     puede conceder ad_storage solo para no repetirle el mismo anuncio a la
+     misma persona, y eso no es una venta; y al reves, un pixel de un agregador
+     de datos vende sin tocar ninguna senal de Google. Deducirlo seria acertar
+     en el caso comun y equivocarse justo en los dos que importan.
+
+     El panel SI lo sugiere a partir de las senales, que es otra cosa: ahi hay
+     alguien mirando que puede decir que no. */
+  /* ---- Regimen por region (B2) -------------------------------------------
+
+     Dos formas de pedir las cosas, y cual toca depende de donde esta el
+     visitante:
+
+       optin   nada se concede hasta que la persona diga que si. Es lo de
+               siempre y lo que exige el EEE.
+       optout  lo opcional arranca concedido y la persona puede apagarlo. Es
+               lo que admiten los estados de EE.UU.
+
+     QUIEN LO DECIDE ES EL SERVIDOR, en /api/config, a partir de la cabecera
+     geo que pone el borde. Aqui no se adivina la region: el navegador no sabe
+     donde esta, lo que diga seria falsificable, y una zona horaria no es una
+     jurisdiccion. Si la config remota no dice nada -- porque no hay backend, o
+     porque no llego -- se queda en optin, que es el estricto: equivocarse
+     hacia pedir permiso se arregla, y equivocarse hacia no pedirlo no.
+
+     Y el orden importa: el bloque en linea del snippet SIEMPRE arranca
+     denegando. Si luego resulta que tocaba opt-out, se concede. Al reves
+     nunca: no hay ningun momento en el que una etiqueta dispare antes de
+     saber que regimen aplica. */
+  function regimen(C) {
+    var r = (C && C._region) || null;
+    return (r && r.mode === "optout") ? "optout" : "optin";
+  }
+  function esOptOut(C) { return regimen(C) === "optout"; }
+
+  /* En opt-out, lo opcional arranca encendido. Lo que la senal GPC apaga se
+     queda apagado: GPC es, por definicion, el opt-out ya ejercido, y no
+     tendria sentido encender justo lo que la persona acaba de pedir que no. */
+  function eleccionPorDefecto(C) {
+    var apaga = gpcActivo() ? gpcCategorias(C) : null;
+    var chosen = {};
+    (C.categories || []).forEach(function (c) {
+      if (c.locked) { chosen[c.id] = true; return; }
+      chosen[c.id] = apaga ? (apaga[c.id] === true) : true;
+    });
+    return chosen;
+  }
+
+  function esVenta(cat) {
+    return !!(cat && cat.sellOrShare === true);
+  }
+  function hayMarcasDeVenta(C) {
+    var cats = (C && C.categories) || [];
+    for (var i = 0; i < cats.length; i++) if (esVenta(cats[i])) return true;
+    return false;
+  }
+
   function signalsFrom(C, chosen) {
     var out = {};
-    for (var k in SIEMPRE) out[k] = SIEMPRE[k];
+    // Denegar primero y aplicar SIEMPRE despues, el mismo orden que
+    // gcmDefault. Al reves, el bucle de denegacion pisaba a SIEMPRE: hoy no se
+    // nota porque security_storage no esta en ALL_SIGNALS, pero el dia que se
+    // anada una que si lo este, el default la concederia y el update la
+    // denegaria.
     ALL_SIGNALS.forEach(function (s) { out[s] = "denied"; });
+    for (var k in SIEMPRE) out[k] = SIEMPRE[k];
     C.categories.forEach(function (cat) {
       var granted = cat.locked ? true : !!chosen[cat.id];
       // signals es opcional: una categoria sin ella tiraba todo el arranque
@@ -559,6 +769,12 @@ let _userConfig = null;
       // medias sin que nada lo dijera.
       if (granted && cat.signals) cat.signals.forEach(function (s) { out[s] = "granted"; });
     });
+    // La senal GPC deniega la venta y comparticion pase lo que pase, y esto va
+    // al final para que ninguna categoria la pueda volver a conceder. No
+    // depende de como se llamen las categorias del sitio.
+    if (gpcActivo()) {
+      SENALES_VENTA.forEach(function (s) { out[s] = "denied"; });
+    }
     return out;
   }
 
@@ -719,15 +935,45 @@ let _userConfig = null;
     try { return new URL(src, location.href).hostname.toLowerCase(); }
     catch (e) { return ""; }
   }
+  /* La ruta de una URL, ya normalizada por el parser del navegador. Se usa
+     SOLO para estrechar una regla que ya caso por host, nunca por si sola.
+
+     Esto no es timidez: comparar contra la URL entera es como se cuelan los
+     bloqueos. "https://malo.example/?x=/wc.js" contiene "/wc.js", y un match
+     por trozo de URL lo daria por bueno. Al exigir primero el host, una regla
+     con path solo puede bloquear MENOS que la misma regla sin el, nunca algo
+     distinto. La decision de comparar solo el host sigue en pie; esto la
+     estrecha, no la salta. */
+  function pathOf(src) {
+    try { return new URL(src, location.href).pathname.toLowerCase(); }
+    catch (e) { return ""; }
+  }
+
   function ruleFor(rules, src) {
     if (!src) return null;
     var h = hostOf(src);
     if (!h || h === location.hostname.toLowerCase()) return null; // nunca lo propio
+    var ruta = null;
     for (var i = 0; i < rules.length; i++) {
       var r = rules[i];
       if (!r || !r.match) continue;
       var m = String(r.match).toLowerCase().replace(/^\*?\.?/, "");
-      if (h === m || h.slice(-(m.length + 1)) === "." + m) return r; // host o subdominio
+      if (!(h === m || h.slice(-(m.length + 1)) === "." + m)) continue;  // host o subdominio
+      // La regla ya caso por host. Si ademas trae path, tiene que casar
+      // tambien; si no casa, esta regla no aplica pero se siguen mirando las
+      // demas: un proveedor puede tener una regla por ruta y otra general.
+      // typeof string y no solo truthy: un path escrito como true o como 42
+      // en la pestana JSON se convertia en "/true" o "/42", no casaba nunca, y
+      // la regla dejaba de bloquear EN SILENCIO. Si no es una cadena, se
+      // ignora el path y la regla vuelve a ser de host entero, que bloquea de
+      // mas y no de menos.
+      if (r.path && typeof r.path === "string") {
+        if (ruta === null) ruta = pathOf(src);
+        var pre = r.path.toLowerCase();
+        if (pre.charAt(0) !== "/") pre = "/" + pre;
+        if (ruta.indexOf(pre) !== 0) continue;
+      }
+      return r;
     }
     return null;
   }
@@ -882,11 +1128,21 @@ let _userConfig = null;
                   "o autenticacion y dejaria al visitante sin poder entrar.");
       return false;
     }
+    // Un patron SIN categoria se resuelve por la SENAL analytics_storage, no
+    // por un id de categoria. Es lo que ya hacia el borrado
+    // (deleteAnalyticsCookies), y es lo unico que funciona: cada cliente llama
+    // a su categoria como quiere. Aqui habia escrito "analitica" a pelo, y en
+    // un sitio que la llame "statistics" esa categoria no existe, isGranted
+    // devuelve false y la cookie se bloquea para siempre, acepte el visitante
+    // lo que acepte. Los dos caminos deciden ahora igual.
+    var sig = signalsFrom(C, state.chosen || {});
+    var analiticaDenegada = sig.analytics_storage === "denied";
     for (var i = 0; i < pats.length; i++) {
       var p = pats[i], match = (typeof p === "string") ? p : p.match;
       if (!match || nombre.indexOf(String(match).toLowerCase()) !== 0) continue;
-      var cat = (typeof p === "string") ? "analitica" : p.category;
-      if (!isGranted(C, state.chosen, cat)) return true;
+      var cat = (typeof p === "string") ? null : (p.category || null);
+      var denegado = cat ? !isGranted(C, state.chosen, cat) : analiticaDenegada;
+      if (denegado) return true;
     }
     return false;
   }
@@ -1094,7 +1350,10 @@ let _userConfig = null;
 
   function installAutoBlock() {
     var C = merged();
-    var rules = C.autoBlock || [];
+    // Las reglas en modo "notify" no bloquean: el proveedor se encarga y
+    // nosotros solo le avisamos. Si entraran aqui, se le cortaria la etiqueta
+    // ademas de avisarle, que es justo lo que no quiere quien pide ese modo.
+    var rules = reglasQueBloquean(C.autoBlock);
     _reglasVivas = rules;
     _duroActivo = C.hardBlocking !== false;
     // Si el pre-bloqueador inline ya esta corriendo, lo adoptamos en vez de
@@ -1120,7 +1379,14 @@ let _userConfig = null;
     parcheaInsercion();
     scanExisting(rules);
     _observer = new MutationObserver(function (muts) {
-      var live = merged().autoBlock || rules;
+      // reglasQueBloquean y no autoBlock en crudo: scanExisting y el parche de
+      // insercion leen _reglasVivas, que si esta filtrado, pero este observer
+      // leia la lista entera. Una etiqueta en modo "notify" insertada por otro
+      // script -- que es como las inserta GTM, o sea casi todas -- se cortaba
+      // ademas de avisar al proveedor, que es lo contrario de lo que pide ese
+      // modo. Estaba dormido mientras el observer no llegaba a instalarse en
+      // los sitios con reglas solo en el panel.
+      var live = reglasQueBloquean(merged().autoBlock) || rules;
       muts.forEach(function (m) {
         Array.prototype.forEach.call(m.addedNodes, function (n) {
           if (!n.tagName) return;
@@ -1139,9 +1405,19 @@ let _userConfig = null;
   // Al conceder una categoria ya no hace falta seguir interceptandola.
   function refreshAutoBlock(C, chosen) {
     _duroActivo = C.hardBlocking !== false;
-    var rules = (C.autoBlock || []).filter(function (r) {
-      return !isGranted(C, chosen, r.category);
+    // autoBlock escrito como cadena en la pestana JSON no tiene .filter. Esto
+    // se llama desde persist(), DESPUES de guardar la cookie y ocultar el
+    // banner: la excepcion dejaba al visitante con el banner cerrado, los
+    // scripts sin desbloquear, sin onConsentChange y sin borrado activo. Por
+    // fuera parecia que el banner funcionaba.
+    var lista = reglasQueBloquean(C.autoBlock);
+    var rules = lista.filter(function (r) {
+      return r && !isGranted(C, chosen, r.category);
     });
+    // A los proveedores con hook se les avisa SIEMPRE que cambia la decision,
+    // concedan o denieguen: un proveedor que solo se entera de los "si" no
+    // puede apagar nada cuando alguien se arrepiente.
+    try { avisaProveedores(C, chosen); } catch (e) {}
     // El parche de insercion lee de aqui, asi que esto es lo que de verdad
     // deja de bloquear una categoria concedida. Va antes del return: el parche
     // sigue puesto aunque no haya observer que desconectar.
@@ -1161,6 +1437,76 @@ let _userConfig = null;
     if (cat && cat.locked) return true;
     return !!chosen[catId];
   }
+  /* ---- Avisar al proveedor en vez de bloquearlo (B4) ----------------------
+
+     Algunos proveedores tienen su propia API de consentimiento y prefieren que
+     se les avise a que se les corte la etiqueta. onConsentChange global ya
+     existia, pero solo se podia poner escribiendo JS a mano en el sitio,
+     porque la config viaja como JSON y una funcion no sobrevive a
+     JSON.stringify.
+
+     LA PARTE DELICADA ES DE DONDE SALE LA FUNCION. Si la config pudiera decir
+     "llama a window.lo.que.sea", el panel ejecutaria codigo en el sitio de
+     todos los clientes con solo escribir una cadena: exactamente el agujero
+     que costo arreglar en el escapado, por otra puerta.
+
+     Asi que la config NO nombra funciones del sitio: nombra claves de un
+     registro que el propio sitio declara en su HTML.
+
+         <script>
+           window.__consentHooks = {
+             whatconverts: function (ev) { ... }
+           };
+         </script>
+
+     El cliente decide que se puede llamar. La config solo puede elegir entre
+     lo que el ya expuso, y si nombra algo que no existe no pasa nada: se
+     anota en el registro y se sigue. Nunca hay eval, ni new Function, ni
+     recorrer window por una cadena con puntos. */
+  function hookDelSitio(nombre) {
+    if (!nombre) return null;
+    var reg = null;
+    try { reg = window.__consentHooks; } catch (e) { return null; }
+    if (!reg || typeof reg !== "object") return null;
+    if (!Object.prototype.hasOwnProperty.call(reg, nombre)) return null;
+    var fn = reg[nombre];
+    return (typeof fn === "function") ? fn : null;
+  }
+
+  function avisaProveedores(C, chosen) {
+    var reglas = (C.autoBlock instanceof Array) ? C.autoBlock : [];
+    reglas.forEach(function (r) {
+      if (!r || !r.hook) return;
+      var fn = hookDelSitio(r.hook);
+      if (!fn) {
+        log("hook", "La regla de " + (r.match || "?") + " pide el hook \"" + r.hook +
+            "\", que el sitio no ha declarado en window.__consentHooks. No se llama.");
+        return;
+      }
+      var concedida = isGranted(C, chosen, r.category);
+      try {
+        // Lo que recibe el proveedor es un objeto plano, no nuestro estado: no
+        // tiene nada que pueda tocar desde dentro.
+        fn({ vendor: String(r.match || ""), category: r.category || null,
+             granted: !!concedida, mode: r.mode === "notify" ? "notify" : "block" });
+        log("hook", "Avisado \"" + r.hook + "\": " + (r.match || "?") +
+            " -> " + (concedida ? "concedido" : "denegado"));
+      } catch (e) {
+        // El hook es del cliente. Si revienta, revienta lo suyo, no el banner.
+        log("hook", "El hook \"" + r.hook + "\" lanzo: " + e.message);
+      }
+    });
+  }
+
+  /* Las reglas en modo "notify" no bloquean la etiqueta: el proveedor se
+     encarga por su cuenta y nosotros solo le decimos lo que eligio la persona.
+     Se quitan de la lista que mira el bloqueador. */
+  function reglasQueBloquean(lista) {
+    return (lista instanceof Array ? lista : []).filter(function (r) {
+      return r && r.mode !== "notify";
+    });
+  }
+
   function activateScripts(C, chosen) {
     if (!C.manageScripts && !(C.autoBlock && C.autoBlock.length)) return;
     var nodes = document.querySelectorAll('script[type="text/plain"][data-consent-category]');
@@ -1216,8 +1562,78 @@ let _userConfig = null;
     if (vueltos.length) log("duro", "Medios restaurados: " + vueltos.length);
   }
 
+  /* ---- Que texto vio exactamente esta persona (B3) ------------------------
+
+     Guardar "acepto el 3 de marzo" no prueba gran cosa si seis meses despues
+     nadie puede decir QUE se le enseno. El cliente cambia los textos, sube la
+     version, renombra una categoria, y el registro antiguo se queda sin
+     respaldo.
+
+     Asi que se manda una foto del texto que estaba en pantalla, y su hash. El
+     servidor guarda el texto UNA vez por hash y en cada registro solo el hash,
+     que es lo que lo hace barato: mil consentimientos con el mismo texto son
+     mil hashes y un texto. */
+  function textoMostrado(C) {
+    var L = t();
+    var partes = [
+      "v=" + (C.consentVersion || ""),
+      "lang=" + state.lang,
+      "modo=" + (state.modo || "optin"),
+      "body=" + ((state.modo === "optout" && L.bodyOptOut) ? L.bodyOptOut : L.body),
+      "accept=" + L.accept, "reject=" + L.reject, "manage=" + L.manage,
+      "panelTitle=" + L.panelTitle, "panelIntro=" + L.panelIntro,
+      "save=" + L.save, "rejectOptional=" + L.rejectOptional,
+      "policy=" + (L.policy || "") + "|" + ((C.policy && C.policy.url) || C.policyUrl || "")
+    ];
+    (C.categories || []).forEach(function (cat) {
+      partes.push("cat:" + cat.id +
+                  "|locked=" + (cat.locked ? 1 : 0) +
+                  "|venta=" + (esVenta(cat) ? 1 : 0) +
+                  "|label=" + lang(cat.label, C) +
+                  "|desc=" + lang(cat.desc, C) +
+                  "|signals=" + ((cat.signals || []).join(",")));
+    });
+    return partes.join("\n");
+  }
+
+  /* FNV-1a de 32 bits, dos veces con semillas distintas, en hexadecimal. No es
+     criptografico y no pretende serlo: aqui el hash es un indice que dice "de
+     cual de los textos de este sitio hablamos", no un sello que nadie pueda
+     falsificar. El texto completo viaja al lado y se guarda, que es lo que de
+     verdad prueba algo. */
+  function hashTexto(str) {
+    function fnv(sem) {
+      var h = sem;
+      for (var i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i) & 0xff;
+        h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+        // Los caracteres fuera de ASCII cuentan sus dos mitades: si no, "ñ" y
+        // "n" con otro acento podrian colisionar entre si.
+        var alto = str.charCodeAt(i) >>> 8;
+        if (alto) {
+          h ^= alto;
+          h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+        }
+      }
+      return h >>> 0;
+    }
+    function hex(n) { return ("0000000" + n.toString(16)).slice(-8); }
+    return hex(fnv(0x811c9dc5)) + hex(fnv(0x01000193));
+  }
+
+  /* La ruta, SIN la query. La query lleva utm, identificadores de sesion,
+     tokens de recuperacion de contrasena y, en mas sitios de los que parece,
+     el correo de la persona. Guardar eso en el registro de consentimiento
+     convertiria la prueba de que respetamos su privacidad en una fuga. */
+  function rutaDePagina() {
+    try {
+      return String(location.pathname || "/").slice(0, 300);
+    } catch (e) { return ""; }
+  }
+
   function postAudit(C, consent) {
     if (!C.endpoint) return;
+    var texto = textoMostrado(C);
     var payload = {
       site_id: C.siteId || null,
       choice: consent.choice,
@@ -1226,7 +1642,10 @@ let _userConfig = null;
       consent_id: consent.consent_id || null,
       session_id: C.sessionId || null,
       version: C.consentVersion,
-      gpc: !!state.gpc           // prueba de que se respeto la senal
+      gpc: !!state.gpc,          // prueba de que se respeto la senal
+      page: rutaDePagina(),
+      text_hash: hashTexto(texto),
+      text: texto
     };
     var headers = { "Content-Type": "application/json" };
     if (C.publicKey) headers["X-Api-Key"] = C.publicKey;
@@ -1317,6 +1736,17 @@ let _userConfig = null;
     "_bettercampus", "__metamask", "__phantom", "grammarly", "__honey",
     "__REACT_DEVTOOLS", "__VUE_DEVTOOLS", "loom-", "__pocket", "adblock"
   ];
+  /* Lo nuestro. Son claves que escribe este mismo bundle, asi que verlas en el
+     inventario del cliente es ruido que ponemos nosotros. El backend tiene su
+     propia lista, a proposito: un sitio con un bundle viejo sigue mandandolas. */
+  var PROPIAS = ["cb_theme_preview", "cb_inv_sesion"];
+  function esNuestra(nombre) {
+    var n = String(nombre || "");
+    for (var i = 0; i < PROPIAS.length; i++) {
+      if (n.indexOf(PROPIAS[i]) === 0) return true;
+    }
+    return false;
+  }
   function esDeExtension(nombre) {
     var n = String(nombre || "").toLowerCase();
     for (var i = 0; i < EXTENSIONES.length; i++) {
@@ -1330,6 +1760,7 @@ let _userConfig = null;
     var items = [];
     function anotar(n, kind, party) {
       if (esDeExtension(n)) return;      // no es del sitio: no se reporta
+      if (esNuestra(n)) return;          // la ponemos nosotros: no se pregunta
       items.push({ name: n, kind: kind, party: party });
     }
     cookieNames().forEach(function (n) { anotar(n, "cookie", "first"); });
@@ -1339,8 +1770,81 @@ let _userConfig = null;
     return items;
   }
 
+  /* Si esta pagina la esta viendo alguien que ha entrado al gestor del sitio,
+     lo que hay en el navegador no es lo que ve un visitante: WordPress, Shopify
+     y los constructores de paginas montan su propia barra, con sus cookies y
+     sus dominios. Inventariarlo mete en la lista del cliente cosas que ningun
+     visitante llega a tener nunca, y es parte de por que la lista salia
+     inflada. Ante la duda se calla: no inventariar de mas es barato, y una
+     cookie de visitante de verdad la trae la siguiente visita.
+
+     La lista es explicita y se puede ampliar desde la config con
+     discoverySkipIf, porque cada gestor marca el cuerpo a su manera. */
+  // Marcas de que quien mira la pagina la ESTA ADMINISTRANDO. Son barras de
+  // gestion, no "hay alguien con sesion iniciada": WordPress pone
+  // body.logged-in a cualquier usuario autenticado, y en una tienda
+  // WooCommerce o un sitio de socios eso es el cliente final, justo quien
+  // tiene las cookies que mas importan (carrito, pago, lo que solo aparece
+  // tras entrar). Apagar la deteccion ahi seria cegar el inventario donde mas
+  // falta hace, asi que body.logged-in solo cuenta acompanado de una barra.
+  var MARCAS_ADMIN = [
+    "#wpadminbar",               // WordPress: la barra, no la sesion
+    "body.admin-bar",
+    "body.shopify-preview",      // vista previa de tema de Shopify
+    "#admin-bar-iframe",
+    "body.neos-backend",
+    "body.cke_editable",
+    "body.wp-admin",
+    "body.logged-in #wpadminbar"
+  ];
+  function esSesionDeGestor(C) {
+    var extra = (C && C.discoverySkipIf instanceof Array) ? C.discoverySkipIf : [];
+    var sel = MARCAS_ADMIN.concat(extra);
+    for (var i = 0; i < sel.length; i++) {
+      try { if (document.querySelector(sel[i])) return sel[i]; } catch (e) {}
+    }
+    return null;
+  }
+
+  /* Primera pasada de ESTA visita. El servidor lo usa para contar visitas
+     distintas en vez de avisos, que es lo que distingue "esto lo tienen todos
+     los visitantes" de "esto lo trajo uno". Es un booleano en el
+     sessionStorage del propio visitante: no se guarda ni se manda ningun
+     identificador. */
+  var SESION_KEY = "cb_inv_sesion";
+  var VISITA_MS = 30 * 60 * 1000;   // media hora, como cualquier analitica
+  var _esVisitaNueva = null;
+  function primeraDeLaVisita() {
+    // Se resuelve UNA vez y vale para toda la visita, no solo para la primera
+    // pasada: el inventario va por tandas y los dominios de terceros suelen
+    // aparecer en la de los diez segundos. Si la marca viajara solo en la
+    // primera, esos no se contarian nunca y nunca llegarian a proponerse.
+    //
+    // Y va en localStorage con una marca de tiempo, no en sessionStorage: el
+    // sessionStorage es POR PESTANA, asi que una persona que abre tres fichas
+    // con el boton central contaba como tres visitas distintas y cruzaba ella
+    // sola el umbral que decide si se propone bloquear un dominio. Eso es la
+    // lista inflada otra vez, solo que mas dificil de ver.
+    if (_esVisitaNueva !== null) return _esVisitaNueva;
+    var ahora = Date.now();
+    try {
+      var ult = parseInt(localStorage.getItem(SESION_KEY) || "0", 10) || 0;
+      _esVisitaNueva = (ahora - ult) > VISITA_MS;
+      localStorage.setItem(SESION_KEY, String(ahora));
+    } catch (e) {
+      _esVisitaNueva = false;      // sin almacen se cuenta de menos, no de mas
+    }
+    return _esVisitaNueva;
+  }
+
   function reportCookies(C, phase) {
     if (!C.cookieDiscovery || !C.apiBase || !C.siteId) return;
+    var gestor = esSesionDeGestor(C);
+    if (gestor) {
+      log("discovery", "Inventario omitido: esta pagina es una sesion de gestor (" +
+          gestor + ")");
+      return;
+    }
     // La clave incluye el tipo: una cookie "_ga" y una clave de localStorage
     // con el mismo nombre son dos hallazgos distintos.
     var nuevas = inventario().filter(function (it) { return !_sent[it.kind + ":" + it.name]; });
@@ -1355,6 +1859,7 @@ let _userConfig = null;
         body: JSON.stringify({
           site_id: C.siteId,
           phase: phase || "",
+          primera: primeraDeLaVisita(),
           cookies: nuevas.map(function (it) {
             return { name: it.name, domain: location.hostname,
                      kind: it.kind, party: it.party, page: location.pathname };
@@ -1383,7 +1888,7 @@ let _userConfig = null;
   }
 
   // ---- Estado y persist -----------------------------------------------------
-  var state = { lang: "es", chosen: {} };
+  var state = { lang: "es", chosen: {}, modo: "optin" };
 
   // El corazon del sistema. Orden fijo (ver spec seccion 3).
   function persist(C, choice, chosen) {
@@ -1654,6 +2159,22 @@ let _userConfig = null;
     ".cb-eyebrow{margin:0;" + typo(C, "eyebrow") + "color:" + K.accentPale + "}" +
     ".cb-gpc{margin:0;" + typo(C, "bannerText") + "color:" + K.accentPale +
       ";font-weight:600}" +
+    ".cb-gpcfila{display:block;margin-top:4px;font-size:.86em;font-weight:600;color:" +
+      K.accentPale + "}" +
+    // La marca de venta va en la fila del panel, que esta sobre fondo claro, y
+    // no en el banner: por eso no usa accentPale como la de GPC.
+    ".cb-ventafila{display:block;margin-top:4px;font-size:.86em;font-weight:600;color:" +
+      (K.heading || K.ink) + "}" +
+    ".cb-ventaintro{margin:8px 0 0;" + typo(C, "panelIntro") + "font-weight:600;color:" +
+      (K.heading || K.ink) + "}" +
+    // El enlace que montamos nosotros cuando el sitio no tiene donde ponerlo.
+    // Discreto y abajo a la izquierda, lejos del pill, que vive a la derecha.
+    ".cb-optout{position:fixed;left:16px;bottom:16px;z-index:2147483646;" +
+      "display:inline-flex;align-items:center;gap:6px;padding:8px 12px;" +
+      "border-radius:" + (BT.radius || "8px") + ";background:" + (K.panelBg || "#fff") +
+      ";color:" + (K.heading || K.ink) + ";border:1px solid " + (K.border || "#ccc") +
+      ";text-decoration:none;" + typo(C, "button") + "}" +
+    ".cb-optout:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}" +
     ".cb-body{margin:0;" + typo(C, "bannerText") + "color:" + bnFg + ";max-width:68ch}" +
     ".cb-body a{color:" + K.accentPale + ";text-decoration:underline;text-underline-offset:2px;white-space:nowrap}" +
     ".cb-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end}" +
@@ -1695,6 +2216,10 @@ let _userConfig = null;
     ".cb-foot{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:" + K.cream + ";padding:" + (PN.footPadding || "20px 28px 24px") + ";border-radius:0 0 " + (PN.radius || "12px") + " " + (PN.radius || "12px") + "}" +
     ".cb-btn2{border-radius:" + (BT.radius || "8px") + ";" + typo(C, "button") + "cursor:pointer;transition:background .14s,border-color .14s}" +
     ".cb-btn2:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}" +
+    // Al abrir, el foco entra en el dialogo para que el lector lea el titulo.
+    // Ese foco es de programa, no del tabulador, asi que no se dibuja: un
+    // recuadro alrededor del panel entero no le dice nada a nadie.
+    ".cb-panel:focus{outline:none}" +
     ".cb-outline{background:transparent;border:1px solid " + K.borderStrong + ";color:" + K.heading + "}" +
     ".cb-foot-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}" +
     // Pie apilado: "rechazar" a todo el ancho arriba y los otros dos debajo.
@@ -1761,9 +2286,14 @@ let _userConfig = null;
   // aunque el bundle sepa mas.
   function idiomasDisponibles(C) {
     var set = {}, k;
-    for (k in COPY) if (COPY.hasOwnProperty(k)) set[k] = true;
-    if (C && C.texts) for (k in C.texts) if (C.texts.hasOwnProperty(k)) set[k] = true;
-    var todos = []; for (k in set) if (set.hasOwnProperty(k)) todos.push(k);
+    // Object.prototype.hasOwnProperty.call en los tres: C.texts lo escribe el
+    // cliente, y un idioma llamado "hasOwnProperty" tapa la funcion. La
+    // excepcion subia hasta init() y se llevaba el bundle entero: sin banner,
+    // sin bloqueo y sin nada que lo dijera.
+    var tiene = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
+    for (k in COPY) if (tiene(COPY, k)) set[k] = true;
+    if (C && C.texts) for (k in C.texts) if (tiene(C.texts, k)) set[k] = true;
+    var todos = []; for (k in set) if (tiene(set, k)) todos.push(k);
     if (C && C.languages && C.languages.length) {
       var permitidos = C.languages.map(function (x) { return String(x).toLowerCase(); });
       var filtrados = todos.filter(function (x) { return permitidos.indexOf(x) !== -1; });
@@ -1842,7 +2372,8 @@ let _userConfig = null;
       if (k && obj[k] != null && obj[k] !== "") return obj[k];
     }
     for (var key in obj) {
-      if (obj.hasOwnProperty(key) && obj[key] != null && obj[key] !== "") return obj[key];
+      if (Object.prototype.hasOwnProperty.call(obj, key) &&
+          obj[key] != null && obj[key] !== "") return obj[key];
     }
     return "";
   }
@@ -1861,8 +2392,26 @@ let _userConfig = null;
   }
 
   function escAttr(v) {
-    return String(v).replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+    return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/"/g, "&quot;")
                     .replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // Lo mismo para TEXTO dentro de innerHTML. Hace falta porque las etiquetas,
+  // las descripciones y los textos llegan de la config REMOTA, es decir de la
+  // base del panel, y se pegaban en crudo: una etiqueta de categoria con
+  // <img src=x onerror=...> se ejecutaba en el sitio de cada visitante del
+  // cliente. Una cuenta de panel comprometida era ejecucion de codigo en todos
+  // los sitios instalados a la vez.
+  //
+  // Se escapa TODO lo que venga de la config. Comprobado antes de hacerlo que
+  // ninguna cadena de los textos por defecto ni de las configs de cliente
+  // llevaba HTML a proposito, asi que no se rompe nada de lo que hay puesto.
+  // El unico HTML que el bundle genera y no debe escaparse es el que construye
+  // el propio bundle: el enlace de politica y el icono en linea.
+  function escHtml(v) {
+    return String(v == null ? "" : v)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
   // Sin URL configurada no pintamos un enlace muerto: un <a href="#"> que no
@@ -1873,7 +2422,7 @@ let _userConfig = null;
     if (!u) return "";
     var extra = (C.policyNewTab === false) ? "" :
                 " target='_blank' rel='noopener noreferrer'";
-    return "<a href='" + escAttr(u) + "'" + extra + ">" + L.policy + "</a>";
+    return "<a href='" + escAttr(u) + "'" + extra + ">" + escHtml(L.policy) + "</a>";
   }
 
   function t() {
@@ -1895,18 +2444,23 @@ let _userConfig = null;
     el.innerHTML =
       "<div class='cb-inner'>" +
         "<div class='cb-copy'>" +
-          (C.showEyebrow === false ? "" : "<p class='cb-eyebrow'>" + L.eyebrow + "</p>") +
+          (C.showEyebrow === false ? "" : "<p class='cb-eyebrow'>" + escHtml(L.eyebrow) + "</p>") +
           (state.gpcChoque
-            ? "<p class='cb-gpc'>" + (L.gpcConflict ||
+            ? "<p class='cb-gpc'>" + escHtml(L.gpcConflict ||
                 "Tu navegador pide que no vendamos ni compartamos tus datos, pero aqui "+
                 "ya habias aceptado. Dinos que prefieres.") + "</p>"
             : "") +
-          "<p class='cb-body'>" + L.body + " " + policyLink(C, L) + "</p>" +
+          // El enlace de politica NO se escapa: lo genera el bundle, no la config.
+          // En opt-out el texto es otro: alli se pide permiso, aqui se informa
+          // de algo que ya esta pasando y se dice como pararlo.
+          "<p class='cb-body'>" +
+            escHtml((state.modo === "optout" && L.bodyOptOut) ? L.bodyOptOut : L.body) +
+            " " + policyLink(C, L) + "</p>" +
         "</div>" +
         "<div class='cb-actions'>" +
-          "<button class='cb-btn cb-ghost' data-a='manage'>" + L.manage + "</button>" +
-          "<button class='cb-btn cb-ghost' data-a='reject'>" + L.reject + "</button>" +
-          "<button class='cb-btn cb-accept' data-a='accept'>" + L.accept + "</button>" +
+          "<button class='cb-btn cb-ghost' data-a='manage'>" + escHtml(L.manage) + "</button>" +
+          "<button class='cb-btn cb-ghost' data-a='reject'>" + escHtml(L.reject) + "</button>" +
+          "<button class='cb-btn cb-accept' data-a='accept'>" + escHtml(L.accept) + "</button>" +
         "</div>" +
       "</div>";
     el.querySelector("[data-a='accept']").onclick = function () { acceptAll(C); };
@@ -1923,32 +2477,55 @@ let _userConfig = null;
     var overlay = document.createElement("div");
     overlay.className = "cb-overlay";
     overlay.onclick = function (e) { if (e.target === overlay) hidePanel(); };
-    var rows = C.categories.map(function (cat) {
+    var rows = C.categories.map(function (cat, i) {
       var checked = cat.locked ? true : !!state.chosen[cat.id];
-      var pill = (cat.locked && C.showAlwaysPill !== false) ? " <span class='cb-pill'>" + L.always + "</span>" : "";
+      // El interruptor no tiene texto dentro, asi que sin esto un lector de
+      // pantalla anuncia "interruptor, activado" sin decir de que categoria.
+      // El id va por indice, no por cat.id: el id de categoria lo escribe el
+      // cliente y puede no ser un id de HTML valido.
+      var idEt = "cb-et-" + i, idDe = "cb-de-" + i;
+      var pill = (cat.locked && C.showAlwaysPill !== false) ? " <span class='cb-pill'>" + escHtml(L.always) + "</span>" : "";
+      // Si la senal del navegador es la razon de que esta fila este apagada, se
+      // dice en la fila. Antes solo habia un aviso en el banner, y solo en el
+      // modo "ask": en el caso normal el visitante veia su categoria apagada
+      // sin ninguna explicacion, que es justo lo que la norma pide explicar.
+      var porGpc = (!cat.locked && gpcActivo() && !checked)
+        ? "<span class='cb-gpcfila'>" + escHtml(L.gpcFila || "") + "</span>" : "";
+      // Que esta categoria vende o cede se dice EN LA FILA. El visitante que
+      // llega por el enlace de exclusion viene justo a buscar eso, y no puede
+      // tener que adivinar cual de las cinco es.
+      var porVenta = esVenta(cat)
+        ? "<span class='cb-ventafila'>" + escHtml(L.ventaFila || "") + "</span>" : "";
       var rol = ((C.switchStyle || {}).shape === "checkbox") ? "checkbox" : "switch";
+      var etiquetas = " aria-labelledby='" + idEt + "' aria-describedby='" + idDe + "'";
       var control = cat.locked
-        ? "<button class='cb-sw' role='" + rol + "' aria-checked='true' aria-disabled='true' disabled><span class='cb-knob'></span></button>"
-        : "<button class='cb-sw' role='" + rol + "' aria-checked='" + checked + "' data-cat='" + cat.id + "'><span class='cb-knob'></span></button>";
+        ? "<button class='cb-sw' role='" + rol + "' aria-checked='true' aria-disabled='true' disabled" + etiquetas + "><span class='cb-knob'></span></button>"
+        : "<button class='cb-sw' role='" + rol + "' aria-checked='" + checked + "' data-cat='" + escAttr(cat.id) + "'" + etiquetas + "><span class='cb-knob'></span></button>";
       return "<div class='cb-row'>" +
-        "<div class='t'><strong>" + lang(cat.label, C) + pill + "</strong><span>" + lang(cat.desc, C) + "</span></div>" +
+        "<div class='t'><strong id='" + idEt + "'>" + escHtml(lang(cat.label, C)) + pill +
+          "</strong><span id='" + idDe + "'>" + escHtml(lang(cat.desc, C)) + "</span>" + porVenta + porGpc + "</div>" +
         control +
       "</div>";
     }).join("");
     overlay.innerHTML =
-      "<div class='cb-panel' role='dialog' aria-modal='true' aria-label='" + L.panelTitle + "'>" +
-        ((C.panel || {}).showClose ? "<button class='cb-close' data-a='close' aria-label='Close'><svg width='16' height='16' viewBox='0 0 16 16' stroke='currentColor' stroke-width='1.3'><line x1='1' y1='1' x2='15' y2='15'/><line x1='15' y1='1' x2='1' y2='15'/></svg></button>" : "") +
+      "<div class='cb-panel' role='dialog' aria-modal='true' tabindex='-1' aria-labelledby='cb-titulo'>" +
+        ((C.panel || {}).showClose ? "<button class='cb-close' data-a='close' aria-label='" + escAttr(L.close || "Close") + "'><svg width='16' height='16' viewBox='0 0 16 16' stroke='currentColor' stroke-width='1.3'><line x1='1' y1='1' x2='15' y2='15'/><line x1='15' y1='1' x2='1' y2='15'/></svg></button>" : "") +
         "<div class='cb-head'>" +
-          (C.showEyebrow === false ? "" : "<p class='cb-eyebrow2'>" + L.panelEyebrow + "</p>") +
-          "<h2>" + L.panelTitle + "</h2>" +
-          "<p class='cb-intro'>" + L.panelIntro + "</p>" +
+          (C.showEyebrow === false ? "" : "<p class='cb-eyebrow2'>" + escHtml(L.panelEyebrow) + "</p>") +
+          "<h2 id='cb-titulo'>" + escHtml(L.panelTitle) + "</h2>" +
+          "<p class='cb-intro'>" + escHtml(L.panelIntro) + "</p>" +
+          // Solo cuando se llega desde el enlace de exclusion, y solo si hay
+          // algo marcado: si no, seria una frase que no corresponde a ninguna
+          // fila y el visitante la buscaria sin encontrarla.
+          ((state.verVenta && hayMarcasDeVenta(C))
+            ? "<p class='cb-ventaintro'>" + escHtml(L.ventaIntro || "") + "</p>" : "") +
         "</div>" +
         "<div class='cb-rows'>" + rows + "</div>" +
         "<div class='cb-foot'>" +
-          "<button class='cb-btn2 cb-outline' data-a='reject'>" + L.rejectOptional + "</button>" +
+          "<button class='cb-btn2 cb-outline' data-a='reject'>" + escHtml(L.rejectOptional) + "</button>" +
           "<div class='cb-foot-right'>" +
-            "<button class='cb-btn2 cb-text' data-a='accept'>" + L.accept + "</button>" +
-            "<button class='cb-btn2 cb-save' data-a='save'>" + L.save + "</button>" +
+            "<button class='cb-btn2 cb-text' data-a='accept'>" + escHtml(L.accept) + "</button>" +
+            "<button class='cb-btn2 cb-save' data-a='save'>" + escHtml(L.save) + "</button>" +
           "</div>" +
         "</div>" +
       "</div>";
@@ -1967,6 +2544,23 @@ let _userConfig = null;
         chosen[sw.getAttribute("data-cat")] = sw.getAttribute("aria-checked") === "true";
       });
       persist(C, "custom", chosen);
+    };
+    // Teclado. Un dialogo modal que no se cierra con Escape y del que el
+    // tabulador se escapa a la pagina de detras es un dialogo que, para quien
+    // navega con teclado o lector de pantalla, no se puede ni usar ni cerrar.
+    overlay.onkeydown = function (e) {
+      if (e.key === "Escape" || e.key === "Esc") { e.preventDefault(); hidePanel(); return; }
+      if (e.key !== "Tab") return;
+      var f = enfocables(overlay);
+      if (!f.length) return;
+      // Dentro de un shadow root el activeElement del documento es el host, no
+      // el boton: hay que preguntarle al propio shadow root.
+      var act = (root && root.activeElement) || document.activeElement;
+      var i = indiceDe(f, act);
+      if (e.shiftKey ? (i <= 0) : (i === f.length - 1 || i === -1)) {
+        e.preventDefault();
+        f[e.shiftKey ? f.length - 1 : 0].focus();
+      }
     };
     var btnClose = overlay.querySelector("[data-a='close']");
     if (btnClose) btnClose.onclick = function () { hidePanel(); };
@@ -1994,13 +2588,14 @@ let _userConfig = null;
     /* Sin chip.image el modo imagen antes caia a texto, asi que las tres
        opciones se veian igual. Con este icono incluido cada modo se distingue
        sin pedir una URL; chip.image lo sigue pisando cuando lo hay. */
+    // Antes solo se escapaba la comilla simple, asi que un < en el alt salia
+    // en crudo. escAttr cubre los cinco.
     var img = P.image
-      ? "<img src='" + String(P.image).replace(/'/g, "&#39;") +
-        "' alt='" + String(P.imageAlt || "").replace(/'/g, "&#39;") + "'>"
+      ? "<img src='" + escAttr(P.image) + "' alt='" + escAttr(P.imageAlt || "") + "'>"
       : ICONO_PILL;
     if (mode === "image")      html = img;
-    else if (mode === "both")  html = img + "<span>" + label + "</span>";
-    else                       html = "<span>" + label + "</span>";
+    else if (mode === "both")  html = img + "<span>" + escHtml(label) + "</span>";
+    else                       html = "<span>" + escHtml(label) + "</span>";
     var el = document.createElement("button");
     el.className = "cb-chip";
     el.type = "button";
@@ -2041,7 +2636,46 @@ let _userConfig = null;
     showBackdrop(C);
   }
   function hideBanner() { if (bannerEl) bannerEl.style.display = "none"; hideBackdrop(); }
-  function openPanel(C) { ensureRoot(C); panelEl = buildPanel(C); root.appendChild(panelEl); }
+  /* Lo que puede recibir el foco dentro del panel, en el orden en que lo
+     recibe. Se calcula en cada Tab y no una vez al abrir, porque las filas
+     cambian de estado mientras el panel esta abierto. */
+  function enfocables(caja) {
+    var sel = "button:not([disabled]),a[href],input:not([disabled])," +
+              "select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex='-1'])";
+    var out = [];
+    each(caja.querySelectorAll(sel), function (n) {
+      // Nada oculto: entrarian paradas del tabulador invisibles.
+      if (n.offsetWidth || n.offsetHeight || n.getClientRects().length) out.push(n);
+    });
+    return out;
+  }
+  function visible(n) {
+    if (!n || n.isConnected === false) return false;
+    try {
+      return !!(n.offsetWidth || n.offsetHeight || n.getClientRects().length);
+    } catch (e) { return false; }
+  }
+  function indiceDe(lista, n) {
+    for (var i = 0; i < lista.length; i++) if (lista[i] === n) return i;
+    return -1;
+  }
+
+  // A quien devolver el foco al cerrar: normalmente el pill desde el que se
+  // abrio. Sin esto, quien navega con teclado cierra el panel y vuelve al
+  // principio del documento, con todo el sitio por delante otra vez.
+  var focoPrevio = null;
+
+  function openPanel(C) {
+    if (panelEl) return;                      // dos paneles encima no
+    ensureRoot(C);
+    focoPrevio = (root && root.activeElement) || document.activeElement || null;
+    panelEl = buildPanel(C);
+    root.appendChild(panelEl);
+    // Al dialogo, no al primer boton: asi el lector lee el titulo y la
+    // introduccion antes de anunciar un control.
+    var caja = panelEl.querySelector(".cb-panel");
+    try { (caja || panelEl).focus(); } catch (e) {}
+  }
 
   /* Lo que abre el disparador del sitio. Por defecto el panel, que es lo que
      hacia antes; con trigger.opens = "banner" reabre el aviso entero, util si
@@ -2056,7 +2690,190 @@ let _userConfig = null;
       openPanel(C);
     }
   }
-  function hidePanel() { if (panelEl && panelEl.parentNode) panelEl.parentNode.removeChild(panelEl); panelEl = null; }
+  function hidePanel() {
+    if (panelEl && panelEl.parentNode) panelEl.parentNode.removeChild(panelEl);
+    panelEl = null;
+    state.verVenta = false;
+    // isConnected no basta: al guardar desde el panel abierto desde el BANNER,
+    // persist() oculta el banner con display:none y luego cierra el panel. El
+    // boton sigue conectado, focus() no hace nada y el foco cae al body, que
+    // es exactamente lo que esto existe para evitar. Si no se puede enfocar de
+    // verdad, se cae al pill.
+    var destino = visible(focoPrevio) ? focoPrevio : (visible(chipEl) ? chipEl : null);
+    focoPrevio = null;
+    if (destino) { try { destino.focus(); } catch (e) {} }
+  }
+  /* ---- El enlace de exclusion (CPRA 7015 / 7013) -------------------------
+
+     Dos formas legales, y el sitio elige:
+
+       style "single"  un solo enlace titulado "Your Privacy Choices" o "Your
+                       California Privacy Choices" (art. 7015). Este EXIGE el
+                       icono oficial al lado del titulo.
+       style "dual"    los dos enlaces de siempre, "Do Not Sell or Share My
+                       Personal Information" y "Limit the Use of My Sensitive
+                       Personal Information" (arts. 7013 y 7014). Ahi el icono
+                       no es obligatorio.
+
+     EL ICONO NO SE DIBUJA AQUI, Y ES A PROPOSITO. Es una marca oficial con una
+     forma concreta que publica la agencia de privacidad de California, y el
+     articulo dice que hay que poner ESE icono. Un SVG parecido hecho de
+     memoria no cumpliria, y seria peor que no poner ninguno: el cliente
+     creeria que esta cubierto. Asi que el sitio apunta a su copia del fichero
+     oficial en optOut.icon, y el panel avisa en rojo si falta. */
+  function optOutCfg(C) {
+    var o = C.optOut || {};
+    return {
+      on: o.enabled === true,
+      estilo: o.style === "dual" ? "dual" : "single",
+      // Por urlSegura, igual que el enlace de politica. Sin esto, un
+      // optOut.href con "javascript:..." escrito desde el panel ejecutaba
+      // codigo en el sitio de todos los clientes al pulsar el enlace: el mismo
+      // agujero que costo cerrar en el escapado, por otra puerta.
+      icono: urlSegura(typeof o.icon === "string" ? o.icon : ""),
+      href: urlSegura(typeof o.href === "string" ? o.href : ""),
+      pintar: o.render === true
+    };
+  }
+
+  /* Lo que hace el enlace: abrir el panel, con las categorias de venta a la
+     vista. El articulo pide "pocos pasos", no un formulario. */
+  function abrirExclusion(C) {
+    // hidePanel PRIMERO y la marca despues: hidePanel la borra, asi que al
+    // reves se apagaba sola y el visitante llegaba al panel sin la frase que
+    // le explica por que esta ahi.
+    hidePanel();
+    state.verVenta = true;
+    openPanel(C);
+  }
+
+  /* El sitio puede poner el enlace donde quiera con data-consent-optout, que
+     es lo normal: el articulo lo quiere en la cabecera o el pie de la portada,
+     y ese sitio solo lo sabe el cliente. Si ademas pide render, montamos uno
+     nuestro para quien no tenga donde ponerlo. */
+  var _optOutVigila = false;
+  function montaEnlaceExclusion(C) {
+    var o = optOutCfg(C);
+    if (!o.on) return;
+    var L = t();
+    var titulo = L.optOutTitle || "Your Privacy Choices";
+    var nodos = [];
+    try {
+      nodos = Array.prototype.slice.call(
+        document.querySelectorAll("[data-consent-optout]"));
+    } catch (e) { nodos = []; }
+
+    /* Que titulo le toca a cada nodo. En estilo "single" hay uno solo. En
+       "dual" son los dos que fijan los articulos 7013 y 7014, y el sitio dice
+       cual quiere en cada sitio con data-consent-optout="sell" o "limit". */
+    function tituloDe(n) {
+      if (o.estilo !== "dual") return titulo;
+      var cual = (n.getAttribute("data-consent-optout") || "").toLowerCase();
+      return (cual === "limit")
+        ? (L.optOutLimit || "Limit the Use of My Sensitive Personal Information")
+        : (L.optOutSell || "Do Not Sell or Share My Personal Information");
+    }
+
+    function viste(n) {
+      if (n.getAttribute("data-consent-ready")) return;
+      n.setAttribute("data-consent-ready", "1");
+      var miTitulo = tituloDe(n);
+      // Si el cliente ya escribio el texto dentro, se respeta: puede tener el
+      // titulo y el icono puestos a mano, que es lo correcto segun el articulo.
+      if (!n.innerHTML.replace(/\s/g, "")) {
+        // El icono solo en el estilo "single": el articulo 7015 lo exige
+        // junto al titulo unico, y en el dual no pinta nada.
+        var img = (o.icono && o.estilo !== "dual")
+          ? "<img src='" + escAttr(o.icono) + "' alt='' width='28' height='14' " +
+            "style='vertical-align:middle;margin-right:6px'>"
+          : "";
+        n.innerHTML = img + "<span>" + escHtml(miTitulo) + "</span>";
+      }
+      if (!n.getAttribute("aria-label")) {
+        n.setAttribute("aria-label",
+          o.estilo === "dual" ? miTitulo : (L.optOutAria || miTitulo));
+      }
+      if (o.href && n.tagName === "A" && !n.getAttribute("href")) {
+        n.setAttribute("href", o.href);
+      }
+      // Se mira ESTE nodo, no la config global. Antes bastaba con que hubiera
+      // optOut.href para que el manejador se fuera, y entonces un <span> no
+      // navegaba a ningun sitio (el clic no hacia nada) y un <a href="#"> ya
+      // puesto saltaba al principio de la pagina. En los dos casos el
+      // visitante no llegaba ni al panel ni a la pagina de privacidad.
+      function navegaSolo() {
+        return n.tagName === "A" && !!n.getAttribute("href") &&
+               n.getAttribute("href") !== "#";
+      }
+      n.addEventListener("click", function (e) {
+        if (navegaSolo()) return;      // el cliente apunta a su propia pagina
+        e.preventDefault();
+        abrirExclusion(C);
+      });
+      // Con teclado. Un <span>, un <div> o un <a> SIN href no reciben el foco
+      // y no se pueden activar con Enter: el enlace que la norma exige se
+      // quedaba fuera del alcance de quien no usa raton.
+      if (!navegaSolo()) {
+        if (!n.getAttribute("tabindex")) n.setAttribute("tabindex", "0");
+        if (!n.getAttribute("role") && n.tagName !== "A" && n.tagName !== "BUTTON") {
+          n.setAttribute("role", "button");
+        }
+        n.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+            e.preventDefault();
+            abrirExclusion(C);
+          }
+        });
+      }
+    }
+    nodos.forEach(viste);
+
+    // El bloque va "lo primero del <head>", que es lo que exige el propio
+    // producto, asi que cuando esto corre el <footer> con data-consent-optout
+    // normalmente TODAVIA NO EXISTE: se barria una vez, no se enganchaba nada,
+    // y el enlace de la CPRA no aparecia sin que nada lo dijera. viste() es
+    // idempotente por data-consent-ready, asi que repasar sale gratis.
+    if (!_optOutVigila) {
+      _optOutVigila = true;
+      var repasa = function () {
+        try {
+          Array.prototype.slice.call(
+            document.querySelectorAll("[data-consent-optout]")).forEach(viste);
+        } catch (e) {}
+      };
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", repasa);
+      }
+      setTimeout(repasa, 400);
+      setTimeout(repasa, 1500);
+      // Y para los pies que monta el propio sitio con JS despues de cargar.
+      try {
+        if (window.MutationObserver && document.documentElement) {
+          new MutationObserver(repasa).observe(document.documentElement,
+            { childList: true, subtree: true });
+        }
+      } catch (e) {}
+    }
+
+    if (!nodos.length && o.pintar) {
+      ensureRoot(C);
+      if (root.querySelector(".cb-optout")) return;
+      // En dual son DOS enlaces, no uno: ese es justamente el estilo, y
+      // pintar uno solo no cumplia ni el 7015 (que pide icono) ni el
+      // 7013/7014 (que piden los dos). El panel lo recomendaba como
+      // alternativa al icono, asi que se acababa sin cumplir ninguno.
+      var cuales = (o.estilo === "dual") ? ["sell", "limit"] : [""];
+      cuales.forEach(function (cual) {
+        var a = document.createElement("a");
+        a.className = "cb-optout";
+        a.href = o.href || "#";
+        a.setAttribute("data-consent-optout", cual);
+        root.appendChild(a);
+        viste(a);
+      });
+    }
+  }
+
   function showChip(C) {
     if (C.chip && C.chip.enabled === false) return;   // el sitio no quiere pill
     ensureRoot(C);
@@ -2080,10 +2897,31 @@ let _userConfig = null;
   function gpcCategorias(C) {
     var g = C.gpc || {};
     var ids = (g.categories && g.categories.length) ? g.categories : null;
+    // La senal GPC es, por definicion legal, una peticion de no vender ni
+    // ceder. Con la marca de B1 puesta se puede apagar EXACTAMENTE eso, en vez
+    // de apagar todo lo denegable: hoy una categoria de "preferencias", que no
+    // vende nada, se apagaba igual, y eso es apagar de mas.
+    //
+    // Pero solo cuando hay marcas. Un sitio que todavia no ha marcado nada
+    // conserva el comportamiento de antes -- apagarlo todo -- porque pasar a
+    // "no apagar nada" seria convertir un exceso de celo en un incumplimiento
+    // callado. El panel avisa de que hay que marcarlas.
+    //
+    // Y SOLO EN TERRITORIO DE OPT-OUT. Esto no es una lista de "lo que GPC
+    // apaga": es el chosen que proceed() PERSISTE cuando llega alguien con la
+    // senal y sin decision previa, y en esa rama no se ensena banner. En
+    // opt-in, decir "esta no vende, luego queda encendida" concede analitica
+    // sin haber preguntado y escribe una cookie que dice que consintio. Un
+    // visitante del EEE con Brave o con Firefox entraba justo por ahi, y
+    // bastaba con que el cliente marcara UNA categoria como venta para que el
+    // resto pasara de denegado a concedido. Donde hay que pedir permiso, GPC
+    // solo puede denegar.
+    var porVenta = !ids && esOptOut(C) && hayMarcasDeVenta(C);
     var chosen = {};
     C.categories.forEach(function (c) {
       if (c.locked) { chosen[c.id] = true; return; }          // esenciales, siempre
-      chosen[c.id] = ids ? (ids.indexOf(c.id) === -1) : false;
+      if (ids) { chosen[c.id] = ids.indexOf(c.id) === -1; return; }
+      chosen[c.id] = porVenta ? !esVenta(c) : false;
     });
     return chosen;
   }
@@ -2098,8 +2936,30 @@ let _userConfig = null;
   }
 
   function acceptAll(C) {
-    var chosen = {}; C.categories.forEach(function (c) { chosen[c.id] = true; });
-    persist(C, "all", chosen);
+    var chosen = {};
+    // Con la senal GPC puesta, "Aceptar todas" NO puede conceder lo que la
+    // senal apaga. La senal es una peticion de exclusion con valor legal en una
+    // docena de estados; un boton que la pisa sin friccion deja al sitio en la
+    // misma posicion que si no la respetara. Lo demas si se concede: el
+    // visitante ha dicho que si a lo que no cubre la senal.
+    //
+    // Y no es solo este momento: la decision se guarda con gpc=true, y la
+    // comprobacion de conflicto de la proxima visita exige prev.gpc !== true,
+    // asi que una vez concedido aqui no se revocaba nunca mas.
+    var apaga = gpcActivo() ? gpcCategorias(C) : null;
+    C.categories.forEach(function (c) {
+      chosen[c.id] = apaga ? (c.locked || apaga[c.id] === true) : true;
+    });
+    if (apaga) {
+      var frenadas = C.categories.filter(function (c) {
+        return !c.locked && !chosen[c.id];
+      }).map(function (c) { return c.id; });
+      if (frenadas.length) {
+        log("gpc", "Aceptar todas, pero la senal GPC mantiene apagadas: " +
+            frenadas.join(", ") + ".");
+      }
+    }
+    persist(C, apaga ? "all-gpc" : "all", chosen);
   }
   function rejectAll(C) {
     var chosen = {}; C.categories.forEach(function (c) { chosen[c.id] = !!c.locked; });
@@ -2110,6 +2970,9 @@ let _userConfig = null;
   function loadRemoteThen(C, done) {
     var base = String(C.apiBase).replace(/\/$/, "");
     var url = base + "/api/config?site_id=" + encodeURIComponent(C.siteId);
+    // El token de vista previa, si lo hay. El servidor responde si vale.
+    var tkp = paramsPrueba().token || tokenPrueba();
+    if (tkp) url += "&preview=" + encodeURIComponent(tkp);
     log("remote", "Pidiendo config remota: " + url);
     fetch(url).then(function (r) { return r.json(); }).then(function (remote) {
       _remote = remote || {};
@@ -2118,14 +2981,39 @@ let _userConfig = null;
       _remote.siteId = C.siteId;
       if (C.publicKey && !_remote.publicKey) _remote.publicKey = C.publicKey;
       _remoteLoaded = true;
+      // Token guardado que el servidor ya no acepta (caducado, o de otro
+      // sitio): se tira. Si no, este navegador seguiria colgandolo en cada
+      // peticion de config para siempre, y el visitante seguiria con un modo
+      // de prueba a medias que nadie le puso.
+      if (tkp && _remote._preview !== true) {
+        try {
+          localStorage.removeItem(PRUEBA_TK);
+          localStorage.removeItem(PRUEBA_KEY);
+        } catch (e) {}
+      }
       log("remote", "Config remota cargada (site_id=" + C.siteId + ").");
       // Las reglas de bloqueo se cargaron antes de tener esta config, asi que
       // estaban vacias: con el sitio configurado en remoto, el bloqueo duro no
       // protegia a un visitante nuevo. Se repueblan aqui y, mientras no haya
       // decision, se consideran todas denegadas, que es lo que exige la ley.
       var cr = merged();
-      _reglasVivas = cr.autoBlock || [];
+      // installAutoBlock() y NO asignar _reglasVivas a mano. Asignarlas dejaba
+      // las reglas puestas pero sin nadie vigilando: blockNow() corre al
+      // cargar el bundle, cuando la config remota todavia no ha llegado, y si
+      // entonces no habia ninguna regla inline se iba por
+      // `if (!rules.length) return` y no instalaba ni el parche de insercion
+      // ni el observer. Como nadie volvia a llamarlo, un sitio cuyas reglas
+      // viven SOLO en el panel -- que es lo normal en cuanto alguien anade la
+      // primera despues de instalar -- no bloqueaba nada de lo que inyectara
+      // otro script. Justo el caso de GTM, que es el que importa.
+      //
+      // Llamarla otra vez es barato y seguro: si ya hay observer sale sola, y
+      // si el inline esta corriendo lo adopta en vez de montar un segundo.
+      // Ademas pasa por reglasQueBloquean(), asi que las reglas en modo
+      // "notify" no acaban bloqueando, que era otra diferencia entre las dos
+      // ramas.
       _duroActivo = cr.hardBlocking !== false;
+      installAutoBlock();
       // Y con las reglas ya puestas hay que repasar el DOM: lo que el parser
       // monto mientras no habia reglas (un iframe de video, un pixel) seguiria
       // cargado. Sin esto, un sitio configurado en remoto no bloqueaba nada de
@@ -2191,6 +3079,97 @@ let _userConfig = null;
   // darlo. Si el pill esta oculto y en la pagina no hay ningun disparador, el
   // visitante se quedaria encerrado con su decision, asi que mostramos el pill
   // igualmente. Se comprueba tarde porque muchos footers se pintan despues.
+  /* ---- GTM cargado antes que el bloque (B4) ------------------------------
+
+     Es la forma de la fuga de Costa Farms, vista desde dentro. Si la etiqueta
+     de Google Tag Manager esta en el HTML ANTES de nuestro bloque, para cuando
+     corremos ya ha arrancado: el `consent default` llega tarde, los
+     disparadores de GTM ya se han evaluado y lo que tuviera que salir ha
+     salido. El banner se ve perfecto y los datos ya se fueron.
+
+     Nadie lo nota mirando el panel, porque en el panel la config es correcta.
+     Solo se ve en el orden del HTML del cliente, asi que hay que mirarlo aqui
+     y decirlo. */
+  /* Quien empezo antes, GTM o nosotros.
+
+     SE MIRA EL TIEMPO, NO LA POSICION EN EL DOCUMENTO. Antes se comparaba con
+     compareDocumentPosition y era un falso positivo en casi cualquier sitio
+     con GTM: el fragmento estandar de Google hace
+
+         var f = d.getElementsByTagName("script")[0];
+         f.parentNode.insertBefore(j, f);
+
+     o sea que se mete ANTES DEL PRIMER <script> del documento. En una pagina
+     que abra con un bloque de JSON-LD -- datos estructurados, que lleva medio
+     mundo -- GTM queda colocado por delante de nuestro bloque aunque se haya
+     EJECUTADO despues. Avisabamos de un problema que no existia, y el consejo
+     que dabamos ("mueve el bloque arriba") no arreglaba nada porque ya estaba
+     arriba.
+
+     Resource Timing si dice cuando SALIO cada peticion. Como referencia se usa
+     la de nuestro propio bundle: es una etiqueta estatica que va justo detras
+     del bloque en linea, asi que su peticion arranca cuando el parser llega
+     ahi. Si la de Google arranco antes, GTM llego antes de verdad. */
+  function gtmLlegoAntes() { return _gtmArriba; }
+
+  /* Se mira UNA vez, en cuanto el bundle empieza a correr, y se guarda.
+
+     Nuestra etiqueta es un <script src> normal, sin async ni defer: bloquea el
+     parser, asi que cuando esto corre el documento contiene EXACTAMENTE lo que
+     hay por encima de ella en el HTML y nada de lo de debajo. Si en ese
+     instante ya hay una etiqueta de Google en el DOM, es que esta escrita por
+     encima de la nuestra. Es el unico momento en que la pregunta tiene
+     respuesta.
+
+     Lo que NO sirve, y se probo:
+       - compareDocumentPosition mas tarde: el fragmento estandar de GTM se
+         inserta antes del PRIMER <script> del documento, asi que en cualquier
+         pagina que abra con un bloque de JSON-LD acaba colocado por delante
+         del nuestro aunque se haya ejecutado despues. Falso positivo en casi
+         cualquier sitio con GTM.
+       - Resource Timing: con dos etiquetas estaticas en la misma cabecera, el
+         escaner de precarga lanza las dos peticiones con un milisegundo de
+         diferencia. El orden de salida no dice quien se ejecuta antes. */
+  var _gtmArriba = (function () {
+    try {
+      // Con el parser ya terminado la foto no vale: o la etiqueta lleva async,
+      // o alguien carga el bundle a mano despues. Mejor callar que inventar.
+      if (document.readyState !== "loading") return null;
+      var n = document.querySelector(
+        "script[src*='googletagmanager.com'],script[src*='gtag/js']");
+      return n ? n.getAttribute("src") : null;
+    } catch (e) { return null; }
+  })();
+
+  function avisaOrdenDeGtm(C) {
+    if ((C.safety && C.safety.gtmOrder === false)) return;
+    setTimeout(function () {
+      var antes = gtmLlegoAntes();
+      if (!antes) return;
+      var txt = "Google Tag Manager se carga ANTES que el bloque de consentimiento (" +
+                antes + "). Para cuando este corre, GTM ya ha evaluado sus " +
+                "disparadores: el consent default llega tarde y lo que tuviera " +
+                "que salir ya salio. Mueve el bloque de Instalar por encima de " +
+                "la etiqueta de GTM, lo primero del <head>.";
+      log("orden", txt);
+      // Tambien por la via que mira el cliente aunque no abra la consola con
+      // el modo depuracion puesto.
+      try { if (window.console && console.warn) console.warn("[consent] " + txt); } catch (e) {}
+      // Y se manda al panel, que es donde alguien lo va a ver de verdad.
+      try {
+        if (!C.apiBase || !C.siteId) return;
+        var h = { "Content-Type": "application/json" };
+        if (C.publicKey) h["X-Api-Key"] = C.publicKey;
+        fetch(String(C.apiBase).replace(/\/$/, "") + "/api/aviso-instalacion", {
+          method: "POST", keepalive: true, headers: h,
+          body: JSON.stringify({ site_id: C.siteId, tipo: "gtm_antes",
+                                 detalle: String(antes).slice(0, 300),
+                                 page: rutaDePagina() })
+        }).catch(function () {});
+      } catch (e) {}
+    }, 1200);
+  }
+
   function checkSafety(C) {
     var T = C.trigger || {};
     if (T.safety === false) return;
@@ -2226,6 +3205,20 @@ let _userConfig = null;
 
   function proceed(C) {
     installTriggers(C);
+    // Va aqui y no dentro de una rama: el enlace de exclusion tiene que estar
+    // aunque el visitante ya haya decidido, aunque la senal GPC lo haya
+    // apagado todo y aunque no llegue a salir banner. Es un derecho permanente,
+    // no un paso del flujo de la primera visita.
+    // El idioma se resuelve ANTES de montar el enlace. Iba despues, y como
+    // state.lang nace en "es" y t() cae a COPY.es, el enlace del articulo 7015
+    // se pintaba "Tus opciones de privacidad" en un sitio en ingles. Y viste()
+    // marca el nodo con data-consent-ready, asi que ningun re-escaneo lo
+    // corregia: el titulo que la norma exige literal quedaba mal para siempre.
+    state.lang = detectaIdioma(C);
+    try { montaEnlaceExclusion(C); } catch (e) { log("optout", "No se pudo montar el enlace: " + e.message); }
+    // Va aqui y no dentro de checkSafety: aquella se salta entera si el pill
+    // esta a la vista, y el orden de GTM hay que mirarlo siempre.
+    try { avisaOrdenDeGtm(C); } catch (e) {}
     state.lang = detectaIdioma(C);
     log("init", "Idioma del banner: " + state.lang +
         " (navegador: " + ((navigator.languages || [navigator.language || "?"])[0]) + ").");
@@ -2265,6 +3258,18 @@ let _userConfig = null;
       // Ya decidio: no mostrar banner, cargar toggles, limpiar si hace falta.
       state.chosen = prev.categories || {};
       log("init", "Decision previa encontrada (choice=" + prev.choice + ").");
+      // Consent Mode: el update va tambien al RESTAURAR, no solo al decidir.
+      // Faltaba, y en modo avanzado era el fallo que dejaba en denied para
+      // siempre a quien ya habia aceptado: el `consent default` arranca
+      // denegado, el banner ve la cookie y no se muestra, y nadie le vuelve a
+      // decir a la etiqueta que esa persona ya dio permiso. Medido: segunda
+      // visita con la cookie puesta, `default` denegado y ningun `update`.
+      // En modo basico no sobra: la llamada se queda en el dataLayer y la
+      // recoge la etiqueta cuando se desbloquea.
+      var sigPrev = signalsFrom(C, state.chosen);
+      gtag("consent", "update", sigPrev);
+      gcmAjustes(C);
+      log("update", "Decision previa restaurada: " + JSON.stringify(sigPrev));
       if (C.activeDeletion) {
         deleteAnalyticsCookies(state.chosen);
         startDeletionWatch(C, state.chosen);   // los terceros reescriben tras cargar
@@ -2275,6 +3280,23 @@ let _userConfig = null;
       // reactivar, o el parche de insercion mata lo que acabamos de revivir.
       refreshAutoBlock(C, state.chosen);
       activateScripts(C, state.chosen);
+    } else if (esOptOut(C) && !gpcMandaAhora) {
+      // Opt-out: lo opcional ya esta concedido, asi que el banner INFORMA, no
+      // bloquea, y las etiquetas se activan sin esperar. No se escribe cookie:
+      // la persona no ha decidido nada todavia, y guardar una decision que
+      // nadie tomo haria imposible distinguir despues "acepto" de "no dijo
+      // nada". Si vuelve a entrar, se le vuelve a aplicar lo mismo.
+      state.chosen = eleccionPorDefecto(C);
+      state.modo = "optout";
+      var sigOO = signalsFrom(C, state.chosen);
+      gtag("consent", "update", sigOO);
+      gcmAjustes(C);
+      log("region", "Regimen opt-out (" +
+          ((C._region && (C._region.rule || C._region.country)) || "por defecto") +
+          "): lo opcional arranca concedido. " + JSON.stringify(sigOO));
+      refreshAutoBlock(C, state.chosen);
+      activateScripts(C, state.chosen);
+      showBanner(C);
     } else if (gpcMandaAhora) {
       // Nada de banner: la senal YA es la respuesta. Queda el pill (o el enlace
       // del pie) para que el visitante pueda cambiarla cuando quiera.
@@ -2282,6 +3304,17 @@ let _userConfig = null;
       showChip(C);
     } else {
       log("init", prev ? "Version de consentimiento cambio: se vuelve a preguntar." : "Sin decision previa: se muestra el banner.");
+      // Si habia una decision y la version ya no vale, hay que REVOCARLA en
+      // voz alta. El bloque en linea del snippet lee la cookie y puede haber
+      // concedido ya, porque el lleva la version que tenia el snippet el dia
+      // que se copio y la remota manda sobre esa. Sin esto, el visitante ve el
+      // banner otra vez mientras Google sigue con el permiso viejo.
+      if (prev) {
+        var sigCero = signalsFrom(C, {});
+        gtag("consent", "update", sigCero);
+        gcmAjustes(C);
+        log("update", "Version caducada: se revoca mientras se vuelve a preguntar.");
+      }
       showBanner(C);
     }
     startDiscovery(C);
@@ -2294,6 +3327,15 @@ let _userConfig = null;
 export function blockNow() { gcmDefault(merged()); installAutoBlock(); instalarBloqueoDuro(merged()); }
 export function start(config) { if (config) { _userConfig = config; } init(); }
 export function open() { openPanel(merged()); }
+/* Para quien prefiera cablear el enlace a mano:
+     <a href="#" onclick="ConsentBanner.openPrivacyChoices(); return false">
+   Hace lo mismo que pulsar el enlace que montamos nosotros. */
+export function openPrivacyChoices() { abrirExclusion(merged()); }
+/* Lo que el enlace de exclusion apaga, por si el sitio quiere ensenarlo o
+   comprobarlo desde fuera. Devuelve los ids, no las categorias enteras. */
+export function saleCategories() {
+  return (merged().categories || []).filter(esVenta).map(function (c) { return c.id; });
+}
 export function reset() {
   var C = merged();
   document.cookie = cookieName(C) + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
@@ -2310,8 +3352,19 @@ export function setLanguage(l) {
   // visitante tenia el panel abierto o el pill puesto, se quedaban en el
   // idioma anterior hasta recargar.
   if (bannerEl) { bannerEl.remove(); bannerEl = null; showBanner(C); }
-  if (panelEl) { hidePanel(); openPanel(C); }
+  if (panelEl) {
+    // hidePanel borra state.verVenta, asi que cambiar de idioma con el panel
+    // abierto desde el enlace de exclusion hacia desaparecer la frase que
+    // explica por que esta ahi. Es el mismo fallo que abrirExclusion ya
+    // evitaba, reintroducido por otro lado.
+    var venta = state.verVenta;
+    hidePanel();
+    state.verVenta = venta;
+    openPanel(C);
+  }
   if (chipEl) { chipEl.remove(); chipEl = null; showChip(C); }
 }
 export function getLanguage() { return state.lang; }
-export default { start: start, open: open, reset: reset, setLanguage: setLanguage, getLanguage: getLanguage, blockNow: blockNow };
+export default { start: start, open: open, reset: reset, setLanguage: setLanguage,
+                 getLanguage: getLanguage, blockNow: blockNow,
+                 openPrivacyChoices: openPrivacyChoices, saleCategories: saleCategories };

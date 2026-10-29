@@ -23,7 +23,7 @@
 <p>Abre esta pagina servida por <b>tu backend</b> (no con doble clic: tiene que
 ser <code>http://localhost:PUERTO/sitio-demo.html</code>).</p>
 
-<div class="av"><b>Antes de nada:</b> pon aqui tu <code>siteId</code> y tu
+<div class="av"><b>Antes de nada:</b> pon aqui tu <code>site_eec16f6a</code> y tu
 <code>apiBase</code>, en el script del final de este archivo. Sin eso el banner
 no carga la configuracion de tu sitio.</div>
 
@@ -78,32 +78,11 @@ despues. En <b>basico</b> solo el update.</p>
 <pre id="dl" style="background:#12233a;color:#dbe6f2;padding:12px;border-radius:8px;
  font-size:12px;overflow:auto;max-height:220px"></pre>
 
+<!-- Consent Banner. En el <head>, lo primero, una sola vez -->
 <script>
-// ---- CODIGO DE INSTALAR, pegado tal cual sale del panel ----------------
-// dataLayer va ANTES del bundle: Consent Mode escribe ahi, y si se declara
-// despues la caja de la seccion 6 sale vacia.
-window.__consentLog = function(t, m){ console.log("[cb]", t, m); };
-window.dataLayer = window.dataLayer || [];
-window.__consentConfig={siteId:"site_712fee55",apiBase:"http://localhost:8000",autoBlock:[{"match": "js.hs-scripts.com", "category": "marketing"}, {"match": "player.vimeo.com", "category": "marketing"}, {"match": "google-analytics.com", "category": "analitica"}, {"match": "googletagmanager.com", "category": "analitica"}, {"match": "www.facebook.com", "category": "marketing"}, {"match": "static.ads-twitter.com", "category": "marketing"}, {"match": "connect.facebook.net", "category": "marketing"}]};
-(function(){var C=window.__consentConfig||{},R=C.autoBlock||[];if(!R.length)return;
-var B={observer:null,blocked:[]};window.__consentBlocker=B;
-function H(s){try{return new URL(s,location.href).hostname.toLowerCase()}catch(e){return ""}}
-function hit(s){if(!s)return null;var h=H(s);if(!h||h===location.hostname.toLowerCase())return null;
-for(var i=0;i<R.length;i++){var r=R[i];if(!r||!r.match)continue;var m=String(r.match).toLowerCase().replace(/^\*?\.?/,"");
-if(h===m||h.slice(-(m.length+1))==="."+m)return r}return null}
-function kill(n,r){var s=n.getAttribute("src");n.type="text/plain";n.setAttribute("type","text/plain");
-n.setAttribute("data-consent-src",s);n.setAttribute("data-consent-category",r.category);n.removeAttribute("src");B.blocked.push(s)}
-B.observer=new MutationObserver(function(m){m.forEach(function(x){Array.prototype.forEach.call(x.addedNodes,function(n){
-if(n.tagName==="SCRIPT"){var r=hit(n.getAttribute("src"));if(r)kill(n,r)}})})});
-B.observer.observe(document.documentElement,{childList:true,subtree:true});})();
-// ------------------------------------------------------------------------
+window.__consentConfig={siteId:"site_eec16f6a",apiBase:"http://localhost:8000",consentVersion:"2025-01"};
 </script>
-
-<!-- SIN async: el bundle trae los parches de new Image(), fetch, XHR,
-     sendBeacon y la escritura de cookies. Con async llega tarde y los
-     rastreadores inline ya habrian salido. -->
 <script src="http://localhost:8000/consent-banner.js"></script>
-
 <script>
 // Varias "paginas" en un solo archivo, con ?p=. El escaner recorre enlaces
 // internos, y una pagina sola no basta: lo que pone cookies suele estar en una
