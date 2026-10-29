@@ -10,7 +10,10 @@ WORKDIR /app
 # Solo Chromium: los tres navegadores son ~1,2 GB y aqui con uno basta.
 RUN python -m playwright install chromium --with-deps
 
-COPY escaner/escanear.py /app/escanear.py
+# Ruta relativa al CONTEXTO de construccion, que con "Root Directory: escaner"
+# en Railway ya ES esta carpeta. Escrito como "escaner/escanear.py" la
+# construccion falla buscando escaner/escaner/escanear.py.
+COPY escanear.py /app/escanear.py
 
 # BACKEND_URL y SCANNER_KEY se definen como variables del servicio en Railway.
 # SCANNER_KEY tiene que ser la misma que la del backend: es lo unico que
