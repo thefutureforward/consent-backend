@@ -1293,6 +1293,13 @@ var DICT = {
   ", antes de cualquier otro script.": ", before any other script.",
   "Limpia la cache del sitio y recarga.": "Clear the site cache and reload.",
   "Copiar codigo": "Copy code",
+  "Etiqueta de Google escrita en el HTML": "Google tag written into the HTML",
+  "Si el sitio ya lleva la etiqueta de Google Analytics escrita en su HTML, el pre-bloqueador no puede detenerla. El navegador empieza a descargarla antes de que el bloqueador exista, asi que la peticion sale igual y Google recibe la direccion IP del visitante. No llega a ejecutarse, pero ya ha contactado.":
+    "If the site already has the Google Analytics tag written into its HTML, the pre-blocker cannot stop it. The browser starts downloading it before the blocker exists, so the request goes out anyway and Google receives the visitor's IP address. It never runs, but it has already made contact.",
+  "Escribe el identificador de medicion y sustituye la etiqueta actual por el bloque que sale aqui.":
+    "Enter the measurement ID and replace the current tag with the block below.",
+  "Las tres partes y su orden importan. El script de Google lee la cola en orden, asi que la configuracion va neutralizada tambien: si se encola al cargar la pagina, la propiedad se configura antes de que llegue el consentimiento.":
+    "All three parts matter, and so does their order. Google's script reads the queue in order, so the config call is neutralised too: queued at page load, the property would be configured before consent arrives.",
   "No se pudo copiar.": "Could not copy.",
   "Abrir sitio demo": "Open demo site",
   "Abre el sitio de ejemplo para verificar que el banner responde con esta configuracion.":
@@ -4671,6 +4678,7 @@ function pintarBloqueGoogle(){
   if(!i || !c) return;
   c.textContent = bloqueEtiquetaGoogle(i.value, _gtagCat);
 }
+function copiarBloqueGoogle(){ copiarDe("gtag-code","gmsg"); }
 
 function viewInstalar(d){
   var snippet = buildSnippet(d);
@@ -4678,6 +4686,7 @@ function viewInstalar(d){
   _gtagCat = catParaGoogle(d.config || {});
   el("tabbody").innerHTML =
     '<div class="cols">'+
+      '<div>'+
       '<div class="card">'+
         '<h2>Codigo para el sitio</h2>'+
         '<p class="sub">Pegalo en el <code>&lt;head&gt;</code>, lo mas arriba posible y una sola vez.'+
@@ -4692,6 +4701,28 @@ function viewInstalar(d){
           '<button class="btn" onclick="copiarSnippet()">Copiar codigo</button>'+
           '<span id="cmsg" class="msg"></span>'+
         '</div>'+
+      '</div>'+
+      '<div class="card">'+
+        '<h2>Etiqueta de Google escrita en el HTML</h2>'+
+        '<p class="sub">Si el sitio ya lleva la etiqueta de Google Analytics escrita en su '+
+          'HTML, el pre-bloqueador no puede detenerla. El navegador empieza a descargarla '+
+          'antes de que el bloqueador exista, asi que la peticion sale igual y Google recibe '+
+          'la direccion IP del visitante. No llega a ejecutarse, pero ya ha contactado.</p>'+
+        '<p class="sub">Escribe el identificador de medicion y sustituye la etiqueta actual '+
+          'por el bloque que sale aqui.</p>'+
+        '<div class="row">'+
+          '<input type="text" id="gtag-id" placeholder="G-XXXXXXXXXX" '+
+            'oninput="pintarBloqueGoogle()" />'+
+        '</div>'+
+        '<div class="snippet mt" id="gtag-code">'+esc(bloqueEtiquetaGoogle("", _gtagCat))+'</div>'+
+        '<div class="row mt">'+
+          '<button class="btn" onclick="copiarBloqueGoogle()">Copiar codigo</button>'+
+          '<span id="gmsg" class="msg"></span>'+
+        '</div>'+
+        '<p class="hint">Las tres partes y su orden importan. El script de Google lee la cola '+
+          'en orden, asi que la configuracion va neutralizada tambien: si se encola al cargar '+
+          'la pagina, la propiedad se configura antes de que llegue el consentimiento.</p>'+
+      '</div>'+
       '</div>'+
       '<div>'+
         '<div class="card">'+
@@ -4711,26 +4742,6 @@ function viewInstalar(d){
           '<p class="sub">Pegalo donde el cliente quiera: el footer, el aviso legal o la '+
             'pagina de politica. Abre el panel de preferencias sin recargar la pagina.</p>'+
           '<div id="trig-box"></div>'+
-        '</div>'+
-        '<div class="card">'+
-          '<h2>Etiqueta de Google escrita en el HTML</h2>'+
-          '<p class="sub">Si el sitio ya tiene el <code>&lt;script&gt;</code> de Google '+
-            'Analytics en su HTML, el pre-bloqueador <b>no puede detenerlo</b>: el navegador '+
-            'empieza a descargarlo antes de que el bloqueador exista, asi que la peticion sale '+
-            'igual y Google recibe la IP del visitante. No llega a ejecutarse, pero ya ha '+
-            'contactado. Sustituye ese bloque por este.</p>'+
-          '<div class="row">'+
-            '<input type="text" id="gtag-id" placeholder="G-XXXXXXXXXX" '+
-              'oninput="pintarBloqueGoogle()" />'+
-          '</div>'+
-          '<div class="snippet mt" id="gtag-code">'+esc(bloqueEtiquetaGoogle("", _gtagCat))+'</div>'+
-          '<p class="hint">Las tres partes y su orden importan. <code>gtag.js</code> procesa la '+
-            'cola en orden, asi que <code>config</code> va neutralizado tambien: si se encola al '+
-            'cargar la pagina, la propiedad se configura antes de que llegue el consentimiento.</p>'+
-          '<div class="row mt">'+
-            '<button class="btn ghost sm" onclick="copiarDe(\'gtag-code\',\'gmsg\')">Copiar</button>'+
-            '<span id="gmsg" class="msg"></span>'+
-          '</div>'+
         '</div>'+
         '<div class="card">'+
           '<h2>Comprobar</h2>'+
