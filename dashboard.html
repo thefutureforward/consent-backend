@@ -4623,9 +4623,59 @@ function dominioDelSitio(){
   return d.indexOf("http") === 0 ? d : "https://" + d;
 }
 
+/* La etiqueta de Google escrita a mano en el HTML del sitio es el UNICO caso
+   que el pre-bloqueador no puede cubrir. El escaner de precarga del navegador
+   empieza a descargar un <script src> leyendo el HTML en crudo, por delante del
+   parser, asi que cuando el MutationObserver ve el nodo la peticion ya salio: el
+   script queda neutralizado y no se ejecuta, pero Google ya recibio la IP y el
+   user agent de alguien que no ha consentido nada. Ninguna solucion de
+   JavaScript gana esa carrera. Se arregla escribiendo la etiqueta neutralizada
+   desde el principio, que es lo que genera esto.
+
+   Y el orden de los tres bloques es la parte que se hace mal: gtag.js procesa
+   la cola del dataLayer EN ORDEN. Si 'js' y 'config' se encolan al cargar la
+   pagina, quedan por delante del 'consent update' que el bundle emite al
+   aceptar, asi que Google configura la propiedad sin saber el consentimiento y
+   dispara lo que fuera a disparar antes de enterarse. Por eso van tambien
+   neutralizados: se encolan al activarse, despues del update. */
+function catParaGoogle(cfg){
+  var cats = (cfg && cfg.categories) || [];
+  var i;
+  for(i=0;i<cats.length;i++){
+    if(cats[i] && !cats[i].locked &&
+       (cats[i].signals||[]).indexOf("analytics_storage") !== -1) return cats[i].id;
+  }
+  for(i=0;i<cats.length;i++){ if(cats[i] && !cats[i].locked) return cats[i].id; }
+  return "analitica";
+}
+
+function bloqueEtiquetaGoogle(id, cat){
+  id  = String(id || "").trim() || "G-XXXXXXXXXX";
+  cat = String(cat || "analitica");
+  return '<script>\n'+
+    '  window.dataLayer = window.dataLayer || [];\n'+
+    '  function gtag(){dataLayer.push(arguments);}\n'+
+    '<\/script>\n'+
+    '<script type="text/plain"\n'+
+    '        data-consent-src="https://www.googletagmanager.com/gtag/js?id='+id+'"\n'+
+    '        data-consent-category="'+cat+'"><\/script>\n'+
+    '<script type="text/plain" data-consent-category="'+cat+'">\n'+
+    "  gtag('js', new Date());\n"+
+    "  gtag('config', '"+id+"');\n"+
+    '<\/script>';
+}
+
+var _gtagCat = "analitica";
+function pintarBloqueGoogle(){
+  var i = el("gtag-id"), c = el("gtag-code");
+  if(!i || !c) return;
+  c.textContent = bloqueEtiquetaGoogle(i.value, _gtagCat);
+}
+
 function viewInstalar(d){
   var snippet = buildSnippet(d);
   var rules = (d.config && d.config.autoBlock) || [];
+  _gtagCat = catParaGoogle(d.config || {});
   el("tabbody").innerHTML =
     '<div class="cols">'+
       '<div class="card">'+
@@ -4661,6 +4711,26 @@ function viewInstalar(d){
           '<p class="sub">Pegalo donde el cliente quiera: el footer, el aviso legal o la '+
             'pagina de politica. Abre el panel de preferencias sin recargar la pagina.</p>'+
           '<div id="trig-box"></div>'+
+        '</div>'+
+        '<div class="card">'+
+          '<h2>Etiqueta de Google escrita en el HTML</h2>'+
+          '<p class="sub">Si el sitio ya tiene el <code>&lt;script&gt;</code> de Google '+
+            'Analytics en su HTML, el pre-bloqueador <b>no puede detenerlo</b>: el navegador '+
+            'empieza a descargarlo antes de que el bloqueador exista, asi que la peticion sale '+
+            'igual y Google recibe la IP del visitante. No llega a ejecutarse, pero ya ha '+
+            'contactado. Sustituye ese bloque por este.</p>'+
+          '<div class="row">'+
+            '<input type="text" id="gtag-id" placeholder="G-XXXXXXXXXX" '+
+              'oninput="pintarBloqueGoogle()" />'+
+          '</div>'+
+          '<div class="snippet mt" id="gtag-code">'+esc(bloqueEtiquetaGoogle("", _gtagCat))+'</div>'+
+          '<p class="hint">Las tres partes y su orden importan. <code>gtag.js</code> procesa la '+
+            'cola en orden, asi que <code>config</code> va neutralizado tambien: si se encola al '+
+            'cargar la pagina, la propiedad se configura antes de que llegue el consentimiento.</p>'+
+          '<div class="row mt">'+
+            '<button class="btn ghost sm" onclick="copiarDe(\'gtag-code\',\'gmsg\')">Copiar</button>'+
+            '<span id="gmsg" class="msg"></span>'+
+          '</div>'+
         '</div>'+
         '<div class="card">'+
           '<h2>Comprobar</h2>'+
