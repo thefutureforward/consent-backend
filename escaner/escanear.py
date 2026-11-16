@@ -559,7 +559,7 @@ FASES_ETIQ = {"frio": "Undecided (nobody has consented)",
               "gpc": "With a GPC signal (what an external tool sees)"}
 
 
-def foto_del_sitio(analisis, hosts_por_escenario, hallazgos, murado):
+def foto_del_sitio(analisis, hosts_por_escenario, hallazgos, murado, fallidos=()):
     """La foto comparable del escaneo. Es lo que hace posible P6.
 
     El informe en markdown esta escrito para que lo lea una persona, y no sirve
@@ -586,6 +586,11 @@ def foto_del_sitio(analisis, hosts_por_escenario, hallazgos, murado):
         # cruza en medio, el panel avisa de que han desaparecido veinte
         # dominios y al dia siguiente de que han vuelto los veinte.
         "muro": bool(murado),
+        # Lo mismo para un escaneo al que le falto un escenario. El caso que
+        # mas duele es que falle "frio": "recibieron" y "cookies" salen de el,
+        # asi que la foto quedaria vacia y el dia siguiente avisaria de que han
+        # desaparecido todos los rastreadores. Una foto a medias no se compara.
+        "parcial": bool(fallidos),
         "terceros": sorted(terceros),
         "recibieron": {h: sorted(q) for h, q in sin_permiso.items() if q},
         "cookies": sorted(v["name"] for v in hallazgos.values()
@@ -753,9 +758,11 @@ def escanear(url, site_id, api_key, backend, tope, solo=None, guardar=None, call
              latido=None, informe=None):
     """Un escaneo completo. Devuelve (resumen, estado, informe, foto).
 
-    estado es "hecho", "muro" o "error". Antes se devolvia solo si hubo muro, y
-    un escaneo que no habia podido ENVIAR nada quedaba igualmente como "hecho":
-    el panel decia que todo fue bien y no habia llegado ni un hallazgo.
+    estado es "hecho", "parcial", "muro" o "error". Antes se devolvia solo si
+    hubo muro, y un escaneo que no habia podido ENVIAR nada quedaba igualmente
+    como "hecho": el panel decia que todo fue bien y no habia llegado ni un
+    hallazgo. "parcial" cubre el otro hueco: algun escenario fallo, asi que lo
+    que se vio vale pero lo que NO se vio puede ser del escenario que no corrio.
 
     latido, si se pasa, es una funcion que se llama al terminar cada escenario.
     Sirve para avisar al backend de que seguimos vivos."""
@@ -783,6 +790,13 @@ def escanear(url, site_id, api_key, backend, tope, solo=None, guardar=None, call
 
     hallazgos, hosts_por_escenario, autores, murado = {}, {}, {}, []
     analisis = {}
+    # Cuantos escenarios llegaron a recorrer el sitio de verdad. Sin esto, un
+    # dominio que no resuelve o un certificado caducado hacian fallar los tres,
+    # el bucle se los tragaba uno a uno y abajo se devolvia "sin hallazgos" con
+    # estado "hecho": el panel ensenaba un sitio limpio donde en realidad no se
+    # habia cargado ni una pagina. Un escaneo que no pudo mirar no puede decir
+    # que no vio nada.
+    logrados, fallidos = [], []
     with sync_playwright() as pw:
         b = pw.chromium.launch(args=["--disable-dev-shm-usage"])
         try:
@@ -795,10 +809,12 @@ def escanear(url, site_id, api_key, backend, tope, solo=None, guardar=None, call
                         murado.append((etiqueta, motivo))
                 except Exception as e:
                     di("  %-10s fallo (%s)" % (etiqueta, str(e)[:60]))
+                    fallidos.append((etiqueta, str(e)[:120]))
                     continue
                 finally:
                     if latido:
                         latido()
+                logrados.append(etiqueta)
                 for k, v in quien.items():
                     autores.setdefault(k, v)
                 hosts_por_escenario[etiqueta] = {h for h in hosts
@@ -932,14 +948,30 @@ def escanear(url, site_id, api_key, backend, tope, solo=None, guardar=None, call
             json.dump(detalle, f, ensure_ascii=False, indent=2)
         di("\n  detalle en %s" % guardar)
 
-    foto = foto_del_sitio(analisis, hosts_por_escenario, hallazgos, murado)
+    foto = foto_del_sitio(analisis, hosts_por_escenario, hallazgos, murado, fallidos)
     texto_informe = escribe_informe(informe, url, propio, canario, escenarios,
                                     analisis, hallazgos, hosts_por_escenario, murado)
     if informe:
         di("  informe en %s" % informe)
 
+    # Ningun escenario llego a cargar el sitio: no hay nada observado, y decir
+    # "sin hallazgos" seria afirmar que esta limpio sin haberlo mirado. Se sale
+    # como error, con el motivo del primer fallo, que es lo que hace falta para
+    # arreglarlo (dominio mal escrito, DNS, certificado, timeout).
+    if not logrados:
+        motivo = fallidos[0][1] if fallidos else "no se pudo abrir ninguna pagina"
+        di("  NO se envia nada: no se pudo cargar el sitio en ningun escenario.")
+        return ("no se pudo cargar %s (%s). El escaneo no vio nada, lo que no "
+                "significa que no haya nada." % (url, motivo),
+                "error", texto_informe, foto)
+
     resumen = ("%d cookies (%d de terceros, %d HttpOnly), %d dominios, %d sin permiso"
                % (len(hallazgos), ter, ho, len(hosts_todos), len(fuga)))
+    # Parcial: algo se vio, pero no todo. Se envia igual (lo observado vale),
+    # con el aviso pegado al resumen para que el panel no lo lea como completo.
+    if fallidos:
+        resumen += ("; PARCIAL: fallo %s (%s)"
+                    % (", ".join(e for e, _ in fallidos), fallidos[0][1][:60]))
     if murado:
         di("  NO se envia nada: lo observado es el muro, no el sitio.")
         return "muro: " + murado[0][1], "muro", texto_informe, foto
@@ -958,7 +990,14 @@ def escanear(url, site_id, api_key, backend, tope, solo=None, guardar=None, call
                "fases": [e for e in hosts_por_escenario if h in hosts_por_escenario[e]]}
               for h in sorted(hosts_todos)]
     if not items:
-        di("  nada que enviar."); return "sin hallazgos", "hecho", texto_informe, foto
+        # Aqui SI se recorrio el sitio: "sin hallazgos" es una observacion, no
+        # un hueco. Se dice cuantos escenarios lo respaldan, que es la
+        # diferencia entre un sitio limpio y uno que no se pudo mirar.
+        di("  nada que enviar.")
+        return ("sin hallazgos (%d de %d escenarios recorridos)%s"
+                % (len(logrados), len(escenarios),
+                   "" if not fallidos else "; fallo " + ", ".join(e for e, _ in fallidos)),
+                "hecho" if not fallidos else "parcial", texto_informe, foto)
 
     enviados = 0
     for i in range(0, len(items), 150):               # el backend corta en 200
@@ -976,7 +1015,10 @@ def escanear(url, site_id, api_key, backend, tope, solo=None, guardar=None, call
                     "error", texto_informe, foto)
         time.sleep(0.4)                                # el endpoint limita por IP
     di("  enviados %d hallazgos. Revisalos en Cookies y scripts." % enviados)
-    return resumen, "hecho", texto_informe, foto
+    # Lo enviado vale, pero si falto un escenario no es un escaneo completo y
+    # el panel no debe pintarlo en verde: quien lo lea tiene que saber que la
+    # ausencia de un hallazgo puede ser del escenario que no corrio.
+    return resumen, ("hecho" if not fallidos else "parcial"), texto_informe, foto
 
 
 def worker(backend, clave, cada=15):

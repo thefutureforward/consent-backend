@@ -297,8 +297,19 @@ let _userConfig = null;
       // pasando y se dice como pararlo. Reutilizar el de opt-in ("con tu
       // permiso") seria decir algo que no es verdad.
       bodyOptOut: "Usamos cookies para que el sitio funcione, medir su uso y mostrarte contenido relevante. Puedes apagar lo que no quieras cuando quieras.",
-      optOutTitle: "Tus opciones de privacidad",
-      optOutAria: "Tus opciones de privacidad: elegir si se venden o ceden tus datos",
+      // En ingles tambien aqui, y por la misma razon que optOutSell y
+      // optOutLimit de abajo: el articulo 7015 fija el titulo LITERAL del
+      // enlace unico ("Your Privacy Choices" o "Your California Privacy
+      // Choices"), igual que el 7013 y el 7014 fijan los dos del estilo dual.
+      // Traducirlo era incoherente -- los otros tres ya iban sin traducir -- y
+      // dejaba el enlace fuera de la norma justo en los sitios en castellano,
+      // que son casi todos los nuestros.
+      optOutTitle: "Your Privacy Choices",
+      // El nombre accesible empieza por el titulo literal, para que un lector
+      // de pantalla anuncie el que exige la norma, y sigue en el idioma del
+      // visitante para que se entienda que hace. La explicacion no la fija el
+      // articulo; el titulo si.
+      optOutAria: "Your Privacy Choices: elegir si se venden o ceden tus datos",
       ventaFila: "Encenderla permite vender o ceder tus datos.",
       ventaIntro: "Las marcadas abajo permiten vender o ceder tus datos. Puedes apagarlas.",
       // Los dos enlaces del estilo "dual" (arts. 7013 y 7014). Van en ingles
@@ -335,6 +346,8 @@ let _userConfig = null;
   // ---- Utilidades -----------------------------------------------------------
   function cfg() { return window.__consentConfig || DEFAULTS; }
   var _remote = null, _remoteLoaded = false;
+  // Codigo HTTP con el que el servidor rechazo este sitio, 0 si no lo rechazo.
+  var _remoteRechazo = 0;
   // Mezcla profunda para objetos planos (colors, fonts, cookie, texts): si el
   // cliente solo define colors.accent, el resto de la paleta sigue viva.
   // Los arrays (categories) se reemplazan enteros, como antes.
@@ -586,6 +599,17 @@ let _userConfig = null;
   function log(kind, detail) {
     // Puente para la consola de eventos de la demo (no afecta a produccion).
     if (typeof window.__consentLog === "function") window.__consentLog(kind, detail);
+  }
+
+  // Un fallo de INSTALACION tiene que verse siempre, y log() no vale para eso:
+  // solo habla con el puente de la demo, asi que en el sitio de un cliente no
+  // escribe nada. Un site_id mal pegado daba 404 en la config y 401 en el
+  // registro, y la consola quedaba igual de silenciosa que en una instalacion
+  // correcta: el banner se veia bien y no se guardaba ni una prueba de
+  // consentimiento. Nadie se enteraba hasta que hacia falta la prueba.
+  function avisaFallo(kind, detail) {
+    log(kind, detail);
+    try { console.error("[consent] " + detail); } catch (e) {}
   }
 
   // ---- Google Consent Mode ---------------------------------------------
@@ -1004,14 +1028,57 @@ let _userConfig = null;
     _blocked.push(src);
   }
 
+  /* Lo que ya estaba escrito en el HTML cuando llegamos.
+
+     ATENCION A LO QUE ESTO SI Y NO CONSIGUE. El parche de insercion de mas
+     abajo neutraliza las etiquetas que inyecta codigo ANTES de que toquen el
+     documento, y ahi no sale ni una peticion. Aqui es al reves: la etiqueta ya
+     la escribio el parser, y el preload scanner de Chrome lee el HTML por
+     delante del parser y lanza la descarga de cada <img src>, <iframe src> y
+     <script src> que encuentra. Para cuando corre esto, la peticion de esas YA
+     SALIO, con sus cookies y su IP. Quitarles el src deja la pantalla
+     correcta -- se ve el marcador, no el video -- pero el tercero ya fue
+     contactado, y eso es justo lo que una auditoria mira.
+     No hay forma de evitarlo desde JavaScript: un <script> inline bloqueante
+     en el <head> para el parser, pero no al preload scanner, que ya ha leido
+     los bytes de mas adelante. La unica solucion es que la etiqueta salga del
+     servidor ya neutralizada (data-consent-src en vez de src).
+     Asi que lo que se puede hacer aqui es DECIRLO, en vez de dejar creer que
+     quedo bloqueado. */
+  var _duroTarde = [];
   function scanExisting(rules) {
     var sel = _duroActivo ? "script[src],iframe[src],img[src]" : "script[src]";
     var nodes = document.querySelectorAll(sel);
+    var tarde = [];
     Array.prototype.forEach.call(nodes, function (n) {
       var r = ruleFor(rules, n.getAttribute("src"));
-      if (r) neutralize(n, r);
+      if (!r) return;
+      // Un <script> sin async/defer todavia no se ha ejecutado, y ponerle
+      // type="text/plain" si lo para de verdad. La descarga puede haber
+      // salido, pero no se ejecuta nada ni se escribe ninguna cookie: ese no
+      // cuenta como fuga. Los que cuentan son img e iframe, donde la peticion
+      // ES el hecho, y los script async/defer, que el navegador ya pidio.
+      var fuga = n.tagName === "IFRAME" || n.tagName === "IMG" ||
+                 (n.tagName === "SCRIPT" && (n.async || n.defer));
+      if (fuga) tarde.push(n.tagName.toLowerCase() + " " + n.getAttribute("src"));
+      neutralize(n, r);
     });
+    if (tarde.length) {
+      tarde.forEach(function (x) {
+        if (_duroTarde.indexOf(x) === -1) _duroTarde.push(x);
+      });
+      avisaFallo("duro-tarde",
+        "Bloqueo endurecido: " + tarde.length + " etiqueta(s) venian escritas " +
+        "en el HTML y el navegador YA habia lanzado su peticion antes de que " +
+        "corriera nada nuestro (" + tarde.slice(0, 3).join(", ") +
+        (tarde.length > 3 ? ", ..." : "") + "). Se quitan de la pantalla, pero " +
+        "el tercero ya fue contactado. Para que no salga la peticion, el " +
+        "servidor tiene que escribirlas ya neutralizadas: src=\"\" fuera y " +
+        "data-consent-src=\"...\" en su lugar.");
+    }
   }
+  // Para la vista previa y para quien quiera comprobarlo desde la consola.
+  try { window.__consentFugas = function () { return _duroTarde.slice(); }; } catch (e) {}
 
   // Reglas vigentes, cacheadas. El parche de insercion se consulta en CADA
   // appendChild de la pagina, asi que no puede permitirse llamar a merged(),
@@ -1351,6 +1418,72 @@ let _userConfig = null;
     node.style.display = "";
   }
 
+  // El pre-bloqueador inline del snippet neutraliza los iframes igual que
+  // neutralize() -- les pone data-consent-src y les quita el src -- pero NO
+  // pinta el marcador. Y el bundle, al adoptar ese observer, se iba sin mirar
+  // nada mas. Resultado: un recuadro gris vacio, sin explicacion ni boton para
+  // aceptar la categoria. Con solo consent-banner.js el aviso si salia, que es
+  // la diferencia que se reporto.
+  //
+  // scanExisting tampoco los encuentra: su selector es "iframe[src]" y a estos
+  // el inline ya les quito el src. Por eso hace falta buscarlos por el atributo
+  // que SI tienen.
+  function marcaYaBloqueados() {
+    if (!_duroActivo) return;
+    // Sin categorias no se puede escribir el aviso: quedaria con el id crudo
+    // ("preferencias") en vez de la etiqueta del cliente ("Preferencias"), y en
+    // el idioma por defecto en vez del suyo. Eso pasa si se pinta antes de que
+    // llegue la config remota, que es justo cuando corre blockNow(). Se espera,
+    // y la vuelta de loadRemoteThen llama otra vez a installAutoBlock().
+    var C0 = merged();
+    if (!(C0.categories || []).length) return;
+    if (C0.siteId && C0.apiBase && !_remoteLoaded) return;
+    if (!_langLista) return;   // el texto saldria en el idioma base
+    var nodos;
+    try { nodos = document.querySelectorAll("iframe[data-consent-src]"); }
+    catch (e) { return; }
+    Array.prototype.forEach.call(nodos, function (n) {
+      var cat = n.getAttribute("data-consent-category");
+      if (!cat) {
+        // No todos los caminos que neutralizan dejan la categoria escrita. En
+        // vez de fiarnos del atributo, se vuelve a resolver desde la URL.
+        var rr = ruleFor(_reglasVivas, n.getAttribute("data-consent-src"));
+        if (rr) {
+          cat = rr.category;
+          if (cat) n.setAttribute("data-consent-category", cat);
+        }
+      }
+      if (!cat) return;
+      // El inline no lo deja en about:blank, asi que puede quedarse pintada la
+      // pagina anterior. neutralize() si lo hace; aqui se iguala.
+      if (!n.getAttribute("src")) { try { n.src = "about:blank"; } catch (e) {} }
+      ponerMarcador(n, { category: cat });   // sale solo si ya tiene marcador
+    });
+  }
+
+  // Observer que NO bloquea: solo pide el barrido. Al adoptar el inline no
+  // instalabamos ninguno, asi que un iframe insertado por un script mas tarde
+  // lo mataba el inline y se quedaba otra vez sin marcador. El barrido va en un
+  // setTimeout para no depender de que observer corra primero: cuando llega,
+  // el inline ya hizo su trabajo y el nodo lleva data-consent-src.
+  var _vigilaMarc = null, _barridoPedido = false;
+  function pideBarrido() {
+    if (_barridoPedido) return;
+    _barridoPedido = true;
+    setTimeout(function () { _barridoPedido = false; marcaYaBloqueados(); }, 0);
+  }
+  function vigilaMarcadores() {
+    if (_vigilaMarc || typeof MutationObserver !== "function") return;
+    try {
+      _vigilaMarc = new MutationObserver(function (muts) {
+        for (var i = 0; i < muts.length; i++) {
+          if (muts[i].addedNodes && muts[i].addedNodes.length) { pideBarrido(); return; }
+        }
+      });
+      _vigilaMarc.observe(document.documentElement, { childList: true, subtree: true });
+    } catch (e) {}
+  }
+
   function installAutoBlock() {
     var C = merged();
     // Las reglas en modo "notify" no bloquean: el proveedor se encarga y
@@ -1375,12 +1508,18 @@ let _userConfig = null;
       // poder vaciarlo cuando el visitante conceda una categoria.
       if (pre.rules) _preRules = pre.rules;
       if (rules.length) scanExisting(rules);
+      // Lo que el inline ya bloqueo no pasa por neutralize(), asi que no tiene
+      // marcador. Se lo ponemos aqui, y dejamos un vigilante para los que
+      // lleguen despues.
+      marcaYaBloqueados();
+      vigilaMarcadores();
       log("autoblock", "Pre-bloqueador inline adoptado (" + _blocked.length + " scripts).");
       return;
     }
     if (!rules.length || _observer) return;
     parcheaInsercion();
     scanExisting(rules);
+    marcaYaBloqueados();
     _observer = new MutationObserver(function (muts) {
       // reglasQueBloquean y no autoBlock en crudo: scanExisting y el parche de
       // insercion leen _reglasVivas, que si esta filtrado, pero este observer
@@ -1657,16 +1796,47 @@ let _userConfig = null;
         method: "POST", keepalive: true,
         headers: headers,
         body: JSON.stringify(payload)
-      }).then(function (r) { return r.json(); })
+      }).then(function (r) {
+        // Mismo caso que la config: un 401 por clave mala o un 403 por dominio
+        // no autorizado traen cuerpo JSON, asi que al no mirar el estado la
+        // respuesta parseaba, d.consent_id salia undefined, el if de abajo no
+        // entraba y NO se escribia nada. Cero registros guardados y cero aviso.
+        if (!r.ok) {
+          var err = new Error("HTTP " + r.status);
+          err.estadoHttp = r.status;
+          throw err;
+        }
+        return r.json();
+      })
         .then(function (d) {
           if (d && d.consent_id) {
             consent.consent_id = d.consent_id;
             writeConsent(C, consent);
             log("audit", "Auditoria OK. consent_id=" + d.consent_id);
+          } else {
+            avisaFallo("audit",
+              "El servidor acepto el registro pero no devolvio consent_id. " +
+              "La eleccion quedo guardada en el navegador, pero sin prueba en servidor.");
           }
-        }).catch(function () { log("audit", "Auditoria fallo (la eleccion local ya quedo guardada)."); });
+        }).catch(function (e) {
+          var est = e && e.estadoHttp;
+          if (est) {
+            avisaFallo("audit",
+              "El registro de consentimiento fue RECHAZADO por el servidor (HTTP " +
+              est + ", site_id=" + (C.siteId || "?") + "). " +
+              (est === 401 ? "Revisa la clave publica del codigo de instalacion. "
+                           : est === 403 ? "Este dominio no esta autorizado en el panel. "
+                                         : "") +
+              "La eleccion del visitante se guardo en su navegador, pero NO hay " +
+              "prueba de consentimiento en el servidor.");
+          } else {
+            log("audit", "Auditoria fallo (la eleccion local ya quedo guardada).");
+          }
+        });
     } catch (e) { /* no bloquea la UI */ }
-    log("audit", "POST " + C.endpoint + " (no bloquea la UI)");
+    // Este mensaje se emitia pase lo que pase y ANTES de saber nada, asi que se
+    // leia como una confirmacion de que el registro habia salido bien.
+    log("audit", "Enviando registro a " + C.endpoint + " (no bloquea la UI)");
   }
 
   // ---- Deteccion de cookies -------------------------------------------------
@@ -1892,6 +2062,8 @@ let _userConfig = null;
 
   // ---- Estado y persist -----------------------------------------------------
   var state = { lang: "en", chosen: {}, modo: "optin" };
+  // Falso hasta que detectaIdioma() resuelve el idioma real del sitio.
+  var _langLista = false;
 
   // El corazon del sistema. Orden fijo (ver spec seccion 3).
   function persist(C, choice, chosen) {
@@ -2178,6 +2350,22 @@ let _userConfig = null;
       ";color:" + (K.heading || K.ink) + ";border:1px solid " + (K.border || "#ccc") +
       ";text-decoration:none;" + typo(C, "button") + "}" +
     ".cb-optout:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}" +
+    // Mientras el banner o el panel estan en pantalla, el enlace flotante se
+    // aparta al borde contrario y se mete POR DEBAJO de ellos.
+    //
+    // Antes vivia fijo abajo a la izquierda con z-index 2147483646, que es mas
+    // alto que el del banner (2147483000) y que el de la capa del panel
+    // (2147483001): tapaba la esquina inferior izquierda de los dos. En movil
+    // es peor que un adorno, porque ahi .cb-inner se pone en columna y los
+    // botones caen justo en esa esquina: el enlace se comia el boton de
+    // rechazar. Y encima el que no se puede pulsar es el que la norma obliga a
+    // ensenar.
+    //
+    // No se oculta, se mueve: el articulo 7015 pide que el enlace este, y
+    // hacerlo desaparecer en cuanto sale el banner seria quitarlo justo
+    // cuando mas se mira la pagina.
+    ".cb-optout[data-cb-tapado]{z-index:2147482998;" +
+      (BN.position === "top" ? "top:auto;bottom:16px" : "bottom:auto;top:16px") + "}" +
     ".cb-body{margin:0;" + typo(C, "bannerText") + "color:" + bnFg + ";max-width:68ch}" +
     ".cb-body a{color:" + K.accentPale + ";text-decoration:underline;text-underline-offset:2px;white-space:nowrap}" +
     ".cb-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end}" +
@@ -2632,13 +2820,34 @@ let _userConfig = null;
     try { document.documentElement.style.overflow = ""; } catch (e) {}
   }
 
+  /* El enlace flotante de exclusion comparte esquina con el banner y con la
+     capa del panel. Esto marca cuando hay algo encima para que el CSS lo
+     aparte, y lo desmarca al cerrarse. Se llama desde los cuatro sitios que
+     abren o cierran algo; mirar el estado real en vez de contar aperturas
+     evita que se quede apartado para siempre si alguno no casa. */
+  function marcaExclusionTapada() {
+    if (!root) return;
+    var hay = !!(bannerEl && bannerEl.style.display !== "none") || !!panelEl;
+    var nodos;
+    try { nodos = root.querySelectorAll(".cb-optout"); } catch (e) { return; }
+    each(nodos, function (n) {
+      if (hay) n.setAttribute("data-cb-tapado", "1");
+      else n.removeAttribute("data-cb-tapado");
+    });
+  }
+
   function showBanner(C) {
     ensureRoot(C);
     if (!bannerEl) { bannerEl = buildBanner(C); root.appendChild(bannerEl); }
     bannerEl.style.display = "";
     showBackdrop(C);
+    marcaExclusionTapada();
   }
-  function hideBanner() { if (bannerEl) bannerEl.style.display = "none"; hideBackdrop(); }
+  function hideBanner() {
+    if (bannerEl) bannerEl.style.display = "none";
+    hideBackdrop();
+    marcaExclusionTapada();
+  }
   /* Lo que puede recibir el foco dentro del panel, en el orden en que lo
      recibe. Se calcula en cada Tab y no una vez al abrir, porque las filas
      cambian de estado mientras el panel esta abierto. */
@@ -2678,6 +2887,7 @@ let _userConfig = null;
     // introduccion antes de anunciar un control.
     var caja = panelEl.querySelector(".cb-panel");
     try { (caja || panelEl).focus(); } catch (e) {}
+    marcaExclusionTapada();
   }
 
   /* Lo que abre el disparador del sitio. Por defecto el panel, que es lo que
@@ -2697,6 +2907,7 @@ let _userConfig = null;
     if (panelEl && panelEl.parentNode) panelEl.parentNode.removeChild(panelEl);
     panelEl = null;
     state.verVenta = false;
+    marcaExclusionTapada();
     // isConnected no basta: al guardar desde el panel abierto desde el BANNER,
     // persist() oculta el banner con display:none y luego cierra el panel. El
     // boton sigue conectado, focus() no hace nada y el foco cae al body, que
@@ -2874,6 +3085,10 @@ let _userConfig = null;
         root.appendChild(a);
         viste(a);
       });
+      // El enlace puede nacer con el banner YA en pantalla (el barrido de
+      // nodos corre tarde, cuando el pie del sitio existe). Sin esto nacia
+      // encima del banner y no se apartaba hasta el siguiente abrir y cerrar.
+      marcaExclusionTapada();
     }
   }
 
@@ -2977,7 +3192,19 @@ let _userConfig = null;
     var tkp = paramsPrueba().token || tokenPrueba();
     if (tkp) url += "&preview=" + encodeURIComponent(tkp);
     log("remote", "Pidiendo config remota: " + url);
-    fetch(url).then(function (r) { return r.json(); }).then(function (remote) {
+    fetch(url).then(function (r) {
+      // Un 404 (site_id inexistente) o un 403 (dominio no autorizado) devuelven
+      // JSON perfectamente valido, asi que sin mirar el estado se entraba por
+      // el camino del exito: se marcaba "Config remota cargada" y se dejaba
+      // montado el envio de registros contra un sitio que el servidor no
+      // reconoce. El fallo se convertia en silencio.
+      if (!r.ok) {
+        var err = new Error("HTTP " + r.status);
+        err.estadoHttp = r.status;
+        throw err;
+      }
+      return r.json();
+    }).then(function (remote) {
       _remote = remote || {};
       _remote.endpoint = base + "/api/consent";
       _remote.apiBase = base;
@@ -3027,9 +3254,23 @@ let _userConfig = null;
       gcmDefault(cr);
       if (_reglasVivas.length) log("autoblock", "Reglas desde la config remota: " + _reglasVivas.length + ".");
       done();
-    }).catch(function () {
+    }).catch(function (e) {
       _remoteLoaded = true;
-      log("remote", "No se pudo cargar la config remota; se usa la local.");
+      var est = e && e.estadoHttp;
+      if (est) {
+        // El servidor contesto y dijo que no. Eso no es un problema de red: es
+        // una instalacion mal hecha, y hay que decirlo con todas las letras.
+        _remoteRechazo = est;
+        avisaFallo("remote",
+          "El servidor no reconoce este sitio (HTTP " + est + ", site_id=" +
+          C.siteId + "). El banner sigue funcionando con la configuracion " +
+          "local, pero NO se esta guardando ninguna prueba de consentimiento. " +
+          "Revisa el codigo de instalacion.");
+      } else {
+        // Sin respuesta: puede ser un corte de red del visitante, no vale la
+        // pena gritarle al cliente por eso.
+        log("remote", "No se pudo cargar la config remota; se usa la local.");
+      }
       done();
     });
   }
@@ -3213,11 +3454,17 @@ let _userConfig = null;
     // apagado todo y aunque no llegue a salir banner. Es un derecho permanente,
     // no un paso del flujo de la primera visita.
     // El idioma se resuelve ANTES de montar el enlace. Iba despues, y como
-    // state.lang nace en "es" y t() cae a COPY.es, el enlace del articulo 7015
-    // se pintaba "Tus opciones de privacidad" en un sitio en ingles. Y viste()
-    // marca el nodo con data-consent-ready, asi que ningun re-escaneo lo
-    // corregia: el titulo que la norma exige literal quedaba mal para siempre.
+    // state.lang nace con el idioma base y t() cae a ese paquete, el enlace
+    // salia en el idioma equivocado. Y viste() marca el nodo con
+    // data-consent-ready, asi que ningun re-escaneo lo corregia: quedaba mal
+    // para siempre.
     state.lang = detectaIdioma(C);
+    // Desde aqui ya se puede escribir texto de cara al visitante. Antes no:
+    // los marcadores de contenido bloqueado se pintaban durante el bloqueo,
+    // que ocurre mucho antes, y salian en el idioma base en vez de en el del
+    // sitio. El bloqueo no puede esperar al idioma, pero el marcador si.
+    _langLista = true;
+    try { marcaYaBloqueados(); } catch (e) {}
     try { montaEnlaceExclusion(C); } catch (e) { log("optout", "No se pudo montar el enlace: " + e.message); }
     // Va aqui y no dentro de checkSafety: aquella se salta entera si el pill
     // esta a la vista, y el orden de GTM hay que mirarlo siempre.

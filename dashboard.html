@@ -528,6 +528,11 @@
   .esc-caja .sub{opacity:.7;font-size:12.5px}
   .esc-ok{background:#ECF6EF;border-color:#C5E3D0;color:#1E5131}
   .esc-muro{background:#FDEEEC;border-color:#F2C9C3;color:#8C2F22}
+  /* Incompleto: ambar. No es un fallo (algo se vio) pero tampoco un escaneo
+     limpio, y en verde se leeria como que no hay nada que revisar. */
+  .esc-parcial{background:#FDF5E6;border-color:#EAD9AE;color:#7A5B12}
+  /* Region sin borde declarado: la cabecera pudo escribirla el visitante. */
+  .reg-dudosa{color:#7A5B12;border-bottom:1px dotted #C7A64E;cursor:help}
   /* ---------- cookies detectadas ---------- */
   .ck-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
            flex-wrap:wrap;margin-bottom:14px}
@@ -1141,6 +1146,191 @@ var DICT = {
   "El segundo ajuste solo entra cuando alguien ya habia decidido en este sitio": "The second setting only applies when someone had already decided on this site",
   "de activar la senal en su navegador: dos instrucciones suyas que se contradicen. Revocar es lo mas defendible; preguntar es lo mas respetuoso; mantener es lo que menos analitica te hace perder.": "before turning the signal on in their browser: two instructions from the same person that contradict each other. Revoking is the most defensible; asking is the most respectful; keeping loses the least analytics.",
   "Bloqueo endurecido": "Hard blocking",
+  "En UTC": "In UTC",
+  "Cubre lo que inyecta codigo (GTM, HubSpot, chats): ahi la peticion NO sale. Lo que viene escrito en el HTML del servidor es otra cosa: el navegador lee el documento por delante y ya ha pedido cada &lt;img src&gt; y &lt;iframe src&gt; antes de que corra nada nuestro. Esos se quitan de la pantalla, pero el tercero ya fue contactado, y eso es lo que mira una auditoria. Para que no salga la peticion, esas etiquetas tienen que llegar del servidor sin src y con data-consent-src en su lugar. El banner avisa en la consola cuando encuentra alguna, y el escaner las lista como «aparece sin permiso».":
+    "It covers what code injects (GTM, HubSpot, chats): there the request does NOT go out. What comes written in the HTML from the server is a different matter: the browser reads the document ahead and has already requested every &lt;img src&gt; and &lt;iframe src&gt; before anything of ours runs. Those are removed from the screen, but the third party was already contacted, and that is what an audit looks at. To stop the request, those tags have to arrive from the server with no src and with data-consent-src in its place. The banner warns in the console when it finds any, and the scanner lists them as «appears without consent».",
+
+  /* --- Texto que compone el SERVIDOR -------------------------------
+     El catalogo de cookies, el de dominios de rastreo y el resumen del
+     escaneo se guardan en castellano en el backend y llegan al panel ya
+     escritos. Con el panel en ingles salian en espanol en medio de una
+     pantalla inglesa, que es justo donde mas se nota: la explicacion de
+     cada cookie es lo que lee quien tiene que clasificarla.
+     Las que llevan datos dentro (un host, un numero, una categoria) no
+     pueden ser clave exacta y van en DICT_PAT, mas abajo. */
+  "ASP.NET: identificador de sesion.":
+    "ASP.NET: session identifier.",
+  "AWS: balanceo de carga.":
+    "AWS: load balancing.",
+  "Amplitude: analitica de producto.":
+    "Amplitude: product analytics.",
+  "Balanceador de carga: mantiene el servidor asignado.":
+    "Load balancer: keeps the assigned server.",
+  "Banner de consentimiento: guarda la decision.":
+    "Consent banner: stores the decision.",
+  "Borlabs (WordPress): otro banner instalado.":
+    "Borlabs (WordPress): another consent banner installed.",
+  "Cloudflare: distingue humanos de bots.":
+    "Cloudflare: tells humans from bots.",
+  "Cloudflare: identificacion de seguridad (obsoleta).":
+    "Cloudflare: security identifier (deprecated).",
+  "Cloudflare: recuerda que se supero la verificacion.":
+    "Cloudflare: remembers that the check was passed.",
+  "Complianz (WordPress): otro banner instalado.":
+    "Complianz (WordPress): another consent banner installed.",
+  "Cookie Consent (Osano): otro banner instalado.":
+    "Cookie Consent (Osano): another consent banner installed.",
+  "Cookie de seguridad del navegador.":
+    "Browser security cookie.",
+  "CookieYes / GDPR Cookie Consent: otro banner instalado.":
+    "CookieYes / GDPR Cookie Consent: another consent banner installed.",
+  "Cookiebot: otro banner instalado.":
+    "Cookiebot: another consent banner installed.",
+  "DoubleClick de Google: publicidad y remarketing.":
+    "Google DoubleClick: advertising and remarketing.",
+  "DoubleClick: comprueba si el navegador acepta cookies.":
+    "DoubleClick: checks whether the browser accepts cookies.",
+  "Este banner: guarda la decision del visitante.":
+    "This banner: stores the visitor's decision.",
+  "GDPR Cookie Compliance (WordPress): otro banner instalado.":
+    "GDPR Cookie Compliance (WordPress): another consent banner installed.",
+  "Google Ads: atribucion de clics en campanas.":
+    "Google Ads: campaign click attribution.",
+  "Google Ads: datos de campana.":
+    "Google Ads: campaign data.",
+  "Google Analytics clasico (Urchin).":
+    "Classic Google Analytics (Urchin).",
+  "Google Analytics: identifica al visitante (2 anos).":
+    "Google Analytics: identifies the visitor (2 years).",
+  "Google Analytics: identifica al visitante durante 24 h.":
+    "Google Analytics: identifies the visitor for 24 h.",
+  "Google Analytics: limita la frecuencia de peticiones.":
+    "Google Analytics: throttles the request rate.",
+  "Google: control tecnico de envio de cookies.":
+    "Google: technical control of cookie sending.",
+  "Google: estadisticas de uso de sus servicios.":
+    "Google: usage statistics for its services.",
+  "Google: preferencias y anuncios personalizados.":
+    "Google: preferences and personalised ads.",
+  "Hotjar: mapas de calor y grabacion de sesion.":
+    "Hotjar: heatmaps and session recording.",
+  "HubSpot: control de sesion para analitica.":
+    "HubSpot: session control for analytics.",
+  "HubSpot: detecta si es una sesion nueva.":
+    "HubSpot: detects whether this is a new session.",
+  "HubSpot: identifica al usuario del chat.":
+    "HubSpot: identifies the chat user.",
+  "HubSpot: identifica al visitante entre sesiones.":
+    "HubSpot: identifies the visitor across sessions.",
+  "HubSpot: recuerda el rechazo del propio banner de HubSpot.":
+    "HubSpot: remembers a rejection of HubSpot's own banner.",
+  "HubSpot: recuerda la peticion de no seguimiento.":
+    "HubSpot: remembers the do-not-track request.",
+  "HubSpot: seguimiento principal del visitante.":
+    "HubSpot: main visitor tracking.",
+  "Iubenda: otro banner instalado.":
+    "Iubenda: another consent banner installed.",
+  "Java: identificador de sesion del servidor.":
+    "Java: server session identifier.",
+  "Laravel: sesion del servidor.":
+    "Laravel: server session.",
+  "LeadLander: control de la visita actual.":
+    "LeadLander: tracks the current visit.",
+  "LeadLander: identifica visitantes y sigue su recorrido.":
+    "LeadLander: identifies visitors and follows their path.",
+  "LinkedIn: seguimiento e insight tag.":
+    "LinkedIn: tracking and insight tag.",
+  "MODX: sesion del gestor de contenidos.":
+    "MODX: content manager session.",
+  "Matomo: analitica.":
+    "Matomo: analytics.",
+  "Meta (Facebook) Pixel: publicidad y medicion.":
+    "Meta (Facebook) Pixel: advertising and measurement.",
+  "Meta: publicidad y remarketing.":
+    "Meta: advertising and remarketing.",
+  "Microsoft Ads UET: identificador persistente.":
+    "Microsoft Ads UET: persistent identifier.",
+  "Microsoft Ads UET: seguimiento de conversiones.":
+    "Microsoft Ads UET: conversion tracking.",
+  "Microsoft Clarity: identificador de analitica.":
+    "Microsoft Clarity: analytics identifier.",
+  "Microsoft Clarity: une las visitas de una sesion.":
+    "Microsoft Clarity: joins the visits of one session.",
+  "Microsoft: identificador publicitario.":
+    "Microsoft: advertising identifier.",
+  "Mixpanel: analitica de producto.":
+    "Mixpanel: product analytics.",
+  "OneTrust: otro banner instalado.":
+    "OneTrust: another consent banner installed.",
+  "PHP: identificador de sesion del servidor.":
+    "PHP: server session identifier.",
+  "Pinterest: medicion de conversiones.":
+    "Pinterest: conversion measurement.",
+  "PrestaShop: sesion de la tienda.":
+    "PrestaShop: shop session.",
+  "Proteccion contra falsificacion de peticiones.":
+    "Cross-site request forgery protection.",
+  "Registro de consentimiento del propio sitio.":
+    "The site's own consent record.",
+  "Segment: analitica.":
+    "Segment: analytics.",
+  "Stripe: prevencion de fraude en el pago.":
+    "Stripe: payment fraud prevention.",
+  "TCF de IAB: registro de consentimiento publicitario.":
+    "IAB TCF: advertising consent record.",
+  "TikTok Pixel: medicion de campanas.":
+    "TikTok Pixel: campaign measurement.",
+  "Vimeo: identificador de analitica del reproductor.":
+    "Vimeo: player analytics identifier.",
+  "Vimeo: preferencias del reproductor.":
+    "Vimeo: player preferences.",
+  "WhatConverts: ata la visita a la llamada o el formulario.":
+    "WhatConverts: ties the visit to the call or the form.",
+  "WhatConverts: identifica al visitante entre sesiones.":
+    "WhatConverts: identifies the visitor across sessions.",
+  "WhatConverts: identificador de sesion del seguimiento.":
+    "WhatConverts: tracking session identifier.",
+  "WhatConverts: marca la visita que acabo en contacto.":
+    "WhatConverts: marks the visit that ended in a contact.",
+  "WooCommerce: contenido del carrito.":
+    "WooCommerce: cart contents.",
+  "WooCommerce: sesion de compra.":
+    "WooCommerce: shopping session.",
+  "WordPress: preferencias del escritorio.":
+    "WordPress: dashboard preferences.",
+  "WordPress: sesion iniciada.":
+    "WordPress: signed-in session.",
+  "YouTube/Google: preferencias del reproductor.":
+    "YouTube/Google: player preferences.",
+  "YouTube: estima el ancho de banda y personaliza.":
+    "YouTube: estimates bandwidth and personalises.",
+  "YouTube: seguimiento de videos vistos.":
+    "YouTube: tracking of watched videos.",
+  "Guarda el identificador de una campana publicitaria.":
+    "Stores the identifier of an advertising campaign.",
+  "Patron de Matomo (analitica).":
+    "Matomo name pattern (analytics).",
+  "Nombre de prueba A/B: sirve para medir, no para que el sitio funcione.":
+    "A/B test name: it measures, it is not needed for the site to work.",
+  "Guarda la propia decision sobre cookies, que es esencial por definicion.":
+    "Stores the cookie decision itself, which is strictly necessary by definition.",
+  "Nombre de carrito o pedido: borrarla vaciaria la compra del visitante.":
+    "Cart or order name: deleting it would empty the visitor's purchase.",
+  "Guarda una preferencia de interfaz (idioma, moneda, tema).":
+    "Stores an interface preference (language, currency, theme).",
+  "Guarda de donde vino el visitante, que es atribucion de campana.":
+    "Stores where the visitor came from, which is campaign attribution.",
+  "Identificador persistente de visitante: sirve para reconocerlo entre visitas.":
+    "Persistent visitor identifier: it recognises them across visits.",
+  " Deducido por el nombre, confirmalo.":
+    " Inferred from the name, confirm it.",
+  "Visto en una sola visita: confirma que es del sitio antes de bloquearlo.":
+    "Seen on a single visit: confirm it belongs to the site before blocking it.",
+  "Sin catalogar y sin autor conocido. Pasa el escaner con navegador real: es lo que puede ver quien la escribe y si es del servidor.":
+    "Not in any catalogue and with no known writer. Run the scanner with a real browser: that is what can see who writes it and whether it comes from the server.",
+  "No esta en el catalogo. Averigua quien la escribe antes de decidir.":
+    "It is not in the catalogue. Find out who writes it before deciding.",
+
   "Bloquear tambien iframes, pixeles y peticiones": "Also block iframes, pixels and requests",
   "El bloqueo de serie solo frena etiquetas &lt;script&gt;. Un tercero tiene otras cuatro vias: un iframe, un pixel de imagen, fetch o XHR, y sendBeacon. Esto las cierra todas y ademas impide que se escriba la cookie, en vez de borrarla despues. Viene apagado porque toca fetch y document.cookie: enciendelo y prueba el sitio antes de dejarlo puesto.": "The default blocking only stops &lt;script&gt; tags. A third party has four more ways in: an iframe, an image pixel, fetch or XHR, and sendBeacon. This closes all of them and also stops the cookie from being written, instead of deleting it afterwards. It ships off because it patches fetch and document.cookie: turn it on and test the site before leaving it on.",
   "Marcador del contenido bloqueado": "Blocked content placeholder",
@@ -1189,7 +1379,13 @@ var DICT = {
   "tarda un par de minutos por sitio.": "takes a couple of minutes per site.",
   "No se pudo escanear:": "Could not scan:",
   "Lo que se vio es un muro anti-bot, no el sitio. No se guardo nada.": "What it saw was an anti-bot wall, not the site. Nothing was saved.",
+  "La puso": "Set by",
+  "el borde declarado en CONSENT_BORDE.": "the edge declared in CONSENT_BORDE.",
+  "Viene de la cabecera": "Comes from header",
+  "No hay borde declarado (CONSENT_BORDE), asi que pudo escribirla el propio visitante. Declara el borde para que quede verificada.": "No edge is declared (CONSENT_BORDE), so the visitor could have set it themselves. Declare the edge to have it verified.",
   "El escaneo fallo:": "The scan failed:",
+  "Escaneo incompleto:": "Incomplete scan:",
+  "Lo que falta puede ser del escenario que no corrio, no del sitio. No se guardo foto para comparar.": "What is missing may belong to the scenario that did not run, not to the site. No snapshot was saved for comparison.",
   "Ultimo escaneo:": "Last scan:",
   "Categorias": "Categories",
   "Anadir categoria": "Add category",
@@ -1580,8 +1776,8 @@ var DICT = {
   "Dejalo vacio salvo que tengas una pagina propia de exclusion. El articulo pide pocos pasos, y abrir el panel es el camino mas corto.":
     "Leave it empty unless you have your own opt-out page. The article asks for few steps, and opening the panel is the shortest path.",
   "Pintarlo flotante si la pagina no tiene hueco": "Draw it floating if the page has no slot",
-  "Lo normal es poner &lt;span data-consent-optout&gt;&lt;/span&gt; en el pie del sitio. Esto es el respaldo para cuando no se puede tocar el HTML: lo dibuja el banner abajo a la izquierda.":
-    "The usual thing is to put &lt;span data-consent-optout&gt;&lt;/span&gt; in the site footer. This is the fallback for when the HTML can't be touched: the banner draws one at the bottom left.",
+  "Lo normal es poner &lt;a href='#' data-consent-optout&gt;&lt;/a&gt; en el pie del sitio. Tiene que ser un &lt;a&gt;, no un &lt;span&gt;: el articulo pide un ENLACE, y un &lt;span&gt; no lo es para un lector de pantalla ni se puede abrir en otra pestana. El texto y el icono los pone el banner. Esto de aqui es el respaldo para cuando no se puede tocar el HTML: lo dibuja el banner abajo a la izquierda, y se aparta solo cuando el banner esta en pantalla.":
+    "The usual thing is to put &lt;a href='#' data-consent-optout&gt;&lt;/a&gt; in the site footer. It has to be an &lt;a&gt;, not a &lt;span&gt;: the regulation asks for a LINK, and a &lt;span&gt; is not one for a screen reader and cannot be opened in another tab. The banner fills in the text and the icon. This setting is the fallback for when the HTML cannot be touched: the banner draws one at the bottom left, and it moves out of the way while the banner is on screen.",
   "Regiones": "Regions",
   "Anadir region": "Add region",
   "Quitar todas las reglas": "Remove all rules",
@@ -1771,13 +1967,90 @@ var DICT_KEYS = Object.keys(DICT).sort(function(a, b){ return b.length - a.lengt
 
 var LANG = "en";   // hasta que idiomaInicial() decida
 
+
+/* Lo mismo, para las frases que el servidor COMPONE con datos dentro.
+   Una clave exacta no sirve: cambia con cada host, cada numero y cada
+   categoria. Cada entrada es [expresion regular, reemplazo], y el reemplazo
+   puede ser una funcion cuando hay que traducir tambien algo de dentro
+   (por ejemplo el slug de una categoria, que ya sabe traducir catLabel). */
+var DICT_PAT = [
+  [/^(\d+) cookies \((\d+) de terceros, (\d+) HttpOnly\), (\d+) dominios, (\d+) sin permiso/,
+   "$1 cookies ($2 third-party, $3 HttpOnly), $4 domains, $5 set without consent"],
+  [/; PARCIAL: fallo ([^(]+)\(/,
+   "; PARTIAL: $1failed ("],
+  [/^sin hallazgos \((\d+) de (\d+) escenarios recorridos\)/,
+   "nothing found ($1 of $2 scenarios completed)"],
+  [/; fallo /,
+   "; failed: "],
+  [/^no se pudo cargar (\S+) \(([\s\S]*)\)\. El escaneo no vio nada, lo que no significa que no haya nada\.$/,
+   "could not load $1 ($2). The scan saw nothing, which does not mean there is nothing."],
+  [/^muro: /,
+   "wall: "],
+  [/^muro anti-bot \((.+)\)$/,
+   "anti-bot wall ($1)"],
+  [/^el servidor respondio (\d+)$/,
+   "the server answered $1"],
+  [/^no se pudo enviar \(([\s\S]*?)\)\. Lo visto: /,
+   "could not be sent ($1). What was seen: "],
+  [/^La escribe un script de (.+?) \((.+?)\), que el catalogo clasifica como (.+?)\. Deducido por procedencia\.$/,
+   function(m, q, h, c){ return "Written by a script from " + q + " (" + h + "), which the catalogue classifies as " + catLabel(c).toLowerCase() + ". Inferred from where it comes from."; }],
+  [/^Ya la clasificaron asi en otros (\d+) sitios\. Viene de revision humana, no del catalogo\.$/,
+   "People already classified it this way on $1 other sites. It comes from human review, not from the catalogue."],
+  [/^El nombre apunta a sesion o autenticacion\. El catalogo abierto la daba como \'(.+?)\', pero clasificarla ahi y denegarla podria cerrar la sesion del visitante\. Comprueba quien la escribe antes de decidir\.$/,
+   function(m, c){ return "The name points to a session or to authentication. The open catalogue listed it as '" + catLabel(c).toLowerCase() + "', but classifying it there and denying it could log the visitor out. Check who writes it before deciding."; }],
+  [/^Es vuestra: vive en vuestro dominio \((.+?)\) pero el escaner no vio que script la escribe, probablemente porque se puso antes de que arrancara el banner\. Ningun catalogo publico puede saber que hace; la clasifica quien conozca la web\.$/,
+   "It is yours: it lives on your domain ($1) but the scanner did not see which script writes it, most likely because it was set before the banner started. No public catalogue can know what it does; whoever knows the site classifies it."],
+  [/^Es vuestra: la escribe vuestro propio sitio \((.+?)\)\. Ningun catalogo publico puede saber que hace, asi que esta la clasifica quien conozca la web\. Una vez hecho, no se vuelve a preguntar\.$/,
+   "It is yours: your own site writes it ($1). No public catalogue can know what it does, so whoever knows the site classifies this one. Once done, it is not asked again."],
+  [/^Sin catalogar y sin autor conocido\. Vive en (.+?)\. Pasa el escaner para que intente ver quien la escribe; si sigue sin salir, suele ser del servidor\.$/,
+   "Not in any catalogue and with no known writer. It lives on $1. Run the scanner so it can try to see who writes it; if it still does not show up, it usually comes from the server."],
+  [/^Sin catalogar\. La escribe un script de (.+?), que tampoco esta en el catalogo de dominios\. Mira que hace ese script para decidir\.$/,
+   "Not in any catalogue. It is written by a script from $1, which is not in the domain catalogue either. Look at what that script does in order to decide."],
+  [/^La escribe (.+?) \((.+?)\)\. El catalogo lo reconoce pero no propone bloquearlo, asi que la categoria de esta cookie la decides tu\.$/,
+   "Written by $1 ($2). The catalogue recognises it but does not propose blocking it, so you decide this cookie's category."],
+  [/^La pone vuestro propio servidor en una cabecera Set-Cookie al responder (.+?), no un script\. El banner no puede bloquearla ni borrarla: si no debe estar ahi antes del consentimiento, se arregla en el servidor\.$/,
+   "Your own server sets it in a Set-Cookie header when answering $1, not a script. The banner can neither block nor delete it: if it should not be there before consent, it is fixed on the server."],
+  [/^La pone un servidor en una cabecera Set-Cookie, respondiendo desde (.+?)\. No la escribe ningun script, asi que el banner no puede bloquearla\.$/,
+   "A server sets it in a Set-Cookie header, answering from $1. No script writes it, so the banner cannot block it."],
+  [/^La pone vuestro propio servidor en una cabecera Set-Cookie, no un script: por eso no hay autor y por eso no se ve desde JavaScript\. El banner no puede bloquearla; miradlo en el codigo del sitio o preguntad a quien lo mantiene\.$/,
+   "Your own server sets it in a Set-Cookie header, not a script: that is why there is no writer and why JavaScript cannot see it. The banner cannot block it; look in the site code or ask whoever maintains it."],
+  [/^La pone un servidor en una cabecera Set-Cookie( desde .+?)?, no un script, asi que no hay pila de llamadas que seguir\. El banner no puede bloquear una cookie de servidor\.$/,
+   function(m, d){ return "A server sets it in a Set-Cookie header" + (d ? " from" + d.slice(5) : "") + ", not a script, so there is no call stack to follow. The banner cannot block a server cookie."; }],
+  [/^(.+?) \((.+?)\)\. Propuesto para bloquear\.$/,
+   "$1 ($2). Proposed for blocking."],
+  [/^(.+?): infraestructura \((.+?)\)\. Bloquearlo tumbaria el sitio, no se propone\.$/,
+   "$1: infrastructure ($2). Blocking it would take the site down, so it is not proposed."],
+  [/^(.+?) \((.+?)\)\. Se reconoce, pero bloquearlo se nota en pantalla, asi que se deja a tu criterio\.$/,
+   "$1 ($2). Recognised, but blocking it shows on screen, so it is left to your judgement."],
+];
+
 function frase(t){
   if(LANG === "es" || !t) return t;
   var limpio = t.trim();
   if(DICT[limpio]) return t.replace(limpio, DICT[limpio]);   // conserva espacios
+  // Los patrones van ANTES del barrido por subcadena: traducen el armazon de
+  // la frase (que es lo que compone el servidor) y dejan los datos de dentro
+  // intactos. Despues, el barrido puede traducir lo que quede.
+  //
+  // Se prueban sobre el texto RECORTADO y el resultado se vuelve a encajar en
+  // el original, igual que hace la busqueda exacta de arriba. Casi todos van
+  // anclados con ^, y el texto que llega aqui suele traer un espacio delante
+  // por venir pegado a un <b> ("<b>Ultimo escaneo:</b> 3 cookies..."): sin
+  // recortar, el ancla no casaba nunca y el resumen del escaneo se quedaba en
+  // espanol, que es justo lo que esto viene a arreglar.
+  // Se aplican TODOS los que casen, no solo el primero: una frase puede traer
+  // el armazon y una cola pegada ("...3 sin permiso; PARCIAL: fallo frio"), y
+  // son dos patrones distintos. Devolver en el primero dejaba la cola en
+  // espanol, que es media frase sin traducir.
+  var out = t;
+  var acum = limpio;
+  for(var j = 0; j < DICT_PAT.length; j++){
+    var par = DICT_PAT[j];
+    if(par[0].test(acum)) acum = acum.replace(par[0], par[1]);
+  }
+  if(acum !== limpio) return t.replace(limpio, acum);
   // Solo frases largas. Una clave de dos letras aplicada por subcadena entra
   // dentro de las palabras: "El" convertia documentElement en documentThement.
-  var out = t;
   for(var i = 0; i < DICT_KEYS.length; i++){
     var k = DICT_KEYS[i];
     if(k.length < 12) continue;
@@ -1913,6 +2186,16 @@ function show(which){
   el("login").classList.toggle("hide", which!=="login");
   el("app").classList.toggle("hide", which!=="app");
 }
+/* Todas las horas del panel pasan por aqui.
+
+   El servidor guarda siempre UTC con Z (now() en backend.py). El panel tenia
+   dos formas de pintarlo: esta, que convierte a la hora del navegador, y un
+   `.replace("T"," ").slice(0,16)` suelto en siete sitios mas, que deja la UTC
+   tal cual y sin decirlo. En Guayaquil eso son cinco horas de diferencia entre
+   dos numeros de la MISMA pantalla, sin nada que avise de cual es cual: el
+   registro decia las 12:40 y el escaneo de ese mismo minuto decia las 17:40.
+   Ahora todo sale en la hora de quien mira, y la UTC exacta queda en el title
+   para quien tenga que citarla en un expediente. */
 function fecha(iso){
   if(!iso) return "";
   var d = new Date(iso);
@@ -1920,6 +2203,16 @@ function fecha(iso){
   var p = function(n){ return n<10 ? "0"+n : ""+n; };
   return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+
          " "+p(d.getHours())+":"+p(d.getMinutes());
+}
+/* La misma hora, ya escapada y con la UTC de origen al pasar el raton. Para
+   los sitios que arman HTML a mano. Devuelve "" si no hay fecha, para que la
+   celda quede vacia en vez de poner un <span> con nada dentro. */
+function fechaHtml(iso){
+  if(!iso) return "";
+  var local = fecha(iso);
+  if(local === iso) return esc(iso);            // no se pudo interpretar
+  return '<span title="'+esc(frase("En UTC")+": "+String(iso).replace("T"," ").replace("Z"," UTC"))+
+         '">'+esc(local)+'</span>';
 }
 
 /* ---------------- sesion ---------------- */
@@ -2408,7 +2701,7 @@ var UI_GROUPS = [
     {p:"optOut.href", k:"text", l:"Enlace alternativo", ph:"vacio: abre el panel",
      n:"Dejalo vacio salvo que tengas una pagina propia de exclusion. El articulo pide pocos pasos, y abrir el panel es el camino mas corto."},
     {p:"optOut.render", k:"bool", l:"Pintarlo flotante si la pagina no tiene hueco", def:false,
-     n:"Lo normal es poner <span data-consent-optout></span> en el pie del sitio. Esto es el respaldo para cuando no se puede tocar el HTML: lo dibuja el banner abajo a la izquierda."}
+     n:"Lo normal es poner <a href='#' data-consent-optout></a> en el pie del sitio. Tiene que ser un <a>, no un <span>: el articulo pide un ENLACE, y un <span> no lo es para un lector de pantalla ni se puede abrir en otra pestana. El texto y el icono los pone el banner. Esto de aqui es el respaldo para cuando no se puede tocar el HTML: lo dibuja el banner abajo a la izquierda, y se aparta solo cuando el banner esta en pantalla."}
   ]},
   { t:"Regiones", seccion:"cookies", items:[
     {p:"regions", k:"regiones", l:""}
@@ -2650,7 +2943,8 @@ var UI_GROUPS = [
     {p:"gcm.urlPassthrough", k:"bool", l:"Pasar la campana por la URL", def:false}
   ]},
   { t:"Bloqueo endurecido", seccion:"cookies", items:[
-    {p:"hardBlocking", k:"bool", l:"Bloquear tambien iframes, pixeles y peticiones", def:true}
+    {p:"hardBlocking", k:"bool", l:"Bloquear tambien iframes, pixeles y peticiones", def:true,
+     n:"Cubre lo que inyecta codigo (GTM, HubSpot, chats): ahi la peticion NO sale. Lo que viene escrito en el HTML del servidor es otra cosa: el navegador lee el documento por delante y ya ha pedido cada <img src> y <iframe src> antes de que corra nada nuestro. Esos se quitan de la pantalla, pero el tercero ya fue contactado, y eso es lo que mira una auditoria. Para que no salga la peticion, esas etiquetas tienen que llegar del servidor sin src y con data-consent-src en su lugar. El banner avisa en la consola cuando encuentra alguna, y el escaner las lista como «aparece sin permiso»."}
   ]},
   { t:"Marcador del contenido bloqueado", items:[
     {p:"placeholder.background", k:"color", l:"Fondo"},
@@ -2672,7 +2966,10 @@ var UI_GROUPS = [
     {p:"placeholder.buttonClassName",   k:"text",  l:"Boton: clase CSS", ph:"mi-boton"}
   ]},
   { t:"Version del consentimiento", seccion:"cookies", items:[
-    {p:"consentVersion", k:"txt", l:"Version", ph:"2025-01",
+    // k:"text" como el resto. Estaba como "txt", que no es ningun tipo
+    // conocido: funcionaba de milagro porque el pintor cae en el else, pero el
+    // dia que alguien anada un caso nuevo ahi, este campo se va con el.
+    {p:"consentVersion", k:"text", l:"Version", ph:"2025-01",
      n:"Al cambiarla, TODO visitante que ya habia decidido vuelve a ver el banner. "+
        "Se sube cuando cambian las categorias o los textos, porque entonces lo que "+
        "aceptaron ya no es lo que hay. El panel avisa al publicar si hace falta."}
@@ -5207,13 +5504,24 @@ function avisosVenta(o, res){
       "no es obligatorio."});
   }
 
-  // 5. El titulo en ingles es texto de ley, no texto de diseno.
-  var tEn = String((o.texts && o.texts.en && o.texts.en.optOutTitle) || "").trim().toLowerCase();
-  if(estilo === "single" && tEn && TITULOS_7015.indexOf(tEn) === -1){
-    res.push({s:"fail", t:"<b>El titulo del enlace no es uno de los dos permitidos</b>: "+
-      "pusiste &quot;"+esc(tEn)+"&quot;. El articulo 7015 obliga a titularlo "+
-      "&quot;Your Privacy Choices&quot; o &quot;Your California Privacy Choices&quot;, "+
-      "literalmente."});
+  // 5. El titulo es texto de ley, no texto de diseno, y lo es en TODOS los
+  //    idiomas. Antes solo se miraba texts.en: un sitio que tradujera el
+  //    titulo en texts.es pasaba la revision sin un aviso, y el visitante que
+  //    llegaba en castellano -- casi todos los nuestros -- veia un enlace que
+  //    no cumple el articulo. El bundle ya no lo traduce de serie; esto cubre
+  //    el otro camino, que es escribirlo a mano desde Textos.
+  if(estilo === "single" && o.texts && typeof o.texts === "object"){
+    Object.keys(o.texts).forEach(function(lg){
+      var tx = o.texts[lg];
+      if(!tx || typeof tx !== "object") return;
+      var ti = String(tx.optOutTitle || "").trim().toLowerCase();
+      if(!ti || TITULOS_7015.indexOf(ti) !== -1) return;
+      res.push({s:"fail", t:"<b>El titulo del enlace no es uno de los dos permitidos</b> "+
+        "(idioma <code>"+esc(lg)+"</code>): pusiste &quot;"+esc(tx.optOutTitle)+"&quot;. "+
+        "El articulo 7015 obliga a titularlo &quot;Your Privacy Choices&quot; o "+
+        "&quot;Your California Privacy Choices&quot;, literalmente y sin traducir, "+
+        "tambien en los idiomas que no son el ingles."});
+    });
   }
 }
 
@@ -5855,6 +6163,30 @@ function viewRegistros(d){
     '</div>';
   loadLogs();
 }
+/* La region del registro, con de donde salio.
+
+   La pone una cabecera del borde (CF-IPCountry y companeras), y esa cabecera
+   la puede escribir cualquiera que llegue directo al origen. Mientras el
+   operador no declare que borde hay delante (CONSENT_BORDE), el servidor la
+   guarda marcada con "?" y aqui se pinta en ambar: el registro de
+   consentimiento es una prueba, y una region que pudo escribir el propio
+   interesado no sostiene bajo que regimen habia que preguntarle.
+   Verificada o no, el valor se ensena igual; lo que cambia es si se presenta
+   como comprobado. */
+function celdaRegion(x){
+  var v = x.region || "";
+  if(!v) return "";
+  var f = x.region_fuente;
+  if(typeof f !== "string" || !f) return esc(v);   // backend viejo: sin campo
+  if(f.charAt(f.length-1) !== "?"){
+    return esc(v) + " <span class='sub' title='"+esc(frase("La puso")+" "+f+", "+
+           frase("el borde declarado en CONSENT_BORDE."))+"'>&#10003;</span>";
+  }
+  return "<span class='reg-dudosa' title='"+
+         esc(frase("Viene de la cabecera")+" "+f.slice(0,-1)+". "+
+             frase("No hay borde declarado (CONSENT_BORDE), asi que pudo escribirla el propio visitante. Declara el borde para que quede verificada."))+
+         "'>"+esc(v)+" ?</span>";
+}
 function loadLogs(){
   j("GET","/dash/site/logs?site_id="+encodeURIComponent(current)).then(function(r){
     if(!r.ok) return;
@@ -5880,7 +6212,7 @@ function loadLogs(){
         "<td><span class='tag "+esc(x.choice||"")+"'>"+esc(x.choice||"")+"</span></td>"+
         "<td>"+(x.gpc ? "<span class='tag all'>GPC</span>" : "") +"</td>"+
         "<td>"+cats(x.categories)+"</td>"+
-        "<td class='mono'>"+esc(x.region||"")+"</td>"+
+        "<td class='mono'>"+celdaRegion(x)+"</td>"+
         "<td>"+(x.modo ? "<span class='tag "+(x.modo==="optin"?"cus":"all")+"'>"+
                 esc(x.modo)+"</span>" : "")+"</td>"+
         "<td class='mono'>"+esc((x.pagina||"").slice(0,40))+"</td>"+
@@ -5966,7 +6298,7 @@ function exportarAudit(){
   }
 
   var cab = ["Name","Type","Party","Provider","Provider domain","Category","Purpose",
-             "First seen","Last seen","Times seen","Observed on domain",
+             "First seen (UTC)","Last seen (UTC)","Times seen","Observed on domain",
              "Detected at page","Status"];
   var lin = [cab.join(",")];
   filas.forEach(function(f){
@@ -6050,7 +6382,11 @@ function exportarAuditPDF(){
   var KIND_EN = {cookie:"Cookie", localStorage:"Local storage",
                  sessionStorage:"Session storage", host:"Third-party host"};
   function e(v){ return esc(v === undefined || v === null ? "" : String(v)); }
-  function fecha(v){ return (v || "").replace("T", " ").slice(0, 16); }
+  // UTC a proposito, y dicho en la cabecera de la columna: un PDF se lee
+  // meses despues y en otro huso, asi que la hora del navegador de hoy no
+  // significaria nada ahi. Se llama fechaUtc y no fecha para no tapar a la
+  // global, que es la que convierte a hora local en la pantalla.
+  function fechaUtc(v){ return (v || "").replace("T", " ").replace("Z", "").slice(0, 16); }
 
   var sitio = (_datosSitio || {}).site_id || current || "";
   var dominios = ((_datosSitio || {}).domain || "").split(",").filter(Boolean).join(", ");
@@ -6078,7 +6414,7 @@ function exportarAuditPDF(){
       '<td>' + e(f.provider || "\u2014") + '</td>'+
       '<td>' + e(cat) + '</td>'+
       '<td class="p">' + e(auditProposito(f)) + '</td>'+
-      '<td class="mono sm">' + e(fecha(f.first_seen)) + '</td>'+
+      '<td class="mono sm">' + e(fechaUtc(f.first_seen)) + '</td>'+
       '<td class="n">' + e(f.hits || 0) + '</td>'+
     '</tr>';
   }).join("");
@@ -6112,7 +6448,7 @@ function exportarAuditPDF(){
   '<table class="resumen"><tr><th>Category</th><th class="n">Items</th></tr>' + resumen + '</table>'+
   '<h2>Detail</h2>'+
   '<table><tr><th>Name</th><th>Type</th><th>Party</th><th>Provider</th><th>Category</th>'+
-  '<th>Purpose</th><th>First seen</th><th class="n">Seen</th></tr>' + cuerpo + '</table>'+
+  '<th>Purpose</th><th>First seen (UTC)</th><th class="n">Seen</th></tr>' + cuerpo + '</table>'+
   '<div class="alcance"><b>Scope.</b> Collected from the visitor\u2019s browser on the site '+
   'itself. Not included: cookies set on other domains (the ones DevTools lists under '+
   'google.com, vimeo.com and similar), which no script on the page is allowed to read, and '+
@@ -6167,7 +6503,15 @@ function ckPestanas(){
     ["deteccion",  frase("Deteccion"),          null],
     ["gpc",        "GPC",                       null],
     ["duro",       frase("Bloqueo endurecido"),  null],
-    ["gcm",        "Consent Mode",               null]
+    ["gcm",        "Consent Mode",               null],
+    // El grupo "Version del consentimiento" existia en UI_GROUPS desde el
+    // principio, pero no tenia pestana: pintarCkSeccion busca el grupo por el
+    // titulo que le da CK_TAB, y sin entrada aqui ni en `titulos` no habia
+    // forma de llegar al campo. Subirla solo se podia desde el aviso que sale
+    // al publicar un cambio de textos, y el que quisiera subirla a proposito
+    // se quedaba sin camino. La version actual va de insignia para verla sin
+    // entrar.
+    ["version",    frase("Version del consentimiento"), cfg.consentVersion || null]
   ];
   return '<div class="ck-tabs">'+ lista.map(function(x){
     return '<button class="ck-t'+(CK_TAB===x[0]?' on':'')+'" onclick="ckIr(\''+x[0]+'\')">'+
@@ -6211,6 +6555,15 @@ function viewCookies(d){
 
 /* Pinta la pestaña activa. Las de configuracion reusan los mismos editores
    que ya existian; la de detectadas, su tabla de siempre. */
+/* Que poner de ejemplo en el campo del escaneo. El dominio configurado del
+   sitio, con esquema, porque el escaner necesita una URL completa. */
+function urlSugeridaEscaneo(){
+  var d = ((_datosSitio || {}).domain || "").split(",")[0].trim();
+  if(!d) return "https://ejemplo.com/";
+  if(/^https?:\/\//i.test(d)) return d;
+  return "https://" + d.replace(/^\/+/, "") + "/";
+}
+
 function pintarCkSeccion(){
   var host = el("ck-sec"), pest = el("ck-pest");
   if(!host || !pest) return;      // ya no estamos en esta pestaña
@@ -6223,7 +6576,13 @@ function pintarCkSeccion(){
           '<div><h2 style="margin:0">Cookies detectadas en el sitio</h2>'+
           '<p class="sub" style="margin:4px 0 0">Clasifica cada una. Las esenciales nunca se borran.</p></div>'+
           '<div class="row">'+
-            '<input id="esc-url" class="esc-url" placeholder="http://localhost:8000/sitio-demo.html" '+
+            // El placeholder era "http://localhost:8000/sitio-demo.html": una
+            // direccion de la maquina de quien desarrolla esto, que al cliente
+            // no le dice nada y que ademas sugiere escribir algo que no es su
+            // sitio. Se propone el dominio que ya tiene configurado; solo si
+            // no hay ninguno se cae a un ejemplo generico.
+            '<input id="esc-url" class="esc-url" placeholder="'+
+              esc(urlSugeridaEscaneo())+'" '+
               'title="'+frase("Pagina por la que empieza el escaneo")+'">'+
             '<button class="btn sm" id="btn-escanear" onclick="pedirEscaneo()">Escanear el sitio</button>'+
             '<button class="btn ghost sm" onclick="vaciarInventario()">Vaciar inventario</button>'+
@@ -6263,7 +6622,8 @@ function pintarCkSeccion(){
                  borrado:"Cookies que se borran", deteccion:"Deteccion de cookies",
                  gpc:"Global Privacy Control", duro:"Bloqueo endurecido",
                  gcm:"Google Consent Mode",
-                 venta:"Enlace de exclusion (CPRA)", regiones:"Regiones"};
+                 venta:"Enlace de exclusion (CPRA)", regiones:"Regiones",
+                 version:"Version del consentimiento"};
   var g = UI_GROUPS.filter(function(x){ return x.t === titulos[CK_TAB]; })[0];
   if(!g){ host.innerHTML = ""; return; }
   host.innerHTML = '<div class="card"><h2>'+esc(g.t)+'</h2>'+
@@ -6464,7 +6824,7 @@ function verAvisos(){
           (x.pagina ? ' <br>Visto en <code>' + esc(x.pagina) + '</code>' : '') +
         '</div>' +
         '<div class="av-c">' + esc(String(x.veces||0)) + ' visita(s) &middot; desde ' +
-          esc((x.primera_vez || "").replace("T", " ").slice(0, 16)) + '</div></div>';
+          fechaHtml(x.primera_vez) + '</div></div>';
     }
     var caja = el("av-modal");
     if(!caja){
@@ -6485,7 +6845,7 @@ function verAvisos(){
         cuerpo += '<div class="av-fila ' + esc(a.gravedad) + (a.visto ? ' visto' : '') + '">' +
           '<div class="av-t">' + esc(a.titulo) + '</div>' +
           '<div class="av-d">' + esc(a.detalle) + '</div>' +
-          '<div class="av-c">' + esc((a.cuando || "").replace("T", " ").slice(0, 16)) +
+          '<div class="av-c">' + fechaHtml(a.cuando) +
           (a.job_id ? ' &middot; <a href="#" onclick="cerrarAvisos();verInforme(' +
                       a.job_id + ');return false">' +
                       frase("ver el informe de ese escaneo") + '</a>' : '') +
@@ -6528,7 +6888,7 @@ function pintarVigilancia(v){
     // La fecha va en su propia linea: pegada al final del parrafo estiraba la
     // caja hasta el borde de la pantalla y el texto se iba a dos lineas feas.
     (v.ultimo ? '<span class="vig-ult">' + frase("Ultimo escaneo programado:") +
-                ' ' + esc((v.ultimo || "").replace("T", " ").slice(0, 16)) +
+                ' ' + fechaHtml(v.ultimo) +
                 '</span>' : '') +
     '</div>';
 }
@@ -6585,10 +6945,18 @@ function verEscaneo(seguir){
       } else if(ult.estado === "error"){
         clase += " esc-muro";
         texto = "<b>" + frase("El escaneo fallo:") + "</b> " + esc(ult.resumen || "");
+      } else if(ult.estado === "parcial"){
+        // Ni verde ni rojo: se vio parte del sitio. Lo que se vio es cierto,
+        // pero lo que NO aparece puede ser del escenario que no corrio, y eso
+        // cambia como se lee la lista. En verde se leeria como "no hay nada".
+        clase += " esc-parcial";
+        texto = "<b>" + frase("Escaneo incompleto:") + "</b> " + esc(ult.resumen || "") + " " +
+                frase("Lo que falta puede ser del escenario que no corrio, no del sitio. No se guardo foto para comparar.") +
+                " <span class='sub'>" + fechaHtml(ult.terminado) + "</span>";
       } else {
         clase += " esc-ok";
         texto = "<b>" + frase("Ultimo escaneo:") + "</b> " + esc(ult.resumen || "") +
-                " <span class=\'sub\'>" + esc((ult.terminado || "").replace("T", " ").slice(0, 16)) + "</span>";
+                " <span class=\'sub\'>" + fechaHtml(ult.terminado) + "</span>";
       }
       // El informe es lo que de verdad contesta "donde estan los huecos".
       // Antes vivia solo en un fichero del disco de quien lanzaba el escaner,
@@ -6699,13 +7067,34 @@ function filaCookie(x, tipos){
   var sinDecidir    = !esNecesaria && !esNoNecesaria;
 
   var sug = "";
-  // Una sugerencia deducida (por quien escribio la cookie o por la forma del
-  // nombre) no vale lo mismo que una identificada en el catalogo, y quien
-  // revisa tiene que poder distinguirlas de un vistazo. Si no, se aprueba todo
-  // igual y la deduccion se convierte en un dato duro que nadie comprobo.
-  var deducida = /Deducido|procedencia|escribe un script/.test(x.explicacion || "");
+  // Una sugerencia deducida (por un comodin del catalogo abierto, por quien
+  // escribio la cookie o por la forma del nombre) no vale lo mismo que una
+  // identificada por su nombre completo, y quien revisa tiene que poder
+  // distinguirlas de un vistazo. Si no, se aprueba todo igual y la deduccion
+  // se convierte en un dato duro que nadie comprobo.
+  //
+  // El motivo lo manda el servidor en x.base. Antes se adivinaba con un regex
+  // sobre la explicacion, y eso dejaba fuera justo el caso mas frecuente: un
+  // comodin de la Open Cookie Database trae un texto escrito por terceros, que
+  // nunca dice "deducido", asi que "_ga" acertando sobre "_gastos_envio" se
+  // pintaba como identificada. El regex se conserva solo como respaldo para
+  // filas servidas por un backend viejo, que no manda el campo.
+  var MOTIVO = {"odb-comodin": "coincide el prefijo del nombre, no el nombre entero",
+                "aprendido":   "lo clasificaron en otros sitios, no en este",
+                "autor":       "deducido por quien escribe la cookie",
+                "forma":       "deducido por la forma del nombre"};
+  var deducida, porque = "";
+  if (typeof x.base === "string" && x.base) {
+    porque = MOTIVO[x.base] || "";
+    deducida = !!porque;
+  } else {
+    deducida = /Deducido|procedencia|escribe un script/.test(x.explicacion || "");
+  }
   var marca = deducida ? " sug-deducida" : "";
-  var cola = deducida ? ' <em>deducido, confirmalo</em>' : '';
+  var cola = deducida
+    ? ' <em title="'+esc(porque || "Hay que confirmarlo antes de aprobarlo.")+'">'
+      + (porque ? esc(porque) : "deducido") + ', confirmalo</em>'
+    : '';
   if (x.sugerida === "esencial")      sug = '<span class="sug'+marca+'">se sugiere: necesaria'+cola+'</span>';
   else if (x.sugerida)                sug = '<span class="sug'+marca+'">se sugiere: no necesaria ('+esc(catLabel(x.sugerida))+')'+cola+'</span>';
   else                                sug = '<span class="sug none">desconocida</span>';

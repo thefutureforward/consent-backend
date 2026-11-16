@@ -242,6 +242,14 @@ def init_db():
         c.execute("ALTER TABLE consent_logs ADD COLUMN pagina TEXT DEFAULT ''")
     if cl and "texto_hash" not in cl:
         c.execute("ALTER TABLE consent_logs ADD COLUMN texto_hash TEXT DEFAULT ''")
+    # De donde salio esa region. La cabecera la puede escribir cualquiera que
+    # llegue directo al origen, asi que guardar "ES" a secas convierte una
+    # afirmacion del visitante en un dato del registro legal. Aqui se anota la
+    # cabecera que lo dijo y si habia un borde declarado que la respaldara:
+    # "CF-IPCountry" cuando el operador lo configuro, "CF-IPCountry?" cuando no
+    # hay forma de saber si venia del borde, y "" cuando nadie dijo nada.
+    if cl and "region_fuente" not in cl:
+        c.execute("ALTER TABLE consent_logs ADD COLUMN region_fuente TEXT DEFAULT ''")
 
     # El texto en si, UNA vez por hash y por sitio. Mil consentimientos con el
     # mismo banner son mil hashes y un texto. Sin esta tabla el hash del
@@ -505,6 +513,38 @@ CAB_PAIS = ("CF-IPCountry", "X-Vercel-IP-Country", "CloudFront-Viewer-Country",
 CAB_REGION = ("CF-Region-Code", "X-Vercel-IP-Country-Region",
               "CloudFront-Viewer-Country-Region", "X-Geo-Region")
 
+# Que borde hay delante, si el operador lo sabe. Con CONSENT_BORDE=cloudflare
+# (o =vercel, =cloudfront, =fastly) solo se miran las cabeceras de ESE
+# proveedor y las demas se ignoran: sin esto, un visitante que llega directo al
+# origen manda "X-Geo-Country: US" y se cuela por la puerta de atras aunque el
+# borde real sea Cloudflare y su CF-IPCountry diga otra cosa.
+#
+# Declararlo cambia dos cosas: cual cabecera se lee, y si lo leido se puede dar
+# por comprobado. Sin declarar, el sistema sigue funcionando igual que antes
+# (se miran las seis), pero lo que salga viaja marcado como no verificado, y es
+# asi como llega al registro y al panel. La diferencia importa porque el
+# registro de consentimiento es una prueba: una region que pudo escribir el
+# propio interesado no prueba bajo que regimen habia que preguntarle.
+BORDES = {
+    "cloudflare": (("CF-IPCountry",), ("CF-Region-Code",)),
+    "vercel":     (("X-Vercel-IP-Country",), ("X-Vercel-IP-Country-Region",)),
+    "cloudfront": (("CloudFront-Viewer-Country",), ("CloudFront-Viewer-Country-Region",)),
+    "fastly":     (("Fastly-Geo-Country",), ("X-Geo-Region",)),
+}
+
+
+def _borde():
+    """(cabeceras_pais, cabeceras_region, declarado). declarado es el nombre
+    del proveedor, o "" cuando nadie lo dijo."""
+    v = (os.environ.get("CONSENT_BORDE") or "").strip().lower()
+    if v in BORDES:
+        return BORDES[v][0], BORDES[v][1], v
+    if v:
+        print("[region] CONSENT_BORDE=%r no es un borde conocido (%s): se "
+              "miran todas las cabeceras y nada queda verificado."
+              % (v, ", ".join(sorted(BORDES))))
+    return CAB_PAIS, CAB_REGION, ""
+
 # Paises del Espacio Economico Europeo mas Reino Unido y Suiza: donde el
 # consentimiento tiene que ser previo y explicito.
 EEE = {"AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
@@ -512,20 +552,31 @@ EEE = {"AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
        "RO", "SK", "SI", "ES", "SE", "IS", "GB", "CH"}
 
 
-def region_de(headers):
-    """(pais, region) en mayusculas, o ("", "") si no hay borde que lo diga."""
-    pais = region = ""
-    for k in CAB_PAIS:
+def procedencia(headers):
+    """(pais, region, fuente). fuente es la cabecera que dijo el pais, con "?"
+    detras cuando no hay borde declarado que la respalde, y "" si nadie dijo
+    nada. Es lo que distingue un dato del borde de una afirmacion del propio
+    visitante, y por eso se guarda con el registro en vez de tirarse aqui."""
+    cab_pais, cab_region, declarado = _borde()
+    pais = region = fuente = ""
+    for k in cab_pais:
         v = (headers.get(k) or "").strip().upper()
         # Cloudflare manda XX cuando no lo sabe, y T1 para trafico de Tor.
         if v and v not in ("XX", "T1"):
             pais = v[:2]
+            fuente = k if declarado else (k + "?")
             break
-    for k in CAB_REGION:
+    for k in cab_region:
         v = (headers.get(k) or "").strip().upper()
         if v:
             region = v[:8]
             break
+    return pais, region, fuente
+
+
+def region_de(headers):
+    """(pais, region) en mayusculas, o ("", "") si no hay borde que lo diga."""
+    pais, region, _ = procedencia(headers)
     return pais, region
 
 
@@ -844,11 +895,33 @@ def _por_aprendido(bajo):
                     " sitios. Viene de revision humana, no del catalogo.")
 
 
-def clasificar_cookie(nombre, autor=None, propio="", dominio="", httponly=False):
-    """Devuelve (categoria_sugerida, explicacion). La explicacion nunca es None.
+# De donde sale cada sugerencia. Viaja hasta el panel como un campo propio
+# ("base") en vez de dejar que el navegador lo adivine leyendo la explicacion:
+# el texto de la base abierta lo escribieron terceros y cambia con cada
+# actualizacion del archivo, asi que cualquier regex sobre el acaba fallando en
+# silencio y pintando una deduccion como si fuera un dato comprobado.
+#
+# IDENTIFICAN (el nombre completo esta en una lista):
+#   "catalogo"  las 75 nuestras, revisadas a mano
+#   "odb"       nombre exacto en la Open Cookie Database
+#   "hosts"     dominio de tercero en whotracks.me (solo para kind=host)
+# DEDUCEN (hay que confirmarlo antes de aprobar):
+#   "odb-comodin" solo coincide el prefijo: "_ga" acierta en "_ga" y falla en
+#                 "_gastos_envio", y la base no distingue una cosa de la otra
+#   "aprendido"   lo clasificaron personas en otros sitios, no en este
+#   "autor"       hereda la categoria del script que la escribio
+#   "forma"       patron del nombre, ultimo recurso
+BASES_DEDUCIDAS = ("odb-comodin", "aprendido", "autor", "forma")
 
-    Cascada, de mas fiable a menos, y cada capa dice de donde sale lo que
-    propone:
+
+def clasificar_cookie(nombre, autor=None, propio="", dominio="", httponly=False):
+    """Devuelve (categoria_sugerida, explicacion, base).
+
+    La explicacion nunca es None. 'base' dice de donde sale la sugerencia y
+    vale "" cuando no hay ninguna; los valores estan arriba, en BASES_DEDUCIDAS
+    y el comentario que la acompana.
+
+    Cascada, de mas fiable a menos:
 
       1. catalogo propio, revisado a mano y en espanol
       2. nombre exacto en la base abierta
@@ -858,42 +931,46 @@ def clasificar_cookie(nombre, autor=None, propio="", dominio="", httponly=False)
          cookie hereda su categoria. Necesita el escaner (P4)
       5. forma del nombre, como ultimo recurso
 
-    Las cuatro primeras identifican; la quinta deduce, y lo dice."""
+    Solo las dos primeras identifican: de la tercera en adelante se deduce, y
+    la base lo dice para que el panel no las pinte igual."""
     n = (nombre or "").strip()
     if not n:
-        return None, None
+        return None, None, ""
     bajo = n.lower()
     for prefijo, tipo, desc in COOKIE_CATALOGO:
         if bajo.startswith(prefijo.lower()):
-            return tipo, desc
+            return tipo, desc, "catalogo"
     hit = ODB_EXACTAS.get(bajo)
     if hit:
-        return _red_seguridad(bajo, hit[0], hit[1])
+        return _red_seguridad(bajo, hit[0], hit[1], "odb")
     for pref, tipo, desc in ODB_PREFIJOS:     # ya vienen de mas largo a mas corto
         if pref and bajo.startswith(pref):
-            return _red_seguridad(bajo, tipo, desc)
+            # Coincide el prefijo, no el nombre. La explicacion que trae la
+            # base abierta esta escrita como si la hubiera identificado, asi
+            # que se dice aparte de donde sale.
+            return _red_seguridad(bajo, tipo, desc, "odb-comodin")
 
     cat, expl = _por_aprendido(bajo)
     if cat:
-        return _red_seguridad(bajo, cat, expl)
+        return _red_seguridad(bajo, cat, expl, "aprendido")
 
     # A partir de aqui ya no se identifica, se deduce. La red de seguridad
     # vigila igual: un nombre de sesion no se propone por mucho que la forma
     # o la procedencia apunten a otra cosa.
     cat, expl = _por_autor(bajo, autor)
     if cat:
-        return _red_seguridad(bajo, cat, expl)
+        return _red_seguridad(bajo, cat, expl, "autor")
     cat, expl = _por_heuristica(bajo)
     if cat:
-        return _red_seguridad(bajo, cat, expl)
+        return _red_seguridad(bajo, cat, expl, "forma")
 
     # Nadie sabe que es. Pero si el escaner vio quien la escribe, eso ya le
     # ahorra el trabajo mas lento al que tenga que revisarla: buscar a mano de
     # donde sale. No se sugiere categoria, solo se dice lo que se sabe.
     pista = _pista_autor(autor, propio, httponly)
     if pista:
-        return None, pista
-    return None, _sin_autor(dominio, httponly, propio)
+        return None, pista, ""
+    return None, _sin_autor(dominio, httponly, propio), ""
 
 
 def _sin_autor(dominio="", httponly=False, propio=""):
@@ -987,15 +1064,17 @@ def _pista_autor(autor, propio="", httponly=False):
 SOSPECHOSAS = ("session", "sess", "auth", "token", "csrf", "xsrf", "login",
                "logged", "sid", "jwt", "oauth", "saml", "identity", "secure")
 
-def _red_seguridad(bajo, tipo, desc):
+def _red_seguridad(bajo, tipo, desc, base=""):
     if tipo == "esencial":
-        return tipo, desc
+        return tipo, desc, base
     if any(x in bajo for x in SOSPECHOSAS):
+        # Se veta la sugerencia, asi que tampoco hay base que ensenar: lo que
+        # queda es una advertencia, no una propuesta a medio confirmar.
         return None, ("El nombre apunta a sesion o autenticacion. El catalogo "
                       "abierto la daba como '" + tipo + "', pero clasificarla ahi "
                       "y denegarla podria cerrar la sesion del visitante. "
-                      "Comprueba quien la escribe antes de decidir.")
-    return tipo, desc
+                      "Comprueba quien la escribe antes de decidir."), ""
+    return tipo, desc, base
 
 
 # --- Dominios de rastreo (whotracks.me, CC BY 4.0) ----------------------
@@ -1961,7 +2040,7 @@ class H(BaseHTTPRequestHandler):
         # misma peticion, y no se cogen de lo que mande el navegador: el
         # registro es la prueba de que se le pregunto bien a esta persona, y
         # una prueba que el propio interesado puede escribir no prueba nada.
-        pais_l, reg_l = region_de(self.headers)
+        pais_l, reg_l, fuente_l = procedencia(self.headers)
         cfg_l = c.execute("SELECT json FROM site_config WHERE site_id=?",
                           (site_id,)).fetchone()
         modo_l = ""
@@ -2001,12 +2080,12 @@ class H(BaseHTTPRequestHandler):
                       (site_id, thash, texto, now()))
             c.execute("UPDATE textos_consentimiento SET veces=veces+1 "
                       "WHERE site_id=? AND hash=?", (site_id, thash))
-        c.execute("INSERT INTO consent_logs(consent_id,site_id,choice,categories,version_texto,language,ts,ip,user_agent,gpc,region,modo,pagina,texto_hash)"
-                  " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        c.execute("INSERT INTO consent_logs(consent_id,site_id,choice,categories,version_texto,language,ts,ip,user_agent,gpc,region,modo,pagina,texto_hash,region_fuente)"
+                  " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                   (cid, site_id, data.get("choice"), json.dumps(data.get("categories")),
                    data.get("version"), data.get("language"), now(),
                    ip_cliente(self), self.headers.get("User-Agent", ""), gpc,
-                   region_l, modo_l, pagina, thash))
+                   region_l, modo_l, pagina, thash, fuente_l))
         c.commit(); c.close()
         self._send(200, {"consent_id": cid, "ts": now()})
 
@@ -2414,7 +2493,7 @@ class H(BaseHTTPRequestHandler):
             counts[r["choice"] or "?"] = r["n"]
         rows = [dict(r) for r in c.execute(
             "SELECT consent_id,choice,categories,language,version_texto,ts,ip,gpc,"
-            "region,modo,pagina,texto_hash FROM consent_logs "
+            "region,modo,pagina,texto_hash,region_fuente FROM consent_logs "
             "WHERE site_id=? ORDER BY id DESC LIMIT 25", (site_id,))]
         total = c.execute("SELECT COUNT(*) n FROM consent_logs WHERE site_id=?", (site_id,)).fetchone()["n"]
         # Los textos que hay detras de los hashes que salen en esta pagina. Sin
@@ -2619,16 +2698,20 @@ class H(BaseHTTPRequestHandler):
                            "Visto en una sola visita: confirma que es del sitio antes de bloquearlo."
                 d["sugerida"] = sug or ""
                 d["explicacion"] = expl or ""
+                # El dominio SI esta identificado en whotracks.me: es el nombre
+                # completo el que coincide, no un prefijo.
+                d["base"] = "hosts" if sug else ""
                 d["cmp"] = ""
                 d["provider"] = empresa or ""
                 d["provider_domain"] = d["name"]
                 filas.append(d)
                 continue
-            sug, expl = clasificar_cookie(d["name"], d.get("autor"), dom_propio,
-                                          d.get("sample_domain") or "",
-                                          bool(d.get("httponly")))
+            sug, expl, base = clasificar_cookie(d["name"], d.get("autor"), dom_propio,
+                                                d.get("sample_domain") or "",
+                                                bool(d.get("httponly")))
             d["sugerida"] = sug or ""
             d["explicacion"] = expl or ""
+            d["base"] = base or ""
             # Quien la pone. Si hay proveedor conocido, es de un tercero aunque
             # la cookie viva en el dominio del cliente.
             d["cmp"] = cmp_de(d["name"]) or ""
@@ -2873,7 +2956,11 @@ class H(BaseHTTPRequestHandler):
             # dia del muro "han desaparecido todos" y al dia siguiente "han
             # vuelto todos"). Un escaneo murado no es una foto del sitio.
             foto = d.get("datos")
-            if not isinstance(foto, dict) or foto.get("muro"):
+            # Ni un muro ni un escaneo al que le falto un escenario sirven como
+            # foto comparable: lo que no se pudo mirar sale como ausente, y la
+            # comparacion lo lee como "ha desaparecido". De ahi venian los
+            # avisos en pareja (hoy desaparecen veinte dominios, manana vuelven).
+            if not isinstance(foto, dict) or foto.get("muro") or foto.get("parcial"):
                 foto = None
             cur = c.execute("UPDATE scan_jobs SET estado=?, terminado=?, resumen=?, "
                             "informe=?, datos=? WHERE id=? AND (token=? OR token IS NULL)",
