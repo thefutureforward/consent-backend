@@ -159,6 +159,15 @@ def init_db():
       id INTEGER PRIMARY KEY AUTOINCREMENT, consent_id TEXT, site_id TEXT,
       choice TEXT, categories TEXT, version_texto TEXT, language TEXT,
       ts TEXT, ip TEXT, user_agent TEXT, gpc INTEGER DEFAULT 0);
+    -- Registros de consentimiento que el servidor rechazo para un sitio que
+    -- SI existe: clave publica que no casa o dominio no autorizado. Es casi
+    -- siempre un codigo de instalacion mal pegado, y sin esto el cliente no se
+    -- enteraba nunca: el visitante decide, el registro rebota y el panel
+    -- seguia en verde. No se guarda IP ni nada del visitante, solo de donde
+    -- venia la peticion.
+    CREATE TABLE IF NOT EXISTS registros_rechazados(
+      site_id TEXT, ts TEXT, motivo TEXT, origen TEXT);
+    CREATE INDEX IF NOT EXISTS ix_rechazos ON registros_rechazados(site_id, ts);
     -- role:   super | admin | user      (super es el dueno de la instalacion)
     -- status: activo | pendiente        (el alta por registro nace pendiente)
     CREATE TABLE IF NOT EXISTS users(
@@ -513,18 +522,25 @@ CAB_PAIS = ("CF-IPCountry", "X-Vercel-IP-Country", "CloudFront-Viewer-Country",
 CAB_REGION = ("CF-Region-Code", "X-Vercel-IP-Country-Region",
               "CloudFront-Viewer-Country-Region", "X-Geo-Region")
 
-# Que borde hay delante, si el operador lo sabe. Con CONSENT_BORDE=cloudflare
-# (o =vercel, =cloudfront, =fastly) solo se miran las cabeceras de ESE
-# proveedor y las demas se ignoran: sin esto, un visitante que llega directo al
-# origen manda "X-Geo-Country: US" y se cuela por la puerta de atras aunque el
-# borde real sea Cloudflare y su CF-IPCountry diga otra cosa.
+# Que borde hay delante. Las cabeceras de pais solo valen si las pone un borde
+# (Cloudflare, Vercel...) que ademas pisa la que mande el visitante; si la
+# peticion llega directa al origen, la cabecera la escribe quien quiera.
+# Railway no tiene borde delante, y ahi un `curl -H "CF-IPCountry: ES"`
+# devolvia country: ES y quedaba guardado como prueba en el registro.
 #
-# Declararlo cambia dos cosas: cual cabecera se lee, y si lo leido se puede dar
-# por comprobado. Sin declarar, el sistema sigue funcionando igual que antes
-# (se miran las seis), pero lo que salga viaja marcado como no verificado, y es
-# asi como llega al registro y al panel. La diferencia importa porque el
-# registro de consentimiento es una prueba: una region que pudo escribir el
-# propio interesado no prueba bajo que regimen habia que preguntarle.
+# CONSENT_BORDE dice cual hay:
+#   (sin definir) | ninguno  no se lee NINGUNA cabecera de pais. Las reglas por
+#                            region no se aplican y todo el mundo recibe el modo
+#                            estricto, que es el que nunca incumple. Es lo
+#                            correcto en Railway.
+#   cloudflare | vercel | cloudfront | fastly
+#                            solo las cabeceras de ese proveedor, y lo leido
+#                            queda verificado en el registro.
+#   todas                    las seis, marcadas como no verificadas. Era el
+#                            comportamiento por defecto hasta la ronda 5; queda
+#                            solo para quien lo pida a proposito.
+# Un valor desconocido cuenta como "ninguno": si el nombre del borde esta mal
+# escrito, lo seguro es no fiarse de nada, no fiarse de todo.
 BORDES = {
     "cloudflare": (("CF-IPCountry",), ("CF-Region-Code",)),
     "vercel":     (("X-Vercel-IP-Country",), ("X-Vercel-IP-Country-Region",)),
@@ -533,17 +549,29 @@ BORDES = {
 }
 
 
+_BORDE_AVISADO = set()
+
+
 def _borde():
     """(cabeceras_pais, cabeceras_region, declarado). declarado es el nombre
-    del proveedor, o "" cuando nadie lo dijo."""
+    del proveedor, "todas" o "" cuando no se lee ninguna."""
     v = (os.environ.get("CONSENT_BORDE") or "").strip().lower()
     if v in BORDES:
         return BORDES[v][0], BORDES[v][1], v
-    if v:
-        print("[region] CONSENT_BORDE=%r no es un borde conocido (%s): se "
-              "miran todas las cabeceras y nada queda verificado."
+    if v == "todas":
+        return CAB_PAIS, CAB_REGION, "todas"
+    if v and v not in ("ninguno", "none", "off") and v not in _BORDE_AVISADO:
+        # Una vez por proceso: esto corre en cada peticion.
+        _BORDE_AVISADO.add(v)
+        print("[region] CONSENT_BORDE=%r no es un borde conocido (%s, todas, "
+              "ninguno): no se lee ninguna cabecera de pais."
               % (v, ", ".join(sorted(BORDES))))
-    return CAB_PAIS, CAB_REGION, ""
+    return (), (), ""
+
+
+def estado_borde():
+    """Para el panel: que borde hay declarado. "" = ninguno."""
+    return _borde()[2]
 
 # Paises del Espacio Economico Europeo mas Reino Unido y Suiza: donde el
 # consentimiento tiene que ser previo y explicito.
@@ -554,8 +582,8 @@ EEE = {"AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
 
 def procedencia(headers):
     """(pais, region, fuente). fuente es la cabecera que dijo el pais, con "?"
-    detras cuando no hay borde declarado que la respalde, y "" si nadie dijo
-    nada. Es lo que distingue un dato del borde de una afirmacion del propio
+    detras cuando se leyo sin un borde que la respalde (CONSENT_BORDE=todas),
+    y "" si nadie dijo nada o no se lee ninguna (el caso por defecto). Es lo que distingue un dato del borde de una afirmacion del propio
     visitante, y por eso se guarda con el registro en vez de tirarse aqui."""
     cab_pais, cab_region, declarado = _borde()
     pais = region = fuente = ""
@@ -564,7 +592,8 @@ def procedencia(headers):
         # Cloudflare manda XX cuando no lo sabe, y T1 para trafico de Tor.
         if v and v not in ("XX", "T1"):
             pais = v[:2]
-            fuente = k if declarado else (k + "?")
+            # Con "todas" no hay un borde que la respalde: queda marcada.
+            fuente = (k + "?") if declarado == "todas" else k
             break
     for k in cab_region:
         v = (headers.get(k) or "").strip().upper()
@@ -572,6 +601,48 @@ def procedencia(headers):
             region = v[:8]
             break
     return pais, region, fuente
+
+
+TOPE_RECHAZOS_HORA = 200
+
+
+def hace(horas=0, dias=0):
+    """Un instante pasado con el MISMO formato que now(), para que las
+    comparaciones de texto entre marcas de tiempo valgan."""
+    t = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=horas, days=dias)
+    return t.isoformat().replace("+00:00", "Z")
+
+
+def anota_rechazo(c, site_id, motivo, origen):
+    """Guarda un registro rechazado de un sitio que existe. Con tope por hora:
+    la clave publica viaja en el HTML de todos los clientes, asi que
+    cualquiera puede mandar peticiones malas a mano, y sin tope esta tabla la
+    llenaria quien quisiera."""
+    try:
+        if not site_id or not c.execute("SELECT 1 FROM sites WHERE site_id=?",
+                                        (site_id,)).fetchone():
+            return
+        hace_hora = hace(horas=1)
+        n = c.execute("SELECT COUNT(*) FROM registros_rechazados WHERE site_id=? AND ts>=?",
+                      (site_id, hace_hora)).fetchone()[0]
+        if n >= TOPE_RECHAZOS_HORA:
+            return
+        c.execute("INSERT INTO registros_rechazados(site_id,ts,motivo,origen) VALUES(?,?,?,?)",
+                  (site_id, now(), motivo, (origen or "")[:120]))
+        c.commit()
+    except Exception as e:
+        print("[rechazos] no se pudo anotar: %s" % e)
+
+
+def resumen_rechazos(c, site_id, dias=7):
+    """Lo que ve el panel: los rechazos de los ultimos dias, agrupados."""
+    desde = hace(dias=dias)
+    filas = c.execute(
+        "SELECT motivo, origen, COUNT(*) AS n, MAX(ts) AS ultimo FROM registros_rechazados "
+        "WHERE site_id=? AND ts>=? GROUP BY motivo, origen ORDER BY ultimo DESC LIMIT 5",
+        (site_id, desde)).fetchall()
+    return {"dias": dias, "total": sum(f["n"] for f in filas),
+            "grupos": [dict(f) for f in filas]}
 
 
 def region_de(headers):
@@ -2022,6 +2093,8 @@ class H(BaseHTTPRequestHandler):
         valid = c.execute("SELECT 1 FROM api_keys WHERE key=? AND site_id=? AND kind='public' AND active=1",
                           (key, site_id)).fetchone()
         if not valid:
+            anota_rechazo(c, site_id, "clave",
+                          host_de(self.headers.get("Origin") or self.headers.get("Referer")))
             c.close(); return self._send(401, {"error": "invalid site_id or api key"})
         # La API key viaja en el HTML del cliente, asi que es publica por diseno:
         # el dominio del sitio es la segunda barrera contra registros falsificados.
@@ -2029,6 +2102,7 @@ class H(BaseHTTPRequestHandler):
         origen = host_de(self.headers.get("Origin") or self.headers.get("Referer"))
         propio = host_de("http://" + (self.headers.get("Host") or ""))
         if not origen_permitido(origen, propio, row["domain"] if row else ""):
+            anota_rechazo(c, site_id, "dominio", origen)
             c.close(); return self._send(403, {"error": "origen no autorizado para este site_id"})
         cid = data.get("consent_id") or str(uuid.uuid4())
         # APPEND-ONLY: solo INSERT, nunca UPDATE/DELETE.
@@ -2375,9 +2449,13 @@ class H(BaseHTTPRequestHandler):
         c = db()
         r = c.execute("SELECT version,json FROM site_config WHERE site_id=?", (site_id,)).fetchone()
         dom = c.execute("SELECT domain FROM sites WHERE site_id=?", (site_id,)).fetchone()
-        key = public_key_for(c, site_id); c.close()
+        key = public_key_for(c, site_id)
+        rech = resumen_rechazos(c, site_id); c.close()
         self._send(200, {"site_id": site_id, "version": r["version"], "domain": (dom["domain"] if dom else ""),
-                         "config": json.loads(r["json"]), "publicKey": key})
+                         "config": json.loads(r["json"]), "publicKey": key,
+                         # Para los dos avisos del panel: registros que rebotan
+                         # (codigo mal pegado) y reglas por region sin borde.
+                         "rechazos": rech, "borde": estado_borde()})
 
     def dash_site_save(self):
         u = self._user(); d = self._body(); site_id = d.get("site_id")

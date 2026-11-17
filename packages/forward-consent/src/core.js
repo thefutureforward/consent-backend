@@ -1044,38 +1044,103 @@ let _userConfig = null;
      los bytes de mas adelante. La unica solucion es que la etiqueta salga del
      servidor ya neutralizada (data-consent-src en vez de src).
      Asi que lo que se puede hacer aqui es DECIRLO, en vez de dejar creer que
-     quedo bloqueado. */
-  var _duroTarde = [];
+     quedo bloqueado: eso lo hace revisaFugas(), mas abajo. */
   function scanExisting(rules) {
     var sel = _duroActivo ? "script[src],iframe[src],img[src]" : "script[src]";
     var nodes = document.querySelectorAll(sel);
-    var tarde = [];
     Array.prototype.forEach.call(nodes, function (n) {
       var r = ruleFor(rules, n.getAttribute("src"));
       if (!r) return;
-      // Un <script> sin async/defer todavia no se ha ejecutado, y ponerle
-      // type="text/plain" si lo para de verdad. La descarga puede haber
-      // salido, pero no se ejecuta nada ni se escribe ninguna cookie: ese no
-      // cuenta como fuga. Los que cuentan son img e iframe, donde la peticion
-      // ES el hecho, y los script async/defer, que el navegador ya pidio.
-      var fuga = n.tagName === "IFRAME" || n.tagName === "IMG" ||
-                 (n.tagName === "SCRIPT" && (n.async || n.defer));
-      if (fuga) tarde.push(n.tagName.toLowerCase() + " " + n.getAttribute("src"));
+      // Un iframe que llega hasta aqui con su src real lleva navegando desde
+      // que el parser lo creo: nadie lo corto a tiempo, y esa peticion salio.
+      // Se apunta ahora, antes de neutralizarlo, porque despues ya no hay
+      // forma de distinguirlo de uno que el pre-bloqueador corto al nacer
+      // (ver revisaFugas).
+      if (n.tagName === "IFRAME") {
+        var x = "iframe " + urlAbsoluta(n.getAttribute("src"));
+        if (_iframesTarde.indexOf(x) === -1) _iframesTarde.push(x);
+      }
       neutralize(n, r);
     });
-    if (tarde.length) {
-      tarde.forEach(function (x) {
-        if (_duroTarde.indexOf(x) === -1) _duroTarde.push(x);
-      });
-      avisaFallo("duro-tarde",
-        "Bloqueo endurecido: " + tarde.length + " etiqueta(s) venian escritas " +
-        "en el HTML y el navegador YA habia lanzado su peticion antes de que " +
-        "corriera nada nuestro (" + tarde.slice(0, 3).join(", ") +
-        (tarde.length > 3 ? ", ..." : "") + "). Se quitan de la pantalla, pero " +
-        "el tercero ya fue contactado. Para que no salga la peticion, el " +
-        "servidor tiene que escribirlas ya neutralizadas: src=\"\" fuera y " +
-        "data-consent-src=\"...\" en su lugar.");
-    }
+    programaRevisionFugas();
+  }
+
+  /* Que peticiones salieron antes de que nadie consintiera.
+
+     En la ronda 3 esto se adivinaba aqui mismo, por el tipo de etiqueta: un
+     <img src> que encontrabamos con src era una fuga. Fallaba justo en la
+     instalacion normal. El pre-bloqueador del codigo de Install corre antes
+     que este bundle y le quita el src al <img> en cuanto el parser lo crea,
+     pero para entonces el preload scanner ya lo habia pedido. Cuando llegaba
+     scanExisting, el <img> ya no tenia src, no casaba con "img[src]" y no se
+     avisaba de nada, aunque la peticion hubiera salido.
+
+     Ahora no se adivina: se le pregunta al navegador. Resource Timing guarda
+     una entrada por cada peticion que llego a hacerse, tambien las de otros
+     dominios, asi que una etiqueta neutralizada (data-consent-src) cuya URL
+     tiene entrada es una peticion que salio antes del consentimiento. La
+     neutralizara quien la neutralizara, inline o bundle, y sea img, iframe o
+     script: si el tercero fue contactado, se dice. Lo que el parche de
+     insercion para a tiempo nunca llega a pedirse y no tiene entrada.
+
+     Los iframe, aparte. Un iframe no lo descarga el preload scanner: navega
+     cuando el parser lo crea, y el pre-bloqueador inline lo corta en ese
+     mismo instante. Chrome empieza la navegacion y la aborta (ERR_ABORTED)
+     antes de que llegue a la red, pero Resource Timing le apunta una entrada
+     igual, y no hay campo que distinga esa entrada de una navegacion que si
+     salio. Contarlas por Resource Timing avisaba de fugas que no habian
+     ocurrido (comprobado con CDP en la ronda 5). Asi que un iframe solo
+     cuenta si scanExisting lo encontro todavia con su src real: ese si
+     estuvo navegando hasta que llego el bundle.
+
+     Se mira varias veces porque la entrada aparece cuando la respuesta
+     termina, no cuando sale la peticion: al arrancar, al cargar la pagina y
+     un poco despues. Cada URL se avisa una sola vez. */
+  var _duroTarde = [];
+  var _iframesTarde = [];
+  var _fugasProgramadas = false;
+  function urlAbsoluta(u) {
+    try { return new URL(u, location.href).href; } catch (e) { return u || ""; }
+  }
+  function revisaFugas() {
+    var perf = typeof performance !== "undefined" ? performance : null;
+    if (!perf || typeof perf.getEntriesByName !== "function") return;
+    var nodos;
+    try {
+      nodos = document.querySelectorAll("script[data-consent-src],img[data-consent-src]");
+    } catch (e) { return; }
+    var nuevas = [];
+    _iframesTarde.forEach(function (x) {
+      if (_duroTarde.indexOf(x) === -1) { _duroTarde.push(x); nuevas.push(x); }
+    });
+    Array.prototype.forEach.call(nodos, function (n) {
+      var u = urlAbsoluta(n.getAttribute("data-consent-src"));
+      if (!u) return;
+      var salio = false;
+      try { salio = perf.getEntriesByName(u).length > 0; } catch (e) {}
+      if (!salio) return;
+      var x = n.tagName.toLowerCase() + " " + u;
+      if (_duroTarde.indexOf(x) === -1) { _duroTarde.push(x); nuevas.push(x); }
+    });
+    if (!nuevas.length) return;
+    avisaFallo("duro-tarde",
+      "Bloqueo: " + nuevas.length + " etiqueta(s) venian escritas en el HTML y " +
+      "el navegador YA habia lanzado su peticion antes de que nadie " +
+      "consintiera (" + nuevas.slice(0, 3).join(", ") +
+      (nuevas.length > 3 ? ", ..." : "") + "). Se quitan de la pantalla, pero " +
+      "el tercero ya fue contactado. Para que no salga la peticion, el " +
+      "servidor tiene que escribirlas ya neutralizadas: sin src y con " +
+      "data-consent-src=\"...\" en su lugar.");
+  }
+  function programaRevisionFugas() {
+    if (_fugasProgramadas) return;
+    _fugasProgramadas = true;
+    try {
+      setTimeout(revisaFugas, 0);
+      var tras = function () { setTimeout(revisaFugas, 300); setTimeout(revisaFugas, 2000); };
+      if (document.readyState === "complete") tras();
+      else window.addEventListener("load", tras);
+    } catch (e) {}
   }
   // Para la vista previa y para quien quiera comprobarlo desde la consola.
   try { window.__consentFugas = function () { return _duroTarde.slice(); }; } catch (e) {}

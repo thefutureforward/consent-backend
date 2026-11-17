@@ -1147,6 +1147,44 @@ var DICT = {
   "de activar la senal en su navegador: dos instrucciones suyas que se contradicen. Revocar es lo mas defendible; preguntar es lo mas respetuoso; mantener es lo que menos analitica te hace perder.": "before turning the signal on in their browser: two instructions from the same person that contradict each other. Revoking is the most defensible; asking is the most respectful; keeping loses the least analytics.",
   "Bloqueo endurecido": "Hard blocking",
   "En UTC": "In UTC",
+  /* Ronda 5: frases que se armaban con trozos o con numeros dentro. */
+  "regla": "rule",
+  "reglas": "rules",
+  "vez": "time",
+  "Bloqueo automatico:": "Automatic blocking:",
+  "Quedaran": "There will be",
+  "apuntando a": "pointing to",
+  "Rechazar no pesa lo mismo que aceptar": "Reject does not carry the same weight as accept",
+  "en Diseno > Botones, pon los dos con el mismo peso. Un boton de rechazo mas debil que el de aceptar cuenta como poner trabas, aunque el texto sea correcto.": "in Design > Buttons, give both the same weight. A reject button weaker than the accept button counts as putting obstacles in the way, even if the text is correct.",
+  "Ahora mismo": "Right now",
+  "todos los visitantes van en opt-in": "every visitor is on opt-in",
+  "no se mide nada hasta que aceptan. Es lo estricto y nunca es un incumplimiento.": "nothing is measured until they accept. It is the strict option and it is never a breach.",
+  "Enciende esto solo si quieres tratar distinto a los visitantes de territorios de opt-out, como California, donde la norma permite medir hasta que la persona dice que no.": "Turn this on only if you want to treat visitors from opt-out territories differently, such as California, where the law allows measuring until the person says no.",
+  "Activar reglas por region": "Turn on rules by region",
+  "El titulo del enlace no es uno de los dos permitidos": "The link title is not one of the two allowed ones",
+  "idioma": "language",
+  "pusiste": "you wrote",
+  "El articulo 7015 obliga a titularlo": "Section 7015 requires the title",
+  "o": "or",
+  "literalmente y sin traducir, tambien en los idiomas que no son el ingles.": "word for word and untranslated, also in languages other than English.",
+  "coincide el prefijo del nombre, no el nombre entero": "only the name prefix matches, not the whole name",
+  "lo clasificaron en otros sitios, no en este": "it was classified on other sites, not on this one",
+  "deducido por quien escribe la cookie": "inferred from who writes the cookie",
+  "deducido por la forma del nombre": "inferred from the shape of the name",
+  "Hay que confirmarlo antes de aprobarlo.": "It has to be confirmed before approving it.",
+  "deducido": "inferred",
+  "confirmalo": "confirm it",
+  "la clave publica del codigo no es la de este sitio": "the public key in the code is not this site's",
+  "llegan desde un dominio que no esta autorizado": "they come from a domain that is not authorised",
+  "rechazado": "rejected",
+  "rechazados": "rejected",
+  "Ultimo:": "Latest:",
+  "Anade ese dominio en Instalar > Dominios autorizados, o vuelve a pegar el codigo de instalacion.": "Add that domain in Install > Allowed domains, or paste the installation code again.",
+  "Vuelve a pegar el codigo de instalacion de este sitio.": "Paste this site's installation code again.",
+  "Se estan perdiendo pruebas de consentimiento.": "Consent records are being lost.",
+  "Registros rechazados por el servidor en los ultimos 7 dias:": "Records rejected by the server in the last 7 days:",
+  "Estas reglas no se aplican todavia.": "These rules do not apply yet.",
+  "El servidor no sabe de que pais viene cada visitante: no hay un borde declarado (CONSENT_BORDE) que ponga esa cabecera, y una que llegue directa no es de fiar. Hasta que lo haya, todos reciben el modo estricto, que nunca incumple.": "The server does not know which country each visitor comes from: no edge is declared (CONSENT_BORDE) to set that header, and one that arrives directly cannot be trusted. Until there is one, everyone gets the strict mode, which never breaches.",
   "Cubre lo que inyecta codigo (GTM, HubSpot, chats): ahi la peticion NO sale. Lo que viene escrito en el HTML del servidor es otra cosa: el navegador lee el documento por delante y ya ha pedido cada &lt;img src&gt; y &lt;iframe src&gt; antes de que corra nada nuestro. Esos se quitan de la pantalla, pero el tercero ya fue contactado, y eso es lo que mira una auditoria. Para que no salga la peticion, esas etiquetas tienen que llegar del servidor sin src y con data-consent-src en su lugar. El banner avisa en la consola cuando encuentra alguna, y el escaner las lista como «aparece sin permiso».":
     "It covers what code injects (GTM, HubSpot, chats): there the request does NOT go out. What comes written in the HTML from the server is a different matter: the browser reads the document ahead and has already requested every &lt;img src&gt; and &lt;iframe src&gt; before anything of ours runs. Those are removed from the screen, but the third party was already contacted, and that is what an audit looks at. To stop the request, those tags have to arrive from the server with no src and with data-consent-src in its place. The banner warns in the console when it finds any, and the scanner lists them as «appears without consent».",
 
@@ -2214,6 +2252,14 @@ function fecha(iso){
 /* La misma hora, ya escapada y con la UTC de origen al pasar el raton. Para
    los sitios que arman HTML a mano. Devuelve "" si no hay fecha, para que la
    celda quede vacia en vez de poner un <span> con nada dentro. */
+/* Cuantos, con el plural bien y traducido. Antes se escribia "2 regla(s)" o
+   "3 veces" pegado al numero: el diccionario no sabe traducir una frase que
+   lleva un numero dentro (la clave cambia con cada numero), asi que con el
+   panel en ingles se quedaban en espanol. Y "1 veces" estaba mal hasta en
+   espanol. */
+function nReglas(n){ return n + " " + (Number(n) === 1 ? frase("regla") : frase("reglas")); }
+function nVeces(n){ return n + " " + (Number(n) === 1 ? frase("vez") : frase("veces")); }
+
 function fechaHtml(iso){
   if(!iso) return "";
   var local = fecha(iso);
@@ -2383,6 +2429,55 @@ function rsPunto(estado, titulo, texto, accion, pestana){
   '</div>';
 }
 
+/* Registros de consentimiento que el servidor rechazo para este sitio.
+
+   Casi siempre es el codigo de instalacion mal pegado: una clave publica de
+   otro sitio, o el sitio servido desde un dominio que no esta en la lista.
+   El visitante decide, el registro rebota con 401 o 403, y antes nadie se
+   enteraba: el banner lo dice en la consola del VISITANTE, que el cliente no
+   mira nunca. Ahora el servidor los cuenta y el panel lo dice arriba.
+   Los numeros van en su propia etiqueta para que cada trozo de texto sea una
+   frase fija que el diccionario sepa traducir. */
+function avisoRechazos(d){
+  var r = d && d.rechazos;
+  if(!r || !r.total) return "";
+  var MOT = {
+    clave:   frase("la clave publica del codigo no es la de este sitio"),
+    dominio: frase("llegan desde un dominio que no esta autorizado")
+  };
+  var lis = (r.grupos || []).map(function(g){
+    return '<li><b>'+esc(g.n)+'</b> '+
+      (g.n === 1 ? frase("rechazado") : frase("rechazados"))+': '+
+      (MOT[g.motivo] || esc(g.motivo))+
+      (g.origen ? ' <code>'+esc(g.origen)+'</code>' : '')+
+      '. '+frase("Ultimo:")+' '+fechaHtml(g.ultimo)+'</li>';
+  }).join("");
+  var arreglo = (r.grupos || []).some(function(g){ return g.motivo === "dominio"; })
+    ? frase("Anade ese dominio en Instalar > Dominios autorizados, o vuelve a pegar el codigo de instalacion.")
+    : frase("Vuelve a pegar el codigo de instalacion de este sitio.");
+  return '<div class="esc-caja esc-muro" style="margin-bottom:14px">'+
+    '<b>'+frase("Se estan perdiendo pruebas de consentimiento.")+'</b> '+
+    frase("Registros rechazados por el servidor en los ultimos 7 dias:")+' <b>'+esc(r.total)+'</b>'+
+    '<ul style="margin:6px 0 6px 18px;padding:0">'+lis+'</ul>'+
+    arreglo+'</div>';
+}
+
+/* Reglas por region sin un borde que diga el pais.
+
+   Desde la ronda 5 el servidor no se fia de ninguna cabecera de pais salvo que
+   CONSENT_BORDE diga que borde hay delante: una cabecera que llega directa al
+   origen la escribe quien quiera. Sin borde, todo visitante recibe el modo
+   estricto y las reglas de esta pestana no se aplican nunca. Mejor decirlo
+   aqui que dejar que alguien las configure creyendo que funcionan. */
+function avisoBorde(){
+  var d = _datosSitio || {};
+  if(d.borde === undefined || d.borde) return "";
+  return '<div class="esc-caja esc-parcial" style="margin-bottom:14px">'+
+    '<b>'+frase("Estas reglas no se aplican todavia.")+'</b> '+
+    frase("El servidor no sabe de que pais viene cada visitante: no hay un borde declarado (CONSENT_BORDE) que ponga esa cabecera, y una que llegue directa no es de fiar. Hasta que lo haya, todos reciben el modo estricto, que nunca incumple.")+
+    '</div>';
+}
+
 function viewResumen(d){
   var cfg = d.config || {};
   var nom = (sites.filter(function(s){ return s.site_id === current; })[0] || {}).name || "";
@@ -2412,6 +2507,7 @@ function viewResumen(d){
 
   el("tabbody").innerHTML =
     '<div class="rs-cab"><h1>'+esc(nom)+'</h1><span class="rs-id">'+esc(current||"")+'</span></div>'+
+    avisoRechazos(d)+
     '<div class="rs-cols">'+
       '<div>'+
         '<div class="card">'+
@@ -4262,7 +4358,7 @@ function catsUI(lista){
           'onchange="catSetId('+i+',this.value)" style="max-width:150px" />'+
         '<label class="cat-lock"><input type="checkbox"'+(c.locked?" checked":"")+
           ' onchange="catSet('+i+',\'locked\',this.checked)" /> bloqueada</label>'+
-        (nUsos ? '<span class="pat-ok">'+nUsos+' regla(s)</span>' : '')+
+        (nUsos ? '<span class="pat-ok">'+nReglas(nUsos)+'</span>' : '')+
         '<button class="btn ghost sm" onclick="catQuitar('+i+')"'+
           (c.locked?' disabled title="La bloqueada no se puede quitar"':'')+'>&times;</button>'+
       '</div>'+
@@ -4464,7 +4560,7 @@ function catQuitar(i){
   var usos = 0;
   (o.autoBlock||[]).forEach(function(r){ if(r && r.category===c.id) usos++; });
   (o.cookiePatterns||[]).forEach(function(r){ if(r && r.category===c.id) usos++; });
-  var aviso = usos ? "Quedaran "+usos+" regla(s) apuntando a \""+c.id+"\". " : "";
+  var aviso = usos ? frase("Quedaran")+" "+nReglas(usos)+" "+frase("apuntando a")+" \""+c.id+"\". " : "";
   if(!confirm(aviso+frase("Quitar la categoria?"))) return;
   o.categories.splice(i,1);
   catGuardar(o);
@@ -4688,12 +4784,11 @@ function rgUI(reg){
 
   if(!activo){
     return '<div class="ctl ctl-wide">'+
-      '<p class="sub" style="margin:0 0 10px">Ahora mismo <b>todos los visitantes van en opt-in</b>: '+
-        'no se mide nada hasta que aceptan. Es lo estricto y nunca es un incumplimiento.</p>'+
-      '<p class="ck-desc" style="display:block;margin:0 0 12px">Enciende esto solo si quieres '+
-        'tratar distinto a los visitantes de territorios de opt-out, como California, donde la '+
-        'norma permite medir hasta que la persona dice que no.</p>'+
-      '<button class="btn ghost sm" onclick="rgAnadir(\'US-CA\')">Activar reglas por region</button>'+
+      '<p class="sub" style="margin:0 0 10px">'+frase("Ahora mismo")+' <b>'+frase("todos los visitantes van en opt-in")+'</b>: '+
+        frase("no se mide nada hasta que aceptan. Es lo estricto y nunca es un incumplimiento.")+'</p>'+
+      '<p class="ck-desc" style="display:block;margin:0 0 12px">'+
+        frase("Enciende esto solo si quieres tratar distinto a los visitantes de territorios de opt-out, como California, donde la norma permite medir hasta que la persona dice que no.")+'</p>'+
+      '<button class="btn ghost sm" onclick="rgAnadir(\'US-CA\')">'+frase("Activar reglas por region")+'</button>'+
     '</div>';
   }
 
@@ -5253,7 +5348,7 @@ function validarCfg(){
     }
     var ab = (obj.autoBlock||[]).length;
     res.push({s: ab?"pass":"warn",
-      t: ab ? "Bloqueo automatico: <b>"+ab+" regla(s)</b>."
+      t: ab ? frase("Bloqueo automatico:")+" <b>"+nReglas(ab)+"</b>."
             : "<b>autoBlock vacio</b>: no se bloquea ningun script, solo se borran cookies despues."});
     var sinCat = (obj.cookiePatterns||[]).filter(function(p){ return typeof p==="string"; }).length;
     if(sinCat) res.push({s:"warn",
@@ -5394,9 +5489,8 @@ function avisosSimetria(o, res){
   // === true y no truthy: "false" escrito como cadena en la pestana JSON es
   // truthy y silenciaba el aviso diciendo que estaba bien.
   if(bt.equalWeight === true) return;
-  res.push({s:"fail", t:"<b>Rechazar no pesa lo mismo que aceptar</b>: en Diseno &gt; "+
-    "Botones, pon los dos con el mismo peso. Un boton de rechazo mas debil que el "+
-    "de aceptar cuenta como poner trabas, aunque el texto sea correcto."});
+  res.push({s:"fail", t:"<b>"+frase("Rechazar no pesa lo mismo que aceptar")+"</b>: "+
+    frase("en Diseno > Botones, pon los dos con el mismo peso. Un boton de rechazo mas debil que el de aceptar cuenta como poner trabas, aunque el texto sea correcto.").replace(/>/g,"&gt;")});
 }
 
 /* Una etiqueta que promete mas de lo que la categoria hace. "Anonima" es la
@@ -5523,11 +5617,14 @@ function avisosVenta(o, res){
       if(!tx || typeof tx !== "object") return;
       var ti = String(tx.optOutTitle || "").trim().toLowerCase();
       if(!ti || TITULOS_7015.indexOf(ti) !== -1) return;
-      res.push({s:"fail", t:"<b>El titulo del enlace no es uno de los dos permitidos</b> "+
-        "(idioma <code>"+esc(lg)+"</code>): pusiste &quot;"+esc(tx.optOutTitle)+"&quot;. "+
-        "El articulo 7015 obliga a titularlo &quot;Your Privacy Choices&quot; o "+
-        "&quot;Your California Privacy Choices&quot;, literalmente y sin traducir, "+
-        "tambien en los idiomas que no son el ingles."});
+      // Cada trozo fijo pasa por frase() por separado: el titulo que escribio
+      // el cliente va en medio y una frase con un dato dentro no la traduce
+      // el diccionario (ronda 5).
+      res.push({s:"fail", t:"<b>"+frase("El titulo del enlace no es uno de los dos permitidos")+"</b> "+
+        "("+frase("idioma")+" <code>"+esc(lg)+"</code>): "+frase("pusiste")+" &quot;"+esc(tx.optOutTitle)+"&quot;. "+
+        frase("El articulo 7015 obliga a titularlo")+" &quot;Your Privacy Choices&quot; "+frase("o")+" "+
+        "&quot;Your California Privacy Choices&quot;, "+
+        frase("literalmente y sin traducir, tambien en los idiomas que no son el ingles.")});
     });
   }
 }
@@ -6138,12 +6235,13 @@ function viewInstalar(d){
   var rules = (d.config && d.config.autoBlock) || [];
   _gtagCat = catParaGoogle(d.config || {});
   el("tabbody").innerHTML =
+    avisoRechazos(d)+
     '<div class="cols">'+
       '<div>'+
       '<div class="card">'+
         '<h2>Codigo para el sitio</h2>'+
         '<p class="sub">Pegalo en el <code>&lt;head&gt;</code>, lo mas arriba posible y una sola vez.'+
-        (rules.length ? ' Incluye el pre-bloqueador con <b>'+rules.length+' regla(s)</b>.' : '')+'</p>'+
+        (rules.length ? ' '+frase("Incluye el pre-bloqueador con")+' <b>'+nReglas(rules.length)+'</b>.' : '')+'</p>'+
         '<ol class="steps">'+
           '<li>Copia el bloque completo.</li>'+
           '<li>Pegalo en el <code>&lt;head&gt;</code>, antes de cualquier otro script.</li>'+
@@ -6708,6 +6806,7 @@ function pintarCkSeccion(){
   var g = UI_GROUPS.filter(function(x){ return x.t === titulos[CK_TAB]; })[0];
   if(!g){ host.innerHTML = ""; return; }
   host.innerHTML = '<div class="card"><h2>'+esc(g.t)+'</h2>'+
+    (CK_TAB === "regiones" ? avisoBorde() : '')+
     '<div id="ck-grupo"></div>'+
     '<div class="row mt"><span class="wz-pub">'+
       (WIZ_PUBLICADA ? '&#10003; '+frase("Publicado como v")+WIZ_PUBLICADA : '')+'</span>'+
@@ -7172,9 +7271,11 @@ function filaCookie(x, tipos){
     deducida = /Deducido|procedencia|escribe un script/.test(x.explicacion || "");
   }
   var marca = deducida ? " sug-deducida" : "";
+  // frase() en cada trozo: estos motivos los escribi en la ronda 2 sin pasar
+  // por el diccionario, y con el panel en ingles salian en espanol.
   var cola = deducida
-    ? ' <em title="'+esc(porque || "Hay que confirmarlo antes de aprobarlo.")+'">'
-      + (porque ? esc(porque) : "deducido") + ', confirmalo</em>'
+    ? ' <em title="'+esc(frase(porque || "Hay que confirmarlo antes de aprobarlo."))+'">'
+      + esc(frase(porque || "deducido")) + ', ' + frase("confirmalo") + '</em>'
     : '';
   if (x.sugerida === "esencial")      sug = '<span class="sug'+marca+'">se sugiere: necesaria'+cola+'</span>';
   else if (x.sugerida)                sug = '<span class="sug'+marca+'">se sugiere: no necesaria ('+esc(catLabel(x.sugerida))+')'+cola+'</span>';
@@ -7233,8 +7334,8 @@ function filaCookie(x, tipos){
             '<td><div class="ck-name">'+esc(x.name)+' '+ckEtiqueta(x)+'</div></td>'+
             '<td><div class="ck-desc">'+esc(desc)+'</div></td>'+
             '<td>'+accion+'</td><td></td>'+
-            '<td class="ck-seen">'+esc((x.last_seen||"").replace("T"," ").slice(0,16))+
-              '<div class="sub">'+esc(String(x.hits||0))+' '+frase("veces")+'</div></td>'+
+            '<td class="ck-seen">'+fechaHtml(x.last_seen)+
+              '<div class="sub">'+esc(nVeces(x.hits||0))+'</div></td>'+
           '</tr>';
         }
         accion = cats.length
@@ -7254,8 +7355,8 @@ function filaCookie(x, tipos){
       '<td><div class="ck-desc">'+esc(desc)+'</div></td>'+
       '<td>'+accion+'</td>'+
       '<td></td>'+
-      '<td class="ck-seen">'+esc((x.last_seen||"").replace("T"," ").slice(0,16))+
-        '<div class="sub">'+esc(String(x.hits||0))+' '+frase("veces")+'</div></td>'+
+      '<td class="ck-seen">'+fechaHtml(x.last_seen)+
+        '<div class="sub">'+esc(nVeces(x.hits||0))+'</div></td>'+
     '</tr>';
   }
   return '<tr'+(sinDecidir?' class="sin-decidir"':'')+' id="row_'+id+'">'+
@@ -7268,7 +7369,7 @@ function filaCookie(x, tipos){
     '<td><span class="nota-nec" id="nn_'+id+'" style="'+(esNecesaria?"":"display:none")+'">'+
       'Nunca se borra</span></td>'+
     '<td class="mono">'+esc(fecha(x.last_seen))+'<br><span style="font-size:10.5px">'+
-      esc(x.hits)+' veces, '+esc(x.phase||"")+'</span></td>'+
+      esc(nVeces(x.hits||0))+(x.phase ? ', '+esc(frase(x.phase)) : '')+'</span></td>'+
   '</tr>';
 }
 

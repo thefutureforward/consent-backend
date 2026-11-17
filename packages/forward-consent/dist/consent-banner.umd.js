@@ -948,26 +948,79 @@ var ConsentBanner = (() => {
     }
     _blocked.push(src);
   }
-  var _duroTarde = [];
   function scanExisting(rules) {
     var sel = _duroActivo ? "script[src],iframe[src],img[src]" : "script[src]";
     var nodes = document.querySelectorAll(sel);
-    var tarde = [];
     Array.prototype.forEach.call(nodes, function(n) {
       var r = ruleFor(rules, n.getAttribute("src"));
       if (!r) return;
-      var fuga = n.tagName === "IFRAME" || n.tagName === "IMG" || n.tagName === "SCRIPT" && (n.async || n.defer);
-      if (fuga) tarde.push(n.tagName.toLowerCase() + " " + n.getAttribute("src"));
+      if (n.tagName === "IFRAME") {
+        var x = "iframe " + urlAbsoluta(n.getAttribute("src"));
+        if (_iframesTarde.indexOf(x) === -1) _iframesTarde.push(x);
+      }
       neutralize(n, r);
     });
-    if (tarde.length) {
-      tarde.forEach(function(x) {
-        if (_duroTarde.indexOf(x) === -1) _duroTarde.push(x);
-      });
-      avisaFallo(
-        "duro-tarde",
-        "Bloqueo endurecido: " + tarde.length + " etiqueta(s) venian escritas en el HTML y el navegador YA habia lanzado su peticion antes de que corriera nada nuestro (" + tarde.slice(0, 3).join(", ") + (tarde.length > 3 ? ", ..." : "") + '). Se quitan de la pantalla, pero el tercero ya fue contactado. Para que no salga la peticion, el servidor tiene que escribirlas ya neutralizadas: src="" fuera y data-consent-src="..." en su lugar.'
-      );
+    programaRevisionFugas();
+  }
+  var _duroTarde = [];
+  var _iframesTarde = [];
+  var _fugasProgramadas = false;
+  function urlAbsoluta(u) {
+    try {
+      return new URL(u, location.href).href;
+    } catch (e) {
+      return u || "";
+    }
+  }
+  function revisaFugas() {
+    var perf = typeof performance !== "undefined" ? performance : null;
+    if (!perf || typeof perf.getEntriesByName !== "function") return;
+    var nodos;
+    try {
+      nodos = document.querySelectorAll("script[data-consent-src],img[data-consent-src]");
+    } catch (e) {
+      return;
+    }
+    var nuevas = [];
+    _iframesTarde.forEach(function(x) {
+      if (_duroTarde.indexOf(x) === -1) {
+        _duroTarde.push(x);
+        nuevas.push(x);
+      }
+    });
+    Array.prototype.forEach.call(nodos, function(n) {
+      var u = urlAbsoluta(n.getAttribute("data-consent-src"));
+      if (!u) return;
+      var salio = false;
+      try {
+        salio = perf.getEntriesByName(u).length > 0;
+      } catch (e) {
+      }
+      if (!salio) return;
+      var x = n.tagName.toLowerCase() + " " + u;
+      if (_duroTarde.indexOf(x) === -1) {
+        _duroTarde.push(x);
+        nuevas.push(x);
+      }
+    });
+    if (!nuevas.length) return;
+    avisaFallo(
+      "duro-tarde",
+      "Bloqueo: " + nuevas.length + " etiqueta(s) venian escritas en el HTML y el navegador YA habia lanzado su peticion antes de que nadie consintiera (" + nuevas.slice(0, 3).join(", ") + (nuevas.length > 3 ? ", ..." : "") + '). Se quitan de la pantalla, pero el tercero ya fue contactado. Para que no salga la peticion, el servidor tiene que escribirlas ya neutralizadas: sin src y con data-consent-src="..." en su lugar.'
+    );
+  }
+  function programaRevisionFugas() {
+    if (_fugasProgramadas) return;
+    _fugasProgramadas = true;
+    try {
+      setTimeout(revisaFugas, 0);
+      var tras = function() {
+        setTimeout(revisaFugas, 300);
+        setTimeout(revisaFugas, 2e3);
+      };
+      if (document.readyState === "complete") tras();
+      else window.addEventListener("load", tras);
+    } catch (e) {
     }
   }
   try {
