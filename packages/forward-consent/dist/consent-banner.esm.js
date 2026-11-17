@@ -367,8 +367,19 @@ var COPY = {
     // pasando y se dice como pararlo. Reutilizar el de opt-in ("con tu
     // permiso") seria decir algo que no es verdad.
     bodyOptOut: "Usamos cookies para que el sitio funcione, medir su uso y mostrarte contenido relevante. Puedes apagar lo que no quieras cuando quieras.",
-    optOutTitle: "Tus opciones de privacidad",
-    optOutAria: "Tus opciones de privacidad: elegir si se venden o ceden tus datos",
+    // En ingles tambien aqui, y por la misma razon que optOutSell y
+    // optOutLimit de abajo: el articulo 7015 fija el titulo LITERAL del
+    // enlace unico ("Your Privacy Choices" o "Your California Privacy
+    // Choices"), igual que el 7013 y el 7014 fijan los dos del estilo dual.
+    // Traducirlo era incoherente -- los otros tres ya iban sin traducir -- y
+    // dejaba el enlace fuera de la norma justo en los sitios en castellano,
+    // que son casi todos los nuestros.
+    optOutTitle: "Your Privacy Choices",
+    // El nombre accesible empieza por el titulo literal, para que un lector
+    // de pantalla anuncie el que exige la norma, y sigue en el idioma del
+    // visitante para que se entienda que hace. La explicacion no la fija el
+    // articulo; el titulo si.
+    optOutAria: "Your Privacy Choices: elegir si se venden o ceden tus datos",
     ventaFila: "Encenderla permite vender o ceder tus datos.",
     ventaIntro: "Las marcadas abajo permiten vender o ceder tus datos. Puedes apagarlas.",
     // Los dos enlaces del estilo "dual" (arts. 7013 y 7014). Van en ingles
@@ -410,6 +421,7 @@ function cfg() {
 }
 var _remote = null;
 var _remoteLoaded = false;
+var _remoteRechazo = 0;
 function isPlain(v) {
   return v && typeof v === "object" && !(v instanceof Array) && typeof v !== "function";
 }
@@ -599,6 +611,13 @@ function merged() {
 }
 function log(kind, detail) {
   if (typeof window.__consentLog === "function") window.__consentLog(kind, detail);
+}
+function avisaFallo(kind, detail) {
+  log(kind, detail);
+  try {
+    console.error("[consent] " + detail);
+  } catch (e) {
+  }
 }
 function modoConsent(C) {
   return (C.gcm && C.gcm.mode) === "advanced" ? "advanced" : "basic";
@@ -900,13 +919,33 @@ function neutralize(node, rule) {
   }
   _blocked.push(src);
 }
+var _duroTarde = [];
 function scanExisting(rules) {
   var sel = _duroActivo ? "script[src],iframe[src],img[src]" : "script[src]";
   var nodes = document.querySelectorAll(sel);
+  var tarde = [];
   Array.prototype.forEach.call(nodes, function(n) {
     var r = ruleFor(rules, n.getAttribute("src"));
-    if (r) neutralize(n, r);
+    if (!r) return;
+    var fuga = n.tagName === "IFRAME" || n.tagName === "IMG" || n.tagName === "SCRIPT" && (n.async || n.defer);
+    if (fuga) tarde.push(n.tagName.toLowerCase() + " " + n.getAttribute("src"));
+    neutralize(n, r);
   });
+  if (tarde.length) {
+    tarde.forEach(function(x) {
+      if (_duroTarde.indexOf(x) === -1) _duroTarde.push(x);
+    });
+    avisaFallo(
+      "duro-tarde",
+      "Bloqueo endurecido: " + tarde.length + " etiqueta(s) venian escritas en el HTML y el navegador YA habia lanzado su peticion antes de que corriera nada nuestro (" + tarde.slice(0, 3).join(", ") + (tarde.length > 3 ? ", ..." : "") + '). Se quitan de la pantalla, pero el tercero ya fue contactado. Para que no salga la peticion, el servidor tiene que escribirlas ya neutralizadas: src="" fuera y data-consent-src="..." en su lugar.'
+    );
+  }
+}
+try {
+  window.__consentFugas = function() {
+    return _duroTarde.slice();
+  };
+} catch (e) {
 }
 var _reglasVivas = [];
 var _duroActivo = true;
@@ -1156,6 +1195,62 @@ function quitarMarcador(node) {
   if (ph && ph.getAttribute("data-consent-ph")) ph.parentNode.removeChild(ph);
   node.style.display = "";
 }
+function marcaYaBloqueados() {
+  if (!_duroActivo) return;
+  var C0 = merged();
+  if (!(C0.categories || []).length) return;
+  if (C0.siteId && C0.apiBase && !_remoteLoaded) return;
+  if (!_langLista) return;
+  var nodos;
+  try {
+    nodos = document.querySelectorAll("iframe[data-consent-src]");
+  } catch (e) {
+    return;
+  }
+  Array.prototype.forEach.call(nodos, function(n) {
+    var cat = n.getAttribute("data-consent-category");
+    if (!cat) {
+      var rr = ruleFor(_reglasVivas, n.getAttribute("data-consent-src"));
+      if (rr) {
+        cat = rr.category;
+        if (cat) n.setAttribute("data-consent-category", cat);
+      }
+    }
+    if (!cat) return;
+    if (!n.getAttribute("src")) {
+      try {
+        n.src = "about:blank";
+      } catch (e) {
+      }
+    }
+    ponerMarcador(n, { category: cat });
+  });
+}
+var _vigilaMarc = null;
+var _barridoPedido = false;
+function pideBarrido() {
+  if (_barridoPedido) return;
+  _barridoPedido = true;
+  setTimeout(function() {
+    _barridoPedido = false;
+    marcaYaBloqueados();
+  }, 0);
+}
+function vigilaMarcadores() {
+  if (_vigilaMarc || typeof MutationObserver !== "function") return;
+  try {
+    _vigilaMarc = new MutationObserver(function(muts) {
+      for (var i = 0; i < muts.length; i++) {
+        if (muts[i].addedNodes && muts[i].addedNodes.length) {
+          pideBarrido();
+          return;
+        }
+      }
+    });
+    _vigilaMarc.observe(document.documentElement, { childList: true, subtree: true });
+  } catch (e) {
+  }
+}
 function installAutoBlock() {
   var C = merged();
   var rules = reglasQueBloquean(C.autoBlock);
@@ -1168,12 +1263,15 @@ function installAutoBlock() {
     if (!pre.patched) parcheaInsercion();
     if (pre.rules) _preRules = pre.rules;
     if (rules.length) scanExisting(rules);
+    marcaYaBloqueados();
+    vigilaMarcadores();
     log("autoblock", "Pre-bloqueador inline adoptado (" + _blocked.length + " scripts).");
     return;
   }
   if (!rules.length || _observer) return;
   parcheaInsercion();
   scanExisting(rules);
+  marcaYaBloqueados();
   _observer = new MutationObserver(function(muts) {
     var live = reglasQueBloquean(merged().autoBlock) || rules;
     muts.forEach(function(m) {
@@ -1386,19 +1484,37 @@ function postAudit(C, consent) {
       headers,
       body: JSON.stringify(payload)
     }).then(function(r) {
+      if (!r.ok) {
+        var err = new Error("HTTP " + r.status);
+        err.estadoHttp = r.status;
+        throw err;
+      }
       return r.json();
     }).then(function(d) {
       if (d && d.consent_id) {
         consent.consent_id = d.consent_id;
         writeConsent(C, consent);
         log("audit", "Auditoria OK. consent_id=" + d.consent_id);
+      } else {
+        avisaFallo(
+          "audit",
+          "El servidor acepto el registro pero no devolvio consent_id. La eleccion quedo guardada en el navegador, pero sin prueba en servidor."
+        );
       }
-    }).catch(function() {
-      log("audit", "Auditoria fallo (la eleccion local ya quedo guardada).");
+    }).catch(function(e) {
+      var est = e && e.estadoHttp;
+      if (est) {
+        avisaFallo(
+          "audit",
+          "El registro de consentimiento fue RECHAZADO por el servidor (HTTP " + est + ", site_id=" + (C.siteId || "?") + "). " + (est === 401 ? "Revisa la clave publica del codigo de instalacion. " : est === 403 ? "Este dominio no esta autorizado en el panel. " : "") + "La eleccion del visitante se guardo en su navegador, pero NO hay prueba de consentimiento en el servidor."
+        );
+      } else {
+        log("audit", "Auditoria fallo (la eleccion local ya quedo guardada).");
+      }
     });
   } catch (e) {
   }
-  log("audit", "POST " + C.endpoint + " (no bloquea la UI)");
+  log("audit", "Enviando registro a " + C.endpoint + " (no bloquea la UI)");
 }
 var _sent = {};
 function cookieNames() {
@@ -1598,6 +1714,7 @@ function startDiscovery(C) {
   }, 1e3);
 }
 var state = { lang: "en", chosen: {}, modo: "optin" };
+var _langLista = false;
 function persist(C, choice, chosen) {
   var signals = signalsFrom(C, chosen);
   var consent = {
@@ -1744,7 +1861,7 @@ function css(C) {
   var justify = BN.align === "left" ? "flex-start" : BN.align === "right" ? "flex-end" : "center";
   var vert = BN.position === "top" ? "top:0;bottom:auto;" : "bottom:0;top:auto;";
   return ":host{all:initial}*{box-sizing:border-box;font-family:" + F.body + "}" + // ---- Banner: tarjeta flotante sobre ink, no barra a sangre ----
-  (BN.backdropOn && (BN.backdropCustom || BN.backdrop) ? ".cb-bdrop{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147482999;background:" + (BN.backdropCustom || BN.backdrop) + (BN.animate === false ? "" : ";animation:cb-fade .2s ease") + "}" : "") + ".cb-banner{position:fixed;left:0;right:0;" + vert + "z-index:2147483000;display:flex;justify-content:" + justify + ";padding:0;margin:" + (BN.margin || "0 20px 20px") + "}.cb-inner{width:100%;max-width:" + (BN.maxWidth || "1172px") + ";background:" + bnBg + ";color:" + bnFg + ";border:" + (BN.border || "1px solid rgba(255,255,255,.14)") + ";border-radius:" + (BN.radius || "12px") + ";box-shadow:" + (BN.shadow || "0 10px 40px rgba(15,24,38,.28)") + ";padding:" + (BN.padding || "22px 26px") + ";display:flex;flex-wrap:wrap;gap:" + (BN.gap || "28px") + ";align-items:center;justify-content:space-between" + (BN.animate === false ? "" : ";animation:cb-rise .26s cubic-bezier(.2,.6,.2,1)") + "}.cb-copy{flex:1 1 380px;display:flex;flex-direction:column;gap:" + (BN.copyGap || "8px") + ";min-width:0}.cb-eyebrow{margin:0;" + typo(C, "eyebrow") + "color:" + K.accentPale + "}.cb-gpc{margin:0;" + typo(C, "bannerText") + "color:" + K.accentPale + ";font-weight:600}.cb-gpcfila{display:block;margin-top:4px;font-size:.86em;font-weight:600;color:" + K.accentPale + "}.cb-ventafila{display:block;margin-top:4px;font-size:.86em;font-weight:600;color:" + (K.heading || K.ink) + "}.cb-ventaintro{margin:8px 0 0;" + typo(C, "panelIntro") + "font-weight:600;color:" + (K.heading || K.ink) + "}.cb-optout{position:fixed;left:16px;bottom:16px;z-index:2147483646;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:" + (BT.radius || "8px") + ";background:" + (K.panelBg || "#fff") + ";color:" + (K.heading || K.ink) + ";border:1px solid " + (K.border || "#ccc") + ";text-decoration:none;" + typo(C, "button") + "}.cb-optout:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}.cb-body{margin:0;" + typo(C, "bannerText") + "color:" + bnFg + ";max-width:68ch}.cb-body a{color:" + K.accentPale + ";text-decoration:underline;text-underline-offset:2px;white-space:nowrap}.cb-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end}.cb-btn{border:0;border-radius:" + (BT.radius || "8px") + ";" + typo(C, "button") + "cursor:pointer;white-space:nowrap;transition:background .14s,border-color .14s,opacity .14s}.cb-btn:focus-visible{outline:2px solid " + K.accentPale + ";outline-offset:2px}.cb-ghost{" + btn(C, "reject", "transparent", bnFg) + "}.cb-ghost:hover{border-color:rgba(255,255,255,.6)}.cb-actions .cb-ghost:first-child{" + btn(C, "customize", "transparent", bnFg) + "}.cb-actions .cb-ghost:first-child:hover{text-decoration:underline;text-underline-offset:3px}.cb-accept{" + btn(C, "accept", K.accent, K.textBright) + "border-radius:" + (BT.radius || "8px") + "}" + // Simetria: misma caja para aceptar y rechazar. Va despues de las reglas
+  (BN.backdropOn && (BN.backdropCustom || BN.backdrop) ? ".cb-bdrop{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147482999;background:" + (BN.backdropCustom || BN.backdrop) + (BN.animate === false ? "" : ";animation:cb-fade .2s ease") + "}" : "") + ".cb-banner{position:fixed;left:0;right:0;" + vert + "z-index:2147483000;display:flex;justify-content:" + justify + ";padding:0;margin:" + (BN.margin || "0 20px 20px") + "}.cb-inner{width:100%;max-width:" + (BN.maxWidth || "1172px") + ";background:" + bnBg + ";color:" + bnFg + ";border:" + (BN.border || "1px solid rgba(255,255,255,.14)") + ";border-radius:" + (BN.radius || "12px") + ";box-shadow:" + (BN.shadow || "0 10px 40px rgba(15,24,38,.28)") + ";padding:" + (BN.padding || "22px 26px") + ";display:flex;flex-wrap:wrap;gap:" + (BN.gap || "28px") + ";align-items:center;justify-content:space-between" + (BN.animate === false ? "" : ";animation:cb-rise .26s cubic-bezier(.2,.6,.2,1)") + "}.cb-copy{flex:1 1 380px;display:flex;flex-direction:column;gap:" + (BN.copyGap || "8px") + ";min-width:0}.cb-eyebrow{margin:0;" + typo(C, "eyebrow") + "color:" + K.accentPale + "}.cb-gpc{margin:0;" + typo(C, "bannerText") + "color:" + K.accentPale + ";font-weight:600}.cb-gpcfila{display:block;margin-top:4px;font-size:.86em;font-weight:600;color:" + K.accentPale + "}.cb-ventafila{display:block;margin-top:4px;font-size:.86em;font-weight:600;color:" + (K.heading || K.ink) + "}.cb-ventaintro{margin:8px 0 0;" + typo(C, "panelIntro") + "font-weight:600;color:" + (K.heading || K.ink) + "}.cb-optout{position:fixed;left:16px;bottom:16px;z-index:2147483646;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:" + (BT.radius || "8px") + ";background:" + (K.panelBg || "#fff") + ";color:" + (K.heading || K.ink) + ";border:1px solid " + (K.border || "#ccc") + ";text-decoration:none;" + typo(C, "button") + "}.cb-optout:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}.cb-optout[data-cb-tapado]{z-index:2147482998;" + (BN.position === "top" ? "top:auto;bottom:16px" : "bottom:auto;top:16px") + "}.cb-body{margin:0;" + typo(C, "bannerText") + "color:" + bnFg + ";max-width:68ch}.cb-body a{color:" + K.accentPale + ";text-decoration:underline;text-underline-offset:2px;white-space:nowrap}.cb-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end}.cb-btn{border:0;border-radius:" + (BT.radius || "8px") + ";" + typo(C, "button") + "cursor:pointer;white-space:nowrap;transition:background .14s,border-color .14s,opacity .14s}.cb-btn:focus-visible{outline:2px solid " + K.accentPale + ";outline-offset:2px}.cb-ghost{" + btn(C, "reject", "transparent", bnFg) + "}.cb-ghost:hover{border-color:rgba(255,255,255,.6)}.cb-actions .cb-ghost:first-child{" + btn(C, "customize", "transparent", bnFg) + "}.cb-actions .cb-ghost:first-child:hover{text-decoration:underline;text-underline-offset:3px}.cb-accept{" + btn(C, "accept", K.accent, K.textBright) + "border-radius:" + (BT.radius || "8px") + "}" + // Simetria: misma caja para aceptar y rechazar. Va despues de las reglas
   // base a proposito, para ganarles sin depender del orden de las claves.
   (BT.equalWeight ? ".cb-actions .cb-btn:not(:first-child){padding:" + (BT.padding || "12px 22px") + ";border-width:1px;border-style:solid;font-weight:" + (BT.accept && BT.accept.weight || 600) + "}.cb-ghost:not(:first-child){border-color:" + bnFg + ";color:" + bnFg + "}.cb-accept{border-color:" + (BT.accept && BT.accept.background || K.accent) + "}" : "") + ".cb-accept:hover{background:" + K.accentHover + "}.cb-overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483001;background:" + (PN.overlay || "rgba(22,35,59,.28)") + ";display:flex;align-items:center;justify-content:center;padding:24px" + (PN.animate === false ? "" : ";animation:cb-fade .2s ease") + "}.cb-panel{background:" + pnBg + ";color:" + K.heading + ";width:100%;max-width:" + (PN.maxWidth || "560px") + ";max-height:" + (PN.maxHeight || "92vh") + ";overflow:auto;border:1px solid " + K.border + ";border-radius:" + (PN.radius || "12px") + ";box-shadow:" + (PN.shadow || "0 20px 60px rgba(22,35,59,.28)") + (PN.animate === false ? "" : ";animation:cb-rise .24s cubic-bezier(.2,.6,.2,1)") + "}.cb-head{padding:" + (PN.headPadding || "28px 28px 20px") + ";display:flex;flex-direction:column;gap:10px;border-bottom:1px solid " + K.border + "}.cb-eyebrow2{margin:0;" + typo(C, "eyebrow") + "color:" + K.accentHover + "}.cb-panel h2{margin:0;" + typo(C, "panelTitle") + "color:" + K.heading + "}.cb-intro{margin:0;" + typo(C, "panelIntro") + "color:" + K.body + "}.cb-rows{display:flex;flex-direction:column}.cb-row{display:flex;gap:" + (PN.rowGap || "20px") + ";align-items:flex-start;padding:" + (PN.rowPadding || "20px 28px") + ";border-bottom:1px solid " + K.border + "}" + (PN.controlSide === "left" ? ".cb-row{flex-direction:row-reverse;justify-content:flex-end}" : "") + ".cb-close{position:absolute;top:" + (PN.closeTop || "24px") + ";right:" + (PN.closeRight || "24px") + ";background:none;border:0;padding:8px;cursor:pointer;color:" + K.heading + ";display:flex;line-height:0}.cb-panel{position:relative}.cb-row .t{flex:1 1 auto;display:flex;flex-direction:column;gap:5px;min-width:0}.cb-row .t strong{" + typo(C, "catName") + "color:" + K.heading + "}.cb-row .t span{" + typo(C, "catDesc") + "color:" + K.body + "}.cb-row .t .cb-pill{display:inline-block;margin-left:10px;font-family:" + F.mono + ";font-size:9px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:" + K.pillFg + ";background:" + K.pillBg + ";padding:4px 9px;border-radius:100px;vertical-align:middle}" + swCss(C, K, pnBg) + ".cb-foot{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:" + K.cream + ";padding:" + (PN.footPadding || "20px 28px 24px") + ";border-radius:0 0 " + (PN.radius || "12px") + " " + (PN.radius || "12px") + "}.cb-btn2{border-radius:" + (BT.radius || "8px") + ";" + typo(C, "button") + "cursor:pointer;transition:background .14s,border-color .14s}.cb-btn2:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(47,126,108,.35)}.cb-panel:focus{outline:none}.cb-outline{background:transparent;border:1px solid " + K.borderStrong + ";color:" + K.heading + "}.cb-foot-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}" + // Pie apilado: "rechazar" a todo el ancho arriba y los otros dos debajo.
   // Va despues de la regla base a proposito: si fuera antes, no ganaria.
@@ -2016,6 +2133,20 @@ function hideBackdrop() {
   } catch (e) {
   }
 }
+function marcaExclusionTapada() {
+  if (!root) return;
+  var hay = !!(bannerEl && bannerEl.style.display !== "none") || !!panelEl;
+  var nodos;
+  try {
+    nodos = root.querySelectorAll(".cb-optout");
+  } catch (e) {
+    return;
+  }
+  each(nodos, function(n) {
+    if (hay) n.setAttribute("data-cb-tapado", "1");
+    else n.removeAttribute("data-cb-tapado");
+  });
+}
 function showBanner(C) {
   ensureRoot(C);
   if (!bannerEl) {
@@ -2024,10 +2155,12 @@ function showBanner(C) {
   }
   bannerEl.style.display = "";
   showBackdrop(C);
+  marcaExclusionTapada();
 }
 function hideBanner() {
   if (bannerEl) bannerEl.style.display = "none";
   hideBackdrop();
+  marcaExclusionTapada();
 }
 function enfocables(caja) {
   var sel = "button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex='-1'])";
@@ -2061,6 +2194,7 @@ function openPanel(C) {
     (caja || panelEl).focus();
   } catch (e) {
   }
+  marcaExclusionTapada();
 }
 function abrirDesdeTrigger(C) {
   if ((C.trigger || {}).opens === "banner") {
@@ -2075,6 +2209,7 @@ function hidePanel() {
   if (panelEl && panelEl.parentNode) panelEl.parentNode.removeChild(panelEl);
   panelEl = null;
   state.verVenta = false;
+  marcaExclusionTapada();
   var destino = visible(focoPrevio) ? focoPrevio : visible(chipEl) ? chipEl : null;
   focoPrevio = null;
   if (destino) {
@@ -2198,6 +2333,7 @@ function montaEnlaceExclusion(C) {
       root.appendChild(a);
       viste(a);
     });
+    marcaExclusionTapada();
   }
 }
 function showChip(C) {
@@ -2275,6 +2411,11 @@ function loadRemoteThen(C, done) {
   if (tkp) url += "&preview=" + encodeURIComponent(tkp);
   log("remote", "Pidiendo config remota: " + url);
   fetch(url).then(function(r) {
+    if (!r.ok) {
+      var err = new Error("HTTP " + r.status);
+      err.estadoHttp = r.status;
+      throw err;
+    }
     return r.json();
   }).then(function(remote) {
     _remote = remote || {};
@@ -2298,9 +2439,18 @@ function loadRemoteThen(C, done) {
     gcmDefault(cr);
     if (_reglasVivas.length) log("autoblock", "Reglas desde la config remota: " + _reglasVivas.length + ".");
     done();
-  }).catch(function() {
+  }).catch(function(e) {
     _remoteLoaded = true;
-    log("remote", "No se pudo cargar la config remota; se usa la local.");
+    var est = e && e.estadoHttp;
+    if (est) {
+      _remoteRechazo = est;
+      avisaFallo(
+        "remote",
+        "El servidor no reconoce este sitio (HTTP " + est + ", site_id=" + C.siteId + "). El banner sigue funcionando con la configuracion local, pero NO se esta guardando ninguna prueba de consentimiento. Revisa el codigo de instalacion."
+      );
+    } else {
+      log("remote", "No se pudo cargar la config remota; se usa la local.");
+    }
     done();
   });
 }
@@ -2428,6 +2578,11 @@ function init() {
 function proceed(C) {
   installTriggers(C);
   state.lang = detectaIdioma(C);
+  _langLista = true;
+  try {
+    marcaYaBloqueados();
+  } catch (e) {
+  }
   try {
     montaEnlaceExclusion(C);
   } catch (e) {
